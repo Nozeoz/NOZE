@@ -15,7 +15,17 @@ Jarvis adalah asisten pribadi AI dengan gaya **butler**: sopan dan tertata, tapi
 
 ## Mulai cepat
 
-Butuh **Node.js 20.6+**.
+Butuh **Node.js 22.9+**.
+
+**Windows, cara paling gampang:** buka PowerShell (bukan Administrator), paste baris ini, Enter:
+
+```powershell
+irm https://raw.githubusercontent.com/Nozeoz/NOZE/claude/pensive-maxwell-phq5pl/setup.ps1 | iex
+```
+
+Installer akan memasang Git + Node.js kalau belum ada, mendownload Jarvis ke `Documents\NOZE`, menanyakan API key, membuat shortcut **Jarvis** di Desktop, lalu menyalakannya.
+
+Cara manual:
 
 ```bash
 npm install

@@ -11,7 +11,7 @@
     "check": "node --check src/*.js hq/app.js"
   },
   "engines": {
-    "node": ">=20.6"
+    "node": ">=22.9"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",
