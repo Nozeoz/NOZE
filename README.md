@@ -95,13 +95,27 @@ Tambahkan proyek di `config/projects.json`:
 
 Jarvis bisa menyebutkan daftar proyek dan mengecek apakah proyek sedang online ("Jarvis, toko online aman?"). Kemampuan baru ditambahkan sebagai tool di `src/tools.js`.
 
+## Buka situs / aplikasi di laptop
+
+Bilang aja "Jarvis, buka Instagram" (lewat HQ atau WhatsApp) — dia membukanya di laptop tempat Jarvis menyala. Pintasan ada di `config/apps.json`:
+
+```json
+{
+  "instagram": { "url": "https://www.instagram.com/" },
+  "vscode": { "command": "C:\\Users\\NamaLu\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe" }
+}
+```
+
+Demi keamanan Jarvis hanya bisa membuka pintasan di file itu atau URL `http/https` — dia tidak bisa menjalankan perintah bebas.
+
 ## Struktur
 
 | Path | Isi |
 |---|---|
 | `src/brain.js` | Loop percakapan dengan Claude (streaming, tools, web search) |
 | `src/persona.js` | Kepribadian Jarvis — edit di sini kalau mau ubah gaya bicaranya |
-| `src/tools.js` | Kemampuan Jarvis (ingat/lupa, jam, proyek) |
+| `src/tools.js` | Kemampuan Jarvis (ingat/lupa, jam, proyek, buka di laptop) |
+| `src/computer.js` | Membuka situs/aplikasi di laptop |
 | `src/tts.js` | Penyedia suara |
 | `src/whatsapp.js` | Bridge WhatsApp |
 | `src/server.js` | Server HQ + API |

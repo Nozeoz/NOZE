@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { ROOT } from "./config.js";
 import { addFact, removeFact } from "./memory.js";
+import { appNames, openOnComputer } from "./computer.js";
 
 const PROJECTS_FILE = path.join(ROOT, "config", "projects.json");
 
@@ -66,6 +67,21 @@ const clientTools = [
     input_schema: { type: "object", properties: {} },
     async run() {
       return new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta", dateStyle: "full", timeStyle: "short" });
+    },
+  },
+  {
+    name: "open_on_computer",
+    description:
+      "Buka situs atau aplikasi di komputer tempat Jarvis berjalan (laptop pemilik). " +
+      `Isi target dengan nama pintasan (${appNames.join(", ") || "belum ada"}) atau URL http/https lengkap.`,
+    input_schema: {
+      type: "object",
+      properties: { target: { type: "string", description: "Nama pintasan atau URL http/https" } },
+      required: ["target"],
+    },
+    async run(input) {
+      if (typeof input.target !== "string" || !input.target.trim()) throw new Error("target wajib berupa teks");
+      return openOnComputer(input.target);
     },
   },
   {
