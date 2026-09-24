@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#07090d" />
+  <title>Jarvis HQ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="dot" id="brainDot"></span><span id="brandName">JARVIS</span><span class="sub">HQ</span></div>
+    <div class="clock" id="clock"></div>
+  </header>
+
+  <main class="layout">
+    <section class="core">
+      <div class="orb-wrap">
+        <canvas id="orb" aria-hidden="true"></canvas>
+        <div class="state" id="stateLabel">Siaga</div>
+      </div>
+
+      <div class="log" id="log" aria-live="polite"></div>
+
+      <form class="composer" id="composer">
+        <button type="button" class="mic" id="micBtn" title="Bicara (Space)" aria-label="Bicara">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+        </button>
+        <input id="input" autocomplete="off" placeholder="Ketik atau tekan mic…" />
+        <button type="submit" class="send" aria-label="Kirim">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </form>
+      <div class="toggles">
+        <label><input type="checkbox" id="voiceToggle" checked /> Suara</label>
+        <label><input type="checkbox" id="handsFreeToggle" /> Mode ngobrol (auto-dengar)</label>
+        <button type="button" class="link" id="resetBtn">Mulai obrolan baru</button>
+      </div>
+    </section>
+
+    <aside class="panels">
+      <div class="panel">
+        <h2>Sistem</h2>
+        <dl class="sys">
+          <dt>Otak</dt><dd id="sysModel">—</dd>
+          <dt>Suara</dt><dd id="sysTts">—</dd>
+          <dt>WhatsApp</dt><dd id="sysWa">—</dd>
+        </dl>
+        <img id="waQr" class="qr" alt="QR WhatsApp" hidden />
+        <p class="hint" id="waHint" hidden></p>
+      </div>
+
+      <div class="panel">
+        <h2>Proyek <button class="link small" id="refreshProjects">cek ulang</button></h2>
+        <ul class="list" id="projects"><li class="muted">Memuat…</li></ul>
+      </div>
+
+      <div class="panel">
+        <h2>Ingatan</h2>
+        <ul class="list" id="memory"><li class="muted">Memuat…</li></ul>
+      </div>
+    </aside>
+  </main>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+{
+  "name": "noze-jarvis",
+  "version": "0.1.0",
+  "description": "Jarvis — asisten pribadi AI dengan HQ dashboard, suara natural, dan WhatsApp",
+  "type": "module",
+  "private": true,
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/server.js",
+    "dev": "node --watch --env-file-if-exists=.env src/server.js",
+    "check": "node --check src/*.js hq/app.js"
+  },
+  "engines": {
+    "node": ">=20.6"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.128.0",
+    "express": "^5.2.1",
+    "qrcode": "^1.5.4"
+  },
+  "optionalDependencies": {
+    "@whiskeysockets/baileys": "6.7.24",
+    "pino": "^9.0.0"
+  }
+}

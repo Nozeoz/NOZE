@@ -1,0 +1,9 @@
+[
+  {
+    "name": "NOZE",
+    "description": "Repo ini — markas Jarvis (HQ dashboard, otak, suara, WhatsApp).",
+    "repo": "https://github.com/nozeoz/noze",
+    "url": "http://127.0.0.1:3000",
+    "healthUrl": "http://127.0.0.1:3000/api/health"
+  }
+]

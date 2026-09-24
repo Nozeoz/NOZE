@@ -1,0 +1,8 @@
+node_modules/
+.env
+data/*
+!data/.gitkeep
+voice/.venv/
+voice/*.wav
+!voice/README.md
+__pycache__/
