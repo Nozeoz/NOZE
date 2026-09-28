@@ -6,7 +6,7 @@
 |---|---|
 | **Ascension** | The transformation a familiar undergoes when **Named**: stat boost, crown mark, unique skill. See also *True Ascension*. |
 | **Ashen Throne** | The ruined stone throne in Dawnmere Vale where the Sovereign wakes; the site of the new capital. |
-| **Ashen Warden** | Sir Caelan Ashford after a thousand years alone at the seal, hollowed by the Hunger. |
+| **Ashen Warden** | Sir Lucan Ashford after a thousand years alone at the seal, hollowed by the Hunger. |
 | **Beacon** | The central light structure of the kingdom (Brazier → Tower → Great Beacon → Sunspire). Its radius defines the Realm. |
 | **Bond** | A familiar's affection level (0–5). Bond 5 allows Naming. |
 | **Consort (Royal Consort)** | The Sovereign's spouse; grants a unique Consort perk. |
@@ -22,9 +22,11 @@
 | **Founding** | The ceremony at Hamlet rank where the player names the kingdom and designs its banner. |
 | **Gloaming** | Night (20:00–02:00), when the Veil rises outside the light. |
 | **Guardian** | A great Veilkin boss that guards a Regalia at the bottom of a dungeon. |
+| **Guardian Echo** | A weekly re-fight of a defeated Guardian with modifiers, for rare rewards. |
 | **Halcyon** | The Sovereign's lost kingdom, 1,000 years ago. |
 | **Heartflame** | The living fire that once burned in the Crown of Halcyon. |
 | **Hollowed** | Veilkin or people corrupted by the Hunger; purifiable. |
+| **Kingsbloom** | The royal flower of Halcyon that opens only for a true sovereign; extinct for 1,000 years, it blooms again at Kingdom rank. Also the game's title. |
 | **Kingdom Rank** | The realm's level: Exile's Camp, Hamlet, Village, Town, City, Kingdom. |
 | **Knight** | A Sworn raised by the Sovereign (Hearts ≥ 6, Loyalty ≥ 80); gains a Knight perk. |
 | **Loyalty** | A Sworn's devotion (0–100): hearts + their happiness + Royal Standing. |
@@ -32,6 +34,7 @@
 | **Main-path / Optional Sworn** | The 11 Sworn required by the main story vs. the 13 recruited through side quests. |
 | **Memory Fragment** | A collectible vignette of the Sovereign's past life. |
 | **Naming** | Spending Royal Authority to give a Bond-5 familiar a name, triggering Ascension. |
+| **Oathbound** | A soul who died keeping an oath to the Crown and was reborn when the Heartflame rekindled (e.g. Kael). |
 | **Pact** | The bond that makes a Veilkin a familiar. Methods: Subdue, Offering, Challenge, Purify, Hatch, Legend Trial. |
 | **Pact Sigil** | The crafted item used to seal a Pact. |
 | **Prosperity** | The kingdom's overall score; drives arrivals and rank-ups. |
@@ -45,10 +48,12 @@
 | **Settler** | A procedurally generated resident with attributes, traits, and a job. |
 | **Sovereign** | The player character: the reborn Last Sovereign of Halcyon. |
 | **Sworn** | One of the 24 named, hand-made recruits, each tied to a building or service. |
+| **Standing** | A faction's attitude toward your realm (Hostile → Allied); helping one faction can cool its rivals. |
 | **Surge (Veil Surge)** | A telegraphed New Moon night attack of the Hollowed on the Realm. |
 | **Tithe** | Daily tax income from settlers (from Village rank). |
 | **True Ascension** | A Named familiar's evolution into a new form (17 species). |
 | **The Veil** | The living mist that seals the Maw and drowned Halcyon. |
+| **Veilforging** | Kael's craft: gear that resists Veil-rot and Exposure. |
 | **Veil Rift** | Endless post-game dungeon floors. |
 | **Veil Wall** | Impassable deep mist between regions, cleared by Waybeacons. |
 | **Veilglass** | A crystal that forms where the Veil is thick; used for Sigils and Beacons. |

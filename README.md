@@ -1,4 +1,6 @@
-# Project NOZE (title TBD)
+# Kingsbloom
+
+*Project codename: NOZE*
 
 > ***Once a sovereign. Now an exile. Rebuild the kingdom you lost.***
 
@@ -14,11 +16,11 @@ You were the legendary Last Sovereign of Halcyon. A thousand years after your de
 
 | | |
 |---|---|
-| **Phase** | Pre-production, Design Bible **v0.2** |
-| **Done** | ✅ Step 1: Design Bible v0.1 · ✅ Step 2: Review & Lock |
-| **Now** | 🔄 Step 3: Narrative & Progression Design ([doc 14](docs/14_NARRATIVE_AND_PROGRESSION.md), awaiting your review) |
-| **Next** | ⏳ Step 4: a playable narrative prototype of Chapter 1 (in the browser) |
-| **Title** | Open: *Crownless* is already used on Steam; shortlist in [Q-01](docs/12_DECISIONS_AND_OPEN_QUESTIONS.md#q-01-title-open-again) |
+| **Phase** | Pre-production, Design Bible **v0.3** |
+| **Done** | ✅ Step 1: Design Bible · ✅ Step 2: Review & Lock · ✅ Step 3: Narrative & Progression Design |
+| **Now** | 🔄 Step 4: playable narrative prototype of Chapter 1 ([`prototypes/narrative-ch1`](prototypes/narrative-ch1)) · placeholder art kit + asset gallery ([`art/placeholder`](art/placeholder)) |
+| **Next** | ⏳ Step 5: Tech Foundation (game project scaffold) |
+| **Title** | ***Kingsbloom*** (formal trademark clearance pending, see [Q-01](docs/12_DECISIONS_AND_OPEN_QUESTIONS.md#q-01-title)) |
 
 Full plan: [`docs/00_ROADMAP.md`](docs/00_ROADMAP.md)
 
@@ -63,6 +65,8 @@ Full plan: [`docs/00_ROADMAP.md`](docs/00_ROADMAP.md)
 
 ```
 docs/          The Design Bible (you are here)
+prototypes/    (Step 4) playable prototypes, starting with the Chapter 1 narrative prototype
+art/           (Step 4) in-house placeholder art kit (never ships)
 game/          (Step 5) the game project
 art_src/       (Step 13) layered source art and Spine projects
 audio_src/     (Step 14) source audio

@@ -237,8 +237,8 @@ Swatches sampled from the references (approximations; locked during the Art Styl
 
 ## 15. Logo & key art concept
 
-- **Logo motif:** a **broken crown with a green sprout growing through the crack**. The fallen monarch and the farm in one symbol (works with any final title).
-- **Key art:** at dawn, the Sovereign sits on the moss-covered Ashen Throne with Flicker on their shoulder; below, the Veil rolls through the valley; silhouettes of familiars and future companions wait in the mist; the first light of the Beacon cuts a golden path.
+- **Logo motif:** a **broken crown with a sprout growing through the crack, topped by a Kingsbloom bud**. The fallen monarch, the farm, and the title in one symbol.
+- **Key art:** at dawn, the Sovereign sits on the moss-covered Ashen Throne with Flicker on their shoulder; below, the Veil rolls through the valley; silhouettes of familiars and future companions wait in the mist; the first light of the Beacon cuts a golden path, and a single Kingsbloom bud waits beside the throne.
 
 ---
 

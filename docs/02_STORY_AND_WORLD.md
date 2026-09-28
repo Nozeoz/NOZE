@@ -51,6 +51,10 @@
 - **Veilkin** are creatures born over centuries where Veil magic mixed with nature. They are not evil; the Veil is their home. They can form **Pacts** with the Sovereign, whose reborn body is partly made of Veil (see §6).
 - **The Hollowed** are Veilkin (and sometimes people) consumed by the Hunger leaking through the weakening seal. White hollow eyes, violet-teal mist, aggressive. **They can be purified** with Heartflame light.
 - **Elements:** Terra, Aqua, Ignis, Zephyr, Lumen, Umbra, plus the **Veil** as a corrupting non-element. Opposite pairs: Ignis⇄Aqua, Terra⇄Zephyr, Lumen⇄Umbra. Lumen purifies the Veil.
+- **The Oathbound** are rare souls who died keeping an oath to the Crown. When the Heartflame rekindled, a few were drawn back into the world, reborn in this age with buried memories. **Kael** the smith is the only confirmed one (a post-game hook hints at others).
+
+### The Kingsbloom (the game's title)
+The royal flower of Halcyon, said to **open only for a true sovereign**. It has been extinct since the Last Decree. A seed is found in Chapter 5; planted in your realm, it **blooms only once your kingdom reaches Kingdom rank**. Its first bloom on the throne hill is the game's closing image, and the reason the game is called ***Kingsbloom***.
 
 ---
 
@@ -59,9 +63,9 @@
 | When | Event |
 |---|---|
 | ~1,200 years ago | The first sovereigns kindle the **Heartflame** and found **Halcyon** around it. |
-| ~1,030 years ago | **You** are crowned. The *Halcyon Days*, a golden age, begin. Sir **Caelan Ashford** swears himself as your shield; the elf **Elowen Starling** serves as a junior archivist; her twin **Vesper** is the court seer. |
-| 1,001 years ago | The Heartflame weakens. The Hunger stirs. The **Hollowing** plague spreads through the kingdom. |
-| **1,000 years ago: the Last Night** | The capital burns. Vesper argues for surrender to the Hunger ("it only takes what clings"). You refuse. You speak the **Last Decree**: shatter the Crown and weave its power into a Veil that seals the Maw, **at the cost of drowning your own kingdom in mist**. Five **Regalia** fly out to anchor the Veil, each guarded by a great Veilkin **Guardian**. Caelan stays at the seal. You die. The Heartflame's last spark hides itself as **Flicker**. |
+| ~1,030 years ago | **You** are crowned. The *Halcyon Days*, a golden age, begin. Sir **Lucan Ashford** swears himself as your shield; the elf **Elowen Starling** serves as a junior archivist; her twin **Vesper** is the court seer. |
+| 1,001 years ago | The Heartflame weakens. The Hunger stirs. The **Hollowing** plague spreads through the kingdom. The **Hollow Hymn**, a cult that worships the Hunger (the Pale Choir's ancient predecessor), seizes the royal forge and demands Hunger-steel. **Kael**, the Blacksmith of the Crown and forger of the Sunblade, refuses on your order and is killed. |
+| **1,000 years ago: the Last Night** | The capital burns. Vesper argues for surrender to the Hunger ("it only takes what clings"). You refuse. You speak the **Last Decree**: shatter the Crown and weave its power into a Veil that seals the Maw, **at the cost of drowning your own kingdom in mist**. Five **Regalia** fly out to anchor the Veil, each guarded by a great Veilkin **Guardian**. Lucan stays at the seal. You die. The Heartflame's last spark hides itself as **Flicker**. |
 | 1,000–300 years ago | *The Veil Age.* Survivors adapt. Veilkin emerge. Tidekin, fae, and dwarves retreat to hidden holds. Halcyon fades into legend. |
 | ~300 years ago | The **Order of the Dawn Lantern** forms to keep light-shrines burning in the mist, and keeps a prophecy: *"When the ember wakes, the Crown returns."* |
 | ~40 years ago | The **Aldmark Dominion** discovers **Veilglass**, a crystal that forms where the Veil is thick and that powers its machines. |
@@ -126,8 +130,8 @@ The five Regalia anchor the Veil. Recovering each one grants a permanent power, 
 | **The Pale Choir** | Choirmaster Vesper | Antagonist | Cult that wants to un-weave the Veil and let the Maw "sing the world to silence". Members give up their names. |
 | **Brinemouth Tidekin** | Old Orin | Friendly (Ch3) | Fin-and-gill fisherfolk of the coast. |
 | **Aldmark Dominion** | Lord-Marshal Aurick Thane (antagonist); Commander Ingrid Valk | Rival → war (Ch3–4) | Empire from beyond the Veil mining Veilglass. **Many Sworn are Dominion defectors** (Bram, Hollis, Ingrid, Isolde). |
-| **Emberhold Dwarves** | Durgan Anvilborn | Proud → allies (Ch4) | Forge-folk of the volcanic highlands. |
-| **Dragonkin of the Ashen Peaks** | Kaida Emberscale | Rivals → allies (Ch4) | Honor-bound warriors. |
+| **Emberhold Dwarves** | Hilde Stonebrew (speaks for the hold) | Proud → allies (Ch4) | Forge-folk of the volcanic highlands. |
+| **Dragonkin of the Ashen Peaks** | Akane Emberscale | Rivals → allies (Ch4) | Honor-bound warriors. |
 | **Rimewatch & the Wolfkin clans** | Saga Frostmere, Tor Greymane | Wary → allies (Ch5) | Northern seers and hunters. |
 | **The Hollowed** | — | Hostile | Not a faction: the consumed. Purifiable. |
 | **The Maw Below** | — | The final threat | Mindless Hunger. |
@@ -135,7 +139,7 @@ The five Regalia anchor the Veil. Recovering each one grants a permanent power, 
 ### Why the villains do what they do
 - **Vesper** lost her beloved to the Hollowing a thousand years ago. She believes all suffering comes from clinging, and that the Maw's silence is mercy. She sees the Veil, your Decree, as the cruelty that trapped everyone in a millennium of grief.
 - **Lord-Marshal Thane** is not a monster; he's a pragmatist. Veilglass powers his nation's winters. He sees your realm as squatters on a resource.
-- **Caelan (the Ashen Warden)** kept his oath for a thousand years alone at the seal until the Hunger hollowed him out. He attacks you because what's left of him can no longer tell you from the Maw.
+- **Lucan (the Ashen Warden)** kept his oath for a thousand years alone at the seal until the Hunger hollowed him out. He attacks you because what's left of him can no longer tell you from the Maw.
 
 ---
 
@@ -144,11 +148,11 @@ The five Regalia anchor the Veil. Recovering each one grants a permanent power, 
 | # | Region | Biome & mood | Main elements | Key locations | Dungeon | Chapter | Map size (tiles) |
 |---|---|---|---|---|---|---|---|
 | 1 | **Dawnmere Vale** | Meadows, river, old farmland, ruins at dawn. Hopeful, green. | Terra, Aqua, Zephyr | Ashen Throne (your capital site), Old Royal Fields, Windmill Ruin, Ruined Chapel, Reflection Pond, Caravan Crossroads, Old Bridge | **Sunken Cellars** (royal granary-keep) | 1 | 192 × 144 |
-| 2 | **Whisperwood** | Ancient giant-tree forest, fae lights, mushrooms. Mysterious, playful. | Terra, Zephyr, Umbra | The Thorn Court, Lantern Shrine, Hermit's Hollow, Moonlit Glade | **Rootdeep Labyrinth** (royal library swallowed by roots) | 2 | 160 × 128 |
+| 2 | **Whisperwood** | Ancient giant-tree forest, fae lights, mushrooms. Mysterious, playful. | Terra, Zephyr, Umbra | The Thorn Court, Lantern Shrine, **Emberwick** (Kael's smith hamlet), the Smiths' Rest, Moonlit Glade | **Rootdeep Labyrinth** (royal library swallowed by roots) | 2 | 160 × 128 |
 | 3 | **Saltglass Coast** | Cliffs, beaches of glass-sand, shipwrecks, tidal caves. Breezy, adventurous. | Aqua, Zephyr, Lumen | Brinemouth (Tidekin village), Wreck of the *Gull's Gamble*, Lighthouse Ruin, Dominion landing | **Drowned Bells** (sunken cathedral-port) | 3 | 176 × 112 |
 | 4 | **Cinderpeak Highlands** | Volcanic mountains, hot springs, obsidian fields. Fierce, industrious. | Ignis, Terra | Emberhold (dwarven hold), Dragonkin crags, Dominion forward camp, hot springs | **The Forgeheart** (volcanic forge-city) | 4 | 144 × 144 |
 | 5 | **Frostveil Reaches** | Tundra, aurora, frozen lakes, a star-crater. Quiet, awe, loneliness. | Aqua (ice), Lumen, Umbra | Rimewatch, Wolfkin camps, Frozen Manor, Starfall Crater | **Starfall Spire** (inverted observatory sunk into a glacier) | 5 | 160 × 128 |
-| 6 | **The Hollow Crown** | Ruins of old Halcyon's capital in the deepest Veil. Haunting, grand. | All + Veil | The Ruined Palace, Caelan's Vigil, the Seal | **Halcyon Below** (endgame) | 6 | 128 × 128 |
+| 6 | **The Hollow Crown** | Ruins of old Halcyon's capital in the deepest Veil. Haunting, grand. | All + Veil | The Ruined Palace, Lucan's Vigil, the Seal | **Halcyon Below** (endgame) | 6 | 128 × 128 |
 
 ### Travel & gating: Beacon Roads
 The deep Veil between regions is impassable at first: a **Veil Wall** of choking mist. To open a region you need **(a)** the previous Regalia, and **(b)** a **Waybeacon** built at the border, which clears the road for good and doubles as a fast-travel point. *Survival → building → exploration* in one mechanic.
@@ -167,7 +171,7 @@ The deep Veil between regions is impassable at first: a **Veil Wall** of choking
 | 3 | **The Drowned Bells** | Saltglass Coast | **Trade & strangers** (outsiders, economy) | Dominion arrives | Orb | 3 |
 | 4 | **Forge of the Mountain** | Cinderpeak Highlands | **Strength & defense** (Surges, sieges) | Dominion war | Sunblade | 3 → 4 |
 | 5 | **Where Stars Fall** | Frostveil Reaches | **Endurance** (*the Long Winter*: a 14-day extreme winter event) | Vesper; the truth | Mantle | 4 → 5 |
-| 6 | **The Hollow Crown** | The Hollow Crown | **Unity** (Loyalty, Knights, the final battle) | Caelan, the Maw | Crown | 5 |
+| 6 | **The Hollow Crown** | The Hollow Crown | **Unity** (Loyalty, Knights, the final battle) | Lucan, the Maw | Crown | 5 |
 
 ### Progression gates
 
@@ -175,14 +179,14 @@ The deep Veil between regions is impassable at first: a **Veil Wall** of choking
 |---|---|
 | Chapter 2 | Signet + Waybeacon at the Old Bridge |
 | Chapter 3 | Scepter + Waybeacon on the Cliff Road |
-| Chapter 4 | Orb + Mari's ship repaired *or* the mountain-pass Waybeacon |
+| Chapter 4 | Orb + Sol's ship repaired *or* the mountain-pass Waybeacon |
 | Chapter 5 | Sunblade (cuts the Frost Thorns) + Waybeacon |
 | Chapter 6 | Mantle + Kingdom Rank 5 |
 
 ### Prologue beat sheet: *The Last Decree* (≈5 min)
 1. Black screen, a lullaby on music box (the future **Flicker motif**).
-2. The Sovereign, at full power, fights through the burning capital beside **Sir Caelan**. The player has every Royal Art unlocked: a power fantasy that teaches combat.
-3. Tendrils of the Maw erupt; Hollowed pour from the streets. Caelan: *"Go. I'll hold the gate. I'll always hold the gate."*
+2. The Sovereign, at full power, fights through the burning capital beside **Sir Lucan**. The player has every Royal Art unlocked: a power fantasy that teaches combat.
+3. Tendrils of the Maw erupt; Hollowed pour from the streets. Lucan: *"Go. I'll hold the gate. I'll always hold the gate."*
 4. The throne room. **Vesper** blocks the way, pleading. The Sovereign walks past her.
 5. The Sovereign raises the Crown: *"By the Crown of Halcyon, I decree—"* Everything goes white. **The decree itself is never heard.** (It's revealed in Ch5.)
 6. Title card.
@@ -212,7 +216,7 @@ The rest of Chapter 1 (EA): Juniper and Marigold join, the first winter, Court D
 | Ending | Condition | What happens |
 |---|---|---|
 | **A: The Eternal Flame** | Always available | You reforge the Crown and become the seal's eternal keeper. The Veil remains, stable. Your Consort (if any) rules as regent. Bittersweet. |
-| **B: Halcyon Dawn** (true ending) | ≥16 Sworn recruited, ≥6 Knights, average Loyalty ≥70 | You unmake the Veil and the **whole realm** fights the Maw: every Sworn, familiar, and settler you earned. The land is restored. Caelan lives if purified. |
+| **B: Halcyon Dawn** (true ending) | ≥16 Sworn recruited, ≥6 Knights, average Loyalty ≥70 | You unmake the Veil and the **whole realm** fights the Maw: every Sworn, familiar, and settler you earned. The land is restored. Lucan lives if purified. |
 | **C: The Hearth Commonwealth** (secret) | Ending B conditions, plus the *Mercy Edict* and *Scholars' Charter* each enacted at least once, top Prosperity, and high Court approval | After victory you place the Crown on a round table and found a council. Epilogue: you tend your fields, *"the Sovereign Who Chose the Soil."* The farm-game thesis made literal. |
 
 If you attempt B without enough strength, the battle turns and you are forced into A. **No Sworn dies**; the cost is the ending, not their lives.
@@ -223,7 +227,7 @@ If you attempt B without enough strength, the battle turns and you are forced in
 
 ## 12. Memory Fragments (collectible lore)
 
-30 fragments in total: 4 per dungeon for dungeons 1–5 (20), 6 in Halcyon Below, and 4 hidden in the overworld. Each fragment is a short in-engine vignette in the sepia "memory" shader that reuses existing assets. They reveal, in order: the golden age → Caelan's oath → Elowen and Vesper as young court members → the Hollowing → the Last Night from other perspectives → the Decree itself (final fragment, in Ch5).
+30 fragments in total: 4 per dungeon for dungeons 1–5 (20), 6 in Halcyon Below, and 4 hidden in the overworld. Each fragment is a short in-engine vignette in the sepia "memory" shader that reuses existing assets. They reveal, in order: the golden age → Lucan's oath → Elowen and Vesper as young court members → the Hollowing → the Last Night from other perspectives → the Decree itself (final fragment, in Ch5).
 
 Donating fragments to the **Royal Archive** (Elowen) gives **Lore**, which is used for research.
 
@@ -242,9 +246,9 @@ Donating fragments to the **Royal Archive** (Elowen) gives **Lore**, which is us
 | Event CGs (full illustrations) | 10-heart moments, weddings, endings | High (1.0 stretch) |
 
 ### English writing style guide
-- **Modern, warm, readable English** with light fantasy flavour. No "thee/thou" except **Caelan** (formal, old-court speech) and prologue royal ceremony.
+- **Modern, warm, readable English** with light fantasy flavour. No "thee/thou" except **Lucan** (formal, old-court speech) and prologue royal ceremony.
 - Short lines. A dialogue box holds at most ~3 lines. The player reads on a phone-sized screen too.
-- **Every character has voice markers** (defined in the cast bible): e.g. Rook uses nicknames and sarcasm; Elowen uses precise vocabulary and sighs; Kaida speaks in challenges; Flicker uses exclamations and food metaphors.
+- **Every character has voice markers** (defined in the cast bible): e.g. Rook uses nicknames and sarcasm; Elowen uses precise vocabulary and sighs; Akane speaks in challenges; Flicker uses exclamations and food metaphors.
 - Humor is character-based, never mean to the player.
 - No real-world slang that dates quickly. Light swearing only ("damn", "hells").
 
@@ -279,12 +283,12 @@ Donating fragments to the **Royal Archive** (Elowen) gives **Lore**, which is us
 
 | Culture | Flavour | Examples |
 |---|---|---|
-| Old Halcyon court | Latin / Old English, formal | Caelan, Halcyon, Aurel |
+| Old Halcyon court | Latin / Old English, formal | Lucan, Halcyon, Kael, Varric |
 | Dawnmere locals | English countryside | Bram Holloway, Linnea Marsh, Tamsin Hale, Marigold Fenn |
 | Aldmark Dominion | Germanic / Nordic, with continental nobility | Ingrid Valk, Aurick Thane, Isolde de Veyne |
 | Elves | Cornish / Welsh, nature and star words | Elowen Starling, Seren Aldwyn |
-| Dwarves | Nordic, craft compounds | Durgan Anvilborn, Hilde Stonebrew |
-| Dragonkin | Japanese-inspired (a nod to the anime heart) | Kaida Emberscale |
+| Dwarves | Nordic, craft compounds | Hilde Stonebrew |
+| Dragonkin | Japanese-inspired (a nod to the anime heart) | Akane Emberscale |
 | Northern folk | Nordic, winter words | Saga Frostmere, Tor Greymane |
 | Tidekin | Sea words | Orin Tidewell |
 | Fae & gnomes | Whimsical compounds | Fen Thornwhistle, Pim & Pom Cogsworth |

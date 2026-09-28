@@ -19,23 +19,23 @@
 | 9 | **Mira Caravel** | The Veilrunner | Human | Merchant → **Market** | — | 1 (visits) / 2 (joins) | VS visitor / EA |
 | 10 | **Brother Aldous** | The Lantern Monk | Human | Chaplain → **Chapel of Dawn** | — | 2 | EA |
 | 11 | **Nix** | The Unsung | Human (Veil-marked) | Enchanter, Choir defector → **Enchanter's Spire** | ♥ | 2 | EA |
-| 12 | **Marisol "Mari" Vega** | The Stormbreaker | Human | Sea Captain → **Harbor** | ♥ | 3 | EA |
-| 13 | **Orin Tidewell** | Old Salt | Tidekin | Fisher → **Fishery** (in the Harbor) | — | 3 | EA |
-| 14 | **Seren Aldwyn** | Silver-Tongued | Half-elf | Bard → **Bandstand** | ♥ | 3 | EA |
-| 15 | **Pim & Pom Cogsworth** | The Tinker Twins | Gnomes | Tinkers → **Workshop** | — | 3 | EA |
-| 16 | **Durgan Anvilborn** | The Mountain's Hammer | Dwarf | Master Smith → **Great Forge** | — | 4 | 1.0 |
-| 17 | **Kaida Emberscale** | The Crimson Rival | Dragonkin | Champion → **Arena** | ♥ | 4 | 1.0 |
+| 12 | **Kael** | The Unbroken | Human (Oathbound) | Master Smith → **Great Forge** | — | 2 | EA |
+| 13 | **Marisol "Sol" Vega** | The Stormbreaker | Human | Sea Captain → **Harbor** | ♥ | 3 | EA |
+| 14 | **Orin Tidewell** | Old Salt | Tidekin | Fisher → **Fishery** (in the Harbor) | — | 3 | EA |
+| 15 | **Seren Aldwyn** | Silver-Tongued | Half-elf | Bard → **Bandstand** | ♥ | 3 | EA |
+| 16 | **Pim & Pom Cogsworth** | The Tinker Twins | Gnomes | Tinkers → **Workshop** | — | 3 | EA |
+| 17 | **Akane Emberscale** | The Crimson Rival | Dragonkin | Champion → **Arena** | ♥ | 4 | 1.0 |
 | 18 | **Hollis Crane** | The Sleepless Scholar | Human | Alchemist → **Alchemist Lab** | ♥ | 4 | 1.0 |
 | 19 | **Hilde Stonebrew** | Mother of Ale | Dwarf | Brewer → **Brewery** | — | 4 | 1.0 |
 | 20 | **Ingrid Valk** | The Iron Rose | Human | Knight-Commander, Dominion defector → **Barracks** | ♥ | 4 | 1.0 |
 | 21 | **Saga Frostmere** | The Star-Reader | Human (Rime folk) | Seer → **Observatory** | — | 5 | 1.0 |
 | 22 | **Tor Greymane** | The Silent Fang | Wolfkin | Hunter → **Hunter's Lodge** | ♥ | 5 | 1.0 |
 | 23 | **Isolde de Veyne** | The Silk Countess | Human | Couturier → **Tailor's House** | — | 5 | 1.0 |
-| 24 | **Sir Caelan Ashford** | The Ashen Warden | Human (Veil-sustained) | Royal Knight-Captain → **Hall of Knights** | ♥ | 6 | 1.0 |
+| 24 | **Sir Lucan Ashford** | The Ashen Warden | Human (Veil-sustained) | Royal Knight-Captain → **Hall of Knights** | ♥ | 6 | 1.0 |
 
-**Romance options (12):** Linnea, Tamsin, Elowen, Mari, Kaida, Ingrid · Rook, Seren, Hollis, Tor, Caelan · Nix. All are available whatever the player's gender. Six are women, five are men, and Nix is nonbinary (they/them).
+**Romance options (12):** Linnea, Tamsin, Elowen, Sol, Akane, Ingrid · Rook, Seren, Hollis, Tor, Lucan · Nix. All are available whatever the player's gender. Six are women, five are men, and Nix is nonbinary (they/them).
 
-**Enemies who become Sworn:** Rook (bandit), Nix (Pale Choir), Ingrid (Dominion), Caelan (the Ashen Warden). **Dominion defectors:** Bram, Hollis, Ingrid, Isolde.
+**Enemies who become Sworn:** Rook (bandit), Nix (Pale Choir), Ingrid (Dominion), Lucan (the Ashen Warden). **Dominion defectors:** Bram, Hollis, Ingrid, Isolde. **Reborn from your past life (Oathbound):** Kael.
 
 ---
 
@@ -128,7 +128,7 @@
 - **Voice markers:** "Um—" with strangers; technical, excited run-on sentences about metal.
 - **Recruit (Sunken Cellars, floor 3):** a scripted **Captive** floor. Rescue her, then bring 10 Copper Ore to rebuild her forge.
 - **Gifts:** ♥ Iron Bar, handmade Plush Mossbun, Strawberry Shortcake · 👍 ores, gems, sweets · 👎 rain, fish.
-- **Arc:** finding her own voice; later, earning Durgan's respect as a master.
+- **Arc:** finding her own voice; later, becoming Kael's apprentice and, in the end, his equal.
 - **Knight perk, Forge Blessing:** crafted weapons have a chance of +1 quality.
 - **Consort perk, Hot Iron:** tool upgrades finish instantly.
 - **Visual:** auburn hair tied back, freckles, soot smudges, heavy gloves, a cute creature patch on her apron. Colours: **orange & charcoal**. Prop: hammer and tongs.
@@ -196,6 +196,8 @@
 - **Personality:** bubbly, money-motivated, fearless; knows secret paths through the Veil; teases you about "royal budgets".
 - **Voice markers:** prices in every sentence, "Darling!", haggling as flirting with the concept of money.
 - **Intro:** Chapter 1 (VS) as the travelling caravan on **Tue/Fri** with her pack-beast **Humphrey** (a Veilkin). **Joins** in Chapter 2 once you reach Village rank and build a Market plot.
+- **Hidden agenda:** to pay off a merchant-guild debt, she has been selling maps of the Veil (and of your new settlement) to the Dominion Expedition Corps. Revealed at her 6♥ event or when the Dominion arrives in Ch3, whichever comes first. **Forgive** → she becomes your double agent and feeds them false maps (a bonus in the Ch4 siege). **Expel** → she leaves, then returns before the siege with a warning and asks to come home. Either way she stays a Sworn.
+- **Arc:** from selling everyone's secrets to choosing a home worth protecting.
 - **Gifts:** ♥ Sunstone, Exotic Spice · 👍 gems, rare goods · 👎 cheap junk.
 - **Knight perk, Golden Ledger:** sell prices +10%.
 - **Visual:** tan skin, dark wavy hair in a coin-studded headscarf, goggles, many pouches. Colours: **saffron & teal**.
@@ -226,9 +228,23 @@
 - **Consort perk, Veilsight:** the Hollowed show on the map at night; +5% Pact chance.
 - **Visual:** pale lavender hair covering one eye, glowing Veil-mark tattoos on one arm, a torn white Choir robe re-dyed black. Colours: **black & lilac**.
 
+#### 12. Kael, "The Unbroken"
+| Human (Oathbound) · looks ~35 · he/him | Birthday **Autumn 23** | Values: Honor, Family | ♥ No |
+|---|---|---|---|
+
+- **Role:** Master Smith → upgrades the Smithy to the **Great Forge**: **Veilforging** (gear that resists Veil-rot and Exposure), masterwork weapons, and later tiers 4–5 and the Sunblade line. Becomes Tamsin's mentor.
+- **Who he is now:** head smith of **Emberwick**, a hamlet at the edge of Whisperwood. Greying at the temples though his face is young; burn-scarred hands; always holding a hammer "because it feels safe". He doesn't know you, but he stops whenever you pass, as if something is caught in his throat.
+- **Who he was (secret):** in your past life he was the youngest son of **Varric**, the royal smith: the boy you once told, *"You'll make a sword that never breaks."* He grew up to become the **Blacksmith of the Crown** and forged the **Sunblade**. When the Hollow Hymn cult (the Pale Choir's ancient predecessor) seized the royal forge and demanded Hunger-steel, he refused **on your order** and was killed. When the Heartflame rekindled, his oath-bound soul was reborn in this age with buried memories: he is **Oathbound**.
+- **Voice markers:** few words, craft metaphors ("iron remembers"), a dry warmth that surprises him as much as you.
+- **Recruit (Ch2, SQ-210 "The Iron Remembers"):** bring him Iron Ore from the Rootdeep Labyrinth's upper floors. He forges you a small knife: *"Not for sale. Every time you hold it, remember: someone believes in your hands."* Your chest hums; the Heartflame knows him. He moves his anvil to your realm.
+- **Gifts:** ♥ Iron Bar, Emberite Bar, Mushroom Pie · 👍 ores, gems, black tea · 👎 flimsy tools, Umbra items.
+- **Arc:** being valued as a person, not as the Crown's tool. It climaxes in one question, and **both answers keep him close** ([14 §6.1](14_NARRATIVE_AND_PROGRESSION.md#61-kaels-arc-in-full)).
+- **Knight perk, Veilproof Steel:** gear forged at the Great Forge resists Veil-rot; +masterwork chance.
+- **Visual:** lean and strong, short dark hair greying at the temples, sharp tired eyes, burn-scarred forearms, leather apron over a plain tunic, hammer at his belt. Colours: **iron grey & ember orange**. Prop: hammer.
+
 ### Chapter 3: Saltglass Coast
 
-#### 12. Marisol "Mari" Vega, "The Stormbreaker"
+#### 13. Marisol "Sol" Vega, "The Stormbreaker"
 | Human · 29 · she/her | Birthday **Summer 9** | Values: Freedom, Prosperity | ♥ Yes |
 |---|---|---|---|
 
@@ -241,18 +257,18 @@
 - **Consort perk, Fair Winds:** trade routes return a day early.
 - **Visual:** dark skin, long locs threaded with sea-glass beads, captain's coat, tricorn with a gull feather, a scar over one eyebrow. Colours: **navy, gold & red**.
 
-#### 13. Orin Tidewell, "Old Salt"
+#### 14. Orin Tidewell, "Old Salt"
 | Tidekin · 71 · he/him | Birthday **Autumn 19** | Values: Tradition, Nature | ♥ No |
 |---|---|---|---|
 
 - **Role:** Fisher → **Fishery** (rod upgrades, bait, Tide Traps, a fish pond, the aquarium wing in the Archive).
-- **Personality:** laconic, patient, speaks in fishing proverbs; knew Mari's parents.
+- **Personality:** laconic, patient, speaks in fishing proverbs; knew Sol's parents.
 - **Recruit:** catch the legendary **Glassback Carp** with him (fishing tutorial).
 - **Gifts:** ♥ rare fish, Seaweed Tea · 👍 fish, bait, tea · 👎 Emberroot, noise.
 - **Knight perk, Angler's Patience:** easier fishing; more rare fish.
 - **Visual:** grey-blue skin, fin-ears, gills, a white beard braided with shells, straw hat, bare feet. Colours: **sea blue & straw**.
 
-#### 14. Seren Aldwyn, "Silver-Tongued"
+#### 15. Seren Aldwyn, "Silver-Tongued"
 | Half-elf · 27 · he/him | Birthday **Spring 19** | Values: Freedom, Progress | ♥ Yes |
 |---|---|---|---|
 
@@ -265,7 +281,7 @@
 - **Consort perk, Serenade:** +Joy realm-wide; one Court petition a week resolves favourably.
 - **Visual:** long wavy platinum-blond hair with a side braid, pointed ears, teal feathered hat, flamboyant coat. Colours: **teal & cream**.
 
-#### 15. Pim & Pom Cogsworth, "The Tinker Twins"
+#### 16. Pim & Pom Cogsworth, "The Tinker Twins"
 | Gnomes · 33 · he/him & she/her | Birthday **Spring 23** | Values: Progress, Family | ♥ No |
 |---|---|---|---|
 
@@ -278,18 +294,7 @@
 
 ### Chapter 4: Cinderpeak Highlands
 
-#### 16. Durgan Anvilborn, "The Mountain's Hammer"
-| Dwarf · 162 · he/him | Birthday **Autumn 23** | Values: Tradition, Honor | ♥ No |
-|---|---|---|---|
-
-- **Role:** Master Smith → upgrades the Smithy to the **Great Forge** (tiers 4–5, legendary weapons, the Sunblade).
-- **Personality:** proud, stubborn, honour-bound, weeps at fine craftsmanship. Becomes Tamsin's mentor; they bicker, then bond.
-- **Recruit:** recover his ancestral hammer from the Forgeheart (floor 10) **and** show him Tamsin's best work.
-- **Gifts:** ♥ Emberite Bar, Stonebrew Ale, Mushroom Pie · 👍 gems, ores · 👎 flimsy tools, elves (joking).
-- **Knight perk, Heartforge:** unlocks masterwork weapon crafting.
-- **Visual:** massive braided red-grey beard with iron rings, tattooed bald head, an iron prosthetic hand. Colours: **rust & iron**.
-
-#### 17. Kaida Emberscale, "The Crimson Rival"
+#### 17. Akane Emberscale, "The Crimson Rival"
 | Dragonkin · 25 · she/her | Birthday **Summer 15** | Values: Honor, Freedom | ♥ Yes |
 |---|---|---|---|
 
@@ -319,7 +324,7 @@
 |---|---|---|---|
 
 - **Role:** Brewer → **Brewery** (ale, wine, mead, juice; festival drinks).
-- **Personality:** jolly, motherly, the loudest laugh in the realm; Durgan's cousin; the realm's self-appointed **matchmaker**.
+- **Personality:** jolly, motherly, the loudest laugh in the realm; the realm's self-appointed **matchmaker**; speaks for the Emberhold dwarves.
 - **Recruit:** restore her family's hot-spring barrel cellar (deliver barley, honey, and stone).
 - **Gifts:** ♥ Golden Hops, Honey · 👎 plain water ("that's for fish!").
 - **Knight perk, Cheers to the Crown:** artisan goods +15% value.
@@ -332,7 +337,7 @@
 - **Role:** Knight-Commander → **Barracks** (guards, defense assignments, knight training, Surge defense).
 - **Personality:** stern, disciplined, honourable to a fault; her dry humour surprises everyone. Leads the Dominion Expedition Corps until the Dominion orders her to burn your village.
 - **Recruit (Chapter 4 climax):** boss battle → **Spare** → she defects when your realm proves it protects its people.
-- **Gifts:** ♥ Black Tea, Whetstone, plain bread · 👍 weapons, order, tea · 👎 Mari, Fen's pranks.
+- **Gifts:** ♥ Black Tea, Whetstone, plain bread · 👍 weapons, order, tea · 👎 Sol, Fen's pranks.
 - **Knight perk, Iron Discipline:** guards +30% DEF; Surge waves −1.
 - **Consort perk, Iron Resolve:** +DEF for the day after she sees you off.
 - **Visual:** tall, platinum-blonde undercut, steel-blue eyes, Dominion plate repainted in your banner's colours, a rose engraved on the pauldron. Colours: **steel & crimson**.
@@ -369,13 +374,13 @@
 - **Role:** Couturier → **Tailor's House** (clothing, dyes, cosmetics, **banner and heraldry editor**, festival outfits).
 - **Personality:** a haughty noble exiled from the Dominion court; dramatic, fashion-obsessed, secretly generous. Teaches the Sovereign to "dress like a monarch".
 - **Recruit:** stranded in a frozen manor. Bring Silk, Cloud Wool, and Rare Dye; she designs your **coronation outfit**.
-- **Gifts:** ♥ Silk, Rare Dye, Halcyon Rose · 👎 mud, cheap cloth.
+- **Gifts:** ♥ Silk, Rare Dye, Kingsbloom · 👎 mud, cheap cloth.
 - **Knight perk, Royal Couture:** outfit sets grant set bonuses.
 - **Visual:** elaborate plum ringlets, a fur coat, a jewelled monocle. Colours: **plum & gold**.
 
 ### Chapter 6: The Hollow Crown
 
-#### 24. Sir Caelan Ashford, "The Ashen Warden"
+#### 24. Sir Lucan Ashford, "The Ashen Warden"
 | Human (Veil-sustained, 1,000+ years; looks 30) · he/him | Birthday **Winter 23** | Values: Honor, Order | ♥ Yes |
 |---|---|---|---|
 
@@ -383,7 +388,7 @@
 - **Personality:** devoted, formal, melancholic; a buried dry humour that resurfaces as he heals. He held the gate, then the seal, for a thousand years until the Hunger hollowed him out.
 - **Voice markers:** archaic formal speech ("my liege"), the only character who uses "thee/thou" (and only at first).
 - **Recruit (finale):** defeat the Ashen Warden; purify him with the reforged Crown's light (requires high average Loyalty).
-- **Gifts:** ♥ **Halcyon Rose** (an extinct flower you must re-grow), Black Tea, old letters · 👎 the Veil, Umbra items.
+- **Gifts:** ♥ **Kingsbloom** (an extinct flower you must re-grow), Black Tea, old letters · 👎 the Veil, Umbra items.
 - **Knight perk, Oathkeeper:** once per dive, the Sovereign survives a lethal hit with 1 HP.
 - **Consort perk, Sworn Shield:** joins your party with boosted stats; Oathkeeper recharges daily.
 - **Visual:** ash-grey hair, burnt-gold eyes, ornate cracked armour bearing the Halcyon sun. Colours: **ash & gold**.
@@ -396,10 +401,11 @@
 |---|---|---|---|
 | **Choirmaster Vesper Starling** | Elf, Elowen's twin, the old court seer, masked | Leader of the Pale Choir; Ch2–5 antagonist; Ch5 boss | Can be **spared** in Ch5 → returns to help in Endings B/C; reconciles with Elowen in the epilogue |
 | **Lord-Marshal Aurick Thane** | Dominion commander | Ch3–4 antagonist; wants the Veilglass | Treaty or defeat; the Dominion becomes a trade partner either way |
-| **The Ashen Warden** | Caelan, Hollowed | Ch6 boss | Purified → Sworn |
+| **The Ashen Warden** | Lucan, Hollowed | Ch6 boss | Purified → Sworn |
 | **The Maw Below** | The Hunger | Final boss | — |
 | **Magpie, Jackdaw, Finch** | Rook's gang (slinger, brute, cutpurse) | Ch1 enemies → **named settlers** | Join with Rook |
 | **Pip Fenn** | Marigold's son, 8 | Child NPC, befriends familiars | — |
+| **Varric** | Kael's father, the old royal smith (1,000 years ago) | Appears only in Kael's memories; his grave lies at the Smiths' Rest near Emberwick | — |
 | **Hob Furrow** | Old farmer | The first scripted settler (Day 6) | — |
 | **Humphrey** | Mira's pack-beast (Veilkin) | Comic-relief creature | — |
 | Pale Choir Acolytes, Chanters, Silent Blades | Cultists | Enemies | Some can be spared → settlers |
@@ -435,12 +441,13 @@
 ```mermaid
 graph LR
     SOV((Sovereign))
-    Caelan -- oath --> SOV
+    Lucan -- oath --> SOV
     Bram -- mentor --> SOV
     Saga -- visions of --> SOV
-    Kaida -- rival --> SOV
-    Tamsin -- apprentice --> Durgan
-    Mari -- rivals --> Ingrid
+    Akane -- rival --> SOV
+    Tamsin -- apprentice --> Kael
+    Kael -- forged your sword --> SOV
+    Sol -- rivals --> Ingrid
     Elowen -- bicker --> Seren
     Elowen -- twin sisters --> Vesper
     Nix -- defected from --> Vesper
@@ -450,13 +457,13 @@ graph LR
     Hollis -- explosion trauma --> PimPom[Pim & Pom]
     Marigold -- best friends --> Hilde
     Marigold -- mother --> Pip
-    Mira -- trade partners --> Mari
-    Orin -- knew her parents --> Mari
+    Mira -- trade partners --> Sol
+    Orin -- knew her parents --> Sol
     Isolde -- old court rivals --> Ingrid
     Hollis -- deserted under --> Ingrid
     Fen -- pranks --> Ingrid
-    Kaida -- sparring --> Ingrid
-    Durgan -- cousins --> Hilde
+    Akane -- sparring --> Ingrid
+    Mira -- sells maps to --> Ingrid
 ```
 
 ---
@@ -466,9 +473,9 @@ graph LR
 | Season | Birthdays |
 |---|---|
 | Spring | Linnea (5) · Juniper (10) · Fen (17) · Seren (19) · Pim & Pom (23) · Aldous (26) |
-| Summer | Rook (3) · Mari (9) · Kaida (15) · Hilde (18) · Hollis (22) · Marigold (25) |
-| Autumn | Bram (2) · Tamsin (6) · Mira (11) · Orin (19) · Durgan (23) · Nix (25) |
-| Winter | Elowen (3) · Ingrid (10) · Saga (12) · Tor (17) · Isolde (20) · Caelan (23) |
+| Summer | Rook (3) · Sol (9) · Akane (15) · Hilde (18) · Hollis (22) · Marigold (25) |
+| Autumn | Bram (2) · Tamsin (6) · Mira (11) · Orin (19) · Kael (23) · Nix (25) |
+| Winter | Elowen (3) · Ingrid (10) · Saga (12) · Tor (17) · Isolde (20) · Lucan (23) |
 
 No birthday falls on a festival, a Sunday (Court Day), or a Surge night.
 
@@ -481,4 +488,4 @@ No birthday falls on a festival, a Sunday (Court Day), or a Surge night.
 3. **Job-readable outfits.** You should guess the job from the outfit (apron = smith or cook, robes = scholar or priest).
 4. **Anime appeal, grounded clothing.** Expressive faces and hair; practical, job-appropriate outfits. The target rating is E10+/T; no fan-service framing.
 5. **Diversity** of age (21–1,100), body type, skin tone, and race across the cast.
-6. **Portrait standard:** 8 expressions (**Neutral, Happy, Laugh, Sad, Angry, Surprised, Blush, Signature**). Signature examples: Rook *Smirk*, Elowen *Pout*, Kaida *Battle Grin*, Nix *Flustered*, Tamsin *Forge Focus*. Romanceables get 3 extra **wedding outfit** portraits (1.0).
+6. **Portrait standard:** 8 expressions (**Neutral, Happy, Laugh, Sad, Angry, Surprised, Blush, Signature**). Signature examples: Rook *Smirk*, Elowen *Pout*, Akane *Battle Grin*, Nix *Flustered*, Tamsin *Forge Focus*. Romanceables get 3 extra **wedding outfit** portraits (1.0).

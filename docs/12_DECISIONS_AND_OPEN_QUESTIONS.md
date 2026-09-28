@@ -1,6 +1,6 @@
 # 12 — Decisions & Open Questions
 
-> **TL;DR (v0.2):** Part A logs every design decision with its reasoning and the alternatives considered. Part B lists what only **you** can answer. After Step 2: tone, team, art direction, and engine are **Locked**; the title is **open again** because *Crownless* is already used on Steam.
+> **TL;DR (v0.3):** Part A logs every design decision with its reasoning and the alternatives considered. Part B lists what only **you** can answer. The title is now ***Kingsbloom*** (formal clearance pending), and the best ideas from your Grok discussion are merged (D-026 to D-031).
 
 **Status:** **Locked** = you approved it · **Default** = my call as lead designer; it stands unless you object · **Revisit** = re-check after a playtest or gate.
 
@@ -34,33 +34,24 @@
 | **D-022** | **Narrative-first pre-production**: lore, NPC purposes, progression, and a playable Ink prototype before the tech foundation | Your direction: finish everything the two of us can complete before hiring | Tech first | **Locked** |
 | **D-023** | **Wisplings**: ambient white spirit critters whose numbers mirror kingdom happiness | Brings the life of Ref A into a system; a glanceable health bar for the realm | Pure decoration | Default |
 | **D-024** | **References are mood-only**: never traced, shipped, or committed to the repo | Copyright; Ref B is credited to the artist Mimosa20 | — | **Locked** |
+| **D-025** | **Title: *Kingsbloom*** (codename NOZE). The Kingsbloom is also the in-world royal flower that blooms at Kingdom rank | *Crownless* is already used on Steam; *Kingsbloom* passed a quick search and ties title, lore, and logo together | Crownless, Once a Sovereign, Crownroot, Veilwilds, Seedcrown | **Locked** (formal clearance pending) |
+| **D-026** | **Kael joins the cast, replacing Durgan**: the reborn (Oathbound) Blacksmith of the Crown, Ch2, runs the Great Forge | From your Grok discussion: a far stronger story link (your past orders, the Sunblade, the Pale Choir's history) for the same system role; the cast stays at 24 | Adding a 25th Sworn (scope), keeping Durgan | **Locked** |
+| **D-027** | **Kael's final choice has two answers that both keep him close** | Your feedback: a max-heart ending that pushes a character away feels like a bad ending. Now a rule for every Sworn: *deeper hearts never mean more distance* | The original "apologise → he grows distant" ending | **Locked** |
+| **D-028** | **Renames for clarity:** Caelan → **Lucan**, Mari → **Sol**, Kaida → **Akane** | "Kael", "Caelan", and "Kaida" sounded alike; "Mira" and "Mari" too. Players rely on names | Keeping similar names | Default |
+| **D-029** | **Faction Standing** (EA): helping one faction can cool its rivals | From the Grok discussion: relationships as politics; fits the sovereign fantasy | No faction layer | Default |
+| **D-030** | **Hearts give access** (secret places, rare-material quests, signature items) plus small quests between heart events | From the Grok discussion; makes every heart level worth it | Hearts that only unlock cutscenes | Default |
+| **D-031** | **Mira has a hidden agenda** (selling maps to the Dominion); forgive or expel, and she stays a Sworn either way | NPCs with their own agendas make the world feel political, per the Grok discussion | A plain merchant | Default |
+| **D-032** | **Guardian Echo**: a weekly re-fight of a defeated Guardian with modifiers | The Grok discussion's weekly boss-rush beat, built from existing content | New weekly bosses (costly) | Default |
 
 ---
 
 ## Part B: Open questions for you
 
-### Q-01: Title (open again)
+### Q-01: Title
 
-**Finding:** *Crownless* is **already in use**, so I recommend not using it:
-- a game called **[Crownless on Steam](https://store.steampowered.com/app/4484760/Crownless/)**,
-- **[Crownless Abyss](https://store.steampowered.com/app/2440030/Crownless_Abyss/)** (also on Steam),
-- a mobile game **[Crownless by Tealmobile Games](https://tealmobile.com/crownless)**,
-- **[Songs of Silence – Crownless King Expansion](https://store.steampowered.com/app/4561030/Songs_of_Silence__Crownless_King_Expansion/)**,
-- a tabletop RPG, **[THE CROWNLESS](https://marrensmusings.itch.io/the-crownless)**.
+**Answered: *Kingsbloom*** (D-025). *Crownless* was already used by several games, including one on Steam ([Crownless](https://store.steampowered.com/app/4484760/Crownless/), [Crownless Abyss](https://store.steampowered.com/app/2440030/Crownless_Abyss/)).
 
-Launching with the same name on the same store means buried search results, player confusion, and a real risk of a trademark dispute.
-
-**Shortlist** (quick web search only, not a legal clearance):
-
-| Title | Meaning | Quick search result | My take |
-|---|---|---|---|
-| **Kingsbloom** | "The king's flower blooms again": royalty + farming + regrowth | No game, app, or brand found | ⭐ **Recommended.** It can also be the in-world name of the extinct royal flower you re-grow (today's "Halcyon Rose"): *"the Kingsbloom only flowers under a true sovereign."* Fits the broken-crown-with-a-sprout logo |
-| **Once a Sovereign** | The premise in three words | No exact match; "The Sovereign" and "The Last Sovereign" exist | Good, but reads more like a tagline |
-| **Crownroot** | Crown + root (in botany, a plant's crown is where root meets stem) | No game found; similar trademarks "CROWN ROOTS" / "CRWN ROOTZ" exist | Nice meaning; some confusion risk |
-| **Veilwilds** | Our world's name | No exact match; "VeilWood" and "VEIL" exist | Moody, but "Veil" is crowded |
-| **Seedcrown** | Seed + crown | "Seed Crown®" is a registered gardening product | Clashes in search |
-
-**Next step once you pick:** check Indonesia's official trademark database (**PDKI**, run by DJKI), plus USPTO, EUIPO or WIPO's Global Brand Database, the Steam store, a domain, and social handles. Consider filing a trademark in classes **9** (software) and **41** (entertainment) before the Steam page goes live. For certainty, a trademark consultant or lawyer should do the final clearance.
+**Clearance checklist** (before the Steam page, Step 17): Indonesia's trademark database (**PDKI**, run by DJKI) · USPTO · EUIPO or WIPO's Global Brand Database · Steam store search · a domain · social handles · consider filing in classes **9** (software) and **41** (entertainment). A trademark consultant or lawyer should do the final clearance.
 
 ### Other questions
 
@@ -74,5 +65,6 @@ Launching with the same name on the same store means buried search results, play
 | **Q-07** | Team & timeline? | **Answered:** just us two for now; finish self-completable prototypes first (D-022) |
 | **Q-08** | Scope OK (24 Sworn / 60 creature forms / 6 regions at 1.0)? | Default: keep; the Vertical Slice gate protects us |
 | **Q-09** | Combat feel target? | Default: Rune Factory-medium + Perfect Dodge |
-| **Q-10** | Your Grok conversation | The share link can't be opened from our environment. Please **paste the text** into the chat and I'll merge the good ideas into the Design Bible |
-| **Q-11** | Step 3 review | Read [`14_NARRATIVE_AND_PROGRESSION.md`](14_NARRATIVE_AND_PROGRESSION.md) and tell me what to change before I build the playable narrative prototype (Step 4) |
+| **Q-10** | Your Grok conversation | **Merged** (D-026 to D-032): Kael, the two-answer ending, relationship-as-politics, weekly rhythm, found lore |
+| **Q-11** | Step 3 review | Treated as approved ("lanjut next step"); the playable narrative prototype (Step 4) is built from it |
+| **Q-12** | Kael as a romance option? | Default: **no** (his arc is about trust and duty, and the romance count stays at 12). Say so if you want him romanceable |

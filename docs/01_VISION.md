@@ -9,7 +9,7 @@
 
 | | |
 |---|---|
-| **Working title** | **TBD**: *Crownless* is already used by a game on Steam; shortlist in [Q-01](12_DECISIONS_AND_OPEN_QUESTIONS.md#part-b-open-questions-for-you). Codename **NOZE** |
+| **Title** | ***Kingsbloom*** (codename **NOZE**): the royal flower that opens only for a true sovereign, and blooms again when your kingdom is restored. Formal trademark clearance pending |
 | **Genre** | Farming life-sim × dungeon crawler × kingdom builder × creature pacts, with survival at the frontier |
 | **Perspective** | Top-down 3/4 view, hand-drawn illustrated 2D with chibi-anime characters |
 | **Platform** | PC (Steam) first; the web build is used for development and testing; consoles evaluated after 1.0 |

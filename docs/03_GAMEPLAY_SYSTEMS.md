@@ -37,8 +37,16 @@ flowchart LR
 ```
 
 ### 2.3 Weekly & seasonal loop
-- **Weekly:** Court Day (Sunday, from Village rank), Mira's caravan (Tue/Fri), 2 gifts per person, expedition returns.
-- **Seasonal (28 days):** new crops and forage, seasonal creatures, 2 festivals, 2 Veil Surge nights, and in Winter the Food Stock challenge.
+
+A daily loop alone gets stale in about two weeks, so the game layers rhythms on top of it:
+
+| Rhythm | What happens |
+|---|---|
+| **Daily** | Farm → explore or dive → build → socialise → sleep |
+| **Weekly** | Court Day (Sunday, from Village rank) · Mira's caravan (Tue/Fri) · bounty board refresh (Monday) · **Guardian Echo**: re-fight a defeated Guardian with modifiers for rare rewards (a boss-rush beat, EA) · 2 gifts per person · expedition returns |
+| **Twice a season** | Festivals · Veil Surges on New Moon nights |
+| **Each season** | New crops, forage, and creatures; a Restoration Project milestone; new personal requests from the Sworn · in Winter, the Food Stock challenge |
+| **Each chapter** | A new region, dungeon, Regalia, and Sworn · one mystery answered, one new question asked |
 
 ### 2.4 Long-term (meta) loop
 Recover Regalia → unlock powers and regions → recruit Sworn → raise Kingdom Rank → the Throne grows → the story advances → the final battle is shaped by everything you built.
@@ -445,6 +453,18 @@ From **Village** rank, every **Sunday 09:00–12:00** at the Throne: 3–5 **pet
 
 Outcomes affect happiness, the Loyalty of the Sworn involved, gold, resources, and RA. Skipping Court resolves petitions neutrally, with a small happiness penalty.
 
+### 15.5 Faction Standing
+*(Early Access)* A sovereign plays politics. Each faction's **Standing** (−100 to +100: Hostile · Wary · Neutral · Friendly · Allied) rises and falls with your quests, Court rulings, Decrees, and trade. **Helping one side can cool another**, so choices carry weight.
+
+| Faction | Raise Standing by | Perks at Friendly / Allied | Rival |
+|---|---|---|---|
+| **Order of the Dawn Lantern** | Chapel projects, purifying the Hollowed, Faith-minded rulings | Free cleansing; stronger blessings | The Pale Choir (always hostile) |
+| **Whisperwood Fae** | Planting trees, sparing forest creatures, Nature decrees | Rare seeds; hidden forest paths | Aldmark Dominion |
+| **Brinemouth Tidekin** | Fishing quests, protecting the coast | Secret fishing spots; sea shrines | Aldmark Dominion |
+| **Veil Orphans** (Rook's people) | Mercy rulings, feeding the poor | Scouting intel; cheaper Expeditions | Aldmark Dominion |
+| **Aldmark Dominion** | Trade deals, selling Veilglass, diplomacy | Trade routes, Dominion goods, fewer sieges | Fae, Tidekin, Veil Orphans |
+| **Emberhold Dwarves** *(1.0)* | Forge work, ale, Restoration Projects | Ore trade, forge secrets | Aldmark Dominion (mines) |
+
 ---
 
 ## 16. Expeditions
@@ -565,7 +585,7 @@ Players can lower difficulty at any time. Exile can only be chosen at the start.
 | Priority | Features | Target |
 |---|---|---|
 | **Must** | Movement and camera · time, calendar, sleep-save · Energy, Satiety, Exposure · Veil, Realm, Beacon T1–T2 · farming with quality · foraging, wood, stone · Campfire, Workbench, Cooking Pot, Smelter · cooking buffs · combat (Sword & Buckler, Spear, dodge, Perfect Dodge, 2 Royal Arts) · dungeon generator + Sunken Cellars F1–10 + Ruinback · Waystones · Pacts (Subdue, Offering, Purify, Mandrake hatch) · familiar follow/assist + 6 work skills · Naming · build mode + ~14 structures · Settlers (arrival, basic jobs, Food Stock, housing) · 4 Sworn with recruit quests · talk, gifts, hearts, early heart events · Ink dialogue · Kingdom Rank 0→1 · the Founding + simple banner · save/load · Blossomfall Festival · Mira's caravan · Trade Crate · HUD, menus, basic options | **Vertical Slice** |
-| **Should** | All seasons and weather · Chapters 1–3 · Court Day · Decrees (6) · Expeditions · fishing · Veil Surges · Restoration Projects · Market & trade routes · Archive research · marriage & Consort · Greatsword, Daggers, Bow, Catalyst · Command Mode · Waybeacons & fast travel · 30 traits · Den upgrades & Sanctuary · full accessibility · controller · Steam achievements & cloud saves | **Early Access** |
+| **Should** | All seasons and weather · Chapters 1–3 · Court Day · Decrees (6) · Expeditions · fishing · Veil Surges · Restoration Projects · Market & trade routes · Archive research · marriage & Consort · Greatsword, Daggers, Bow, Catalyst · Command Mode · Waybeacons & fast travel · 30 traits · Den upgrades & Sanctuary · **Faction Standing** · **Guardian Echo** · full accessibility · controller · Steam achievements & cloud saves | **Early Access** |
 | **Could** | Chapters 4–6 & endings · all 17 True Ascensions · mounts · Arena · Bathhouse · Observatory · full heraldry editor · Event CGs · winter outfits · familiar breeding · photo mode · New Game+ | **1.0** |
 | **Won't (for 1.0)** | Multiplayer · children · mod support (post-1.0 goal: Steam Workshop; the data-driven architecture keeps this possible) · console ports (evaluated after 1.0) · voice acting | Later / never |
 

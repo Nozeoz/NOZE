@@ -133,19 +133,19 @@ Views: **D/U/S** = down (front), up (back), side (mirrored for left/right). Anim
 | `rig_npc_fen` | Fen | T-SWORN | Playing the flute | EA |
 | `rig_npc_aldous` | Aldous | T-SWORN | Lighting a lantern | EA |
 | `rig_npc_nix` | Nix | T-SWORN-COMP | Tracing sigils | EA |
-| `rig_npc_mari` | Mari | T-SWORN-COMP | Spyglass | EA |
+| `rig_npc_kael` | Kael | T-SWORN | Tempering a blade | EA |
+| `rig_npc_sol` | Sol | T-SWORN-COMP | Spyglass | EA |
 | `rig_npc_orin` | Orin | T-SWORN | Fishing | EA |
 | `rig_npc_seren` | Seren | T-SWORN-COMP | Lute strum | EA |
 | `rig_npc_pim`, `rig_npc_pom` | Pim & Pom | T-SWORN (Small rig) ×2 | Wrenching; small explosion | EA |
-| `rig_npc_durgan` | Durgan | T-SWORN | Heavy hammer | 1.0 |
-| `rig_npc_kaida` | Kaida | T-SWORN-COMP | Shadowboxing | 1.0 |
+| `rig_npc_akane` | Akane | T-SWORN-COMP | Shadowboxing | 1.0 |
 | `rig_npc_hollis` | Hollis | T-SWORN-COMP | Pouring flasks | 1.0 |
 | `rig_npc_hilde` | Hilde | T-SWORN | Rolling a barrel | 1.0 |
 | `rig_npc_ingrid` | Ingrid | T-SWORN-COMP | Sword drill | 1.0 |
 | `rig_npc_saga` | Saga | T-SWORN | Stargazing | 1.0 |
 | `rig_npc_tor` | Tor | T-SWORN-COMP | Whittling | 1.0 |
 | `rig_npc_isolde` | Isolde | T-SWORN | Sewing | 1.0 |
-| `rig_npc_caelan` | Caelan | T-SWORN-COMP | Kneeling vigil | 1.0 |
+| `rig_npc_lucan` | Lucan | T-SWORN-COMP | Kneeling vigil | 1.0 |
 
 Companion-capable (T-SWORN-COMP) = the 12 romance options: **VS 3 · EA 7 · 1.0 12**.
 
@@ -183,7 +183,7 @@ The same portrait kit can later give the **player** a dialogue portrait (optiona
 
 | ID | Character | Template | Milestone |
 |---|---|---|---|
-| `rig_npc_caelan_prologue` | Caelan in prologue armour (skin on Caelan's rig) | T-SWORN-COMP | VS |
+| `rig_npc_lucan_prologue` | Lucan in prologue armour (skin on Lucan's rig) | T-SWORN-COMP | VS |
 | `rig_npc_vesper` | Vesper (prologue, then Choirmaster) + boss attacks | T-SWORN + boss set | VS (prologue) / EA |
 | `rig_npc_hob` | Hob Furrow | Settler kit + unique hair | VS |
 | `rig_npc_magpie`, `_jackdaw`, `_finch` | Crowfeather trio | Settler kit + T-ENEMY set | VS |
@@ -202,16 +202,16 @@ The same portrait kit can later give the **player** a dialogue portrait (optiona
 |---|---|---|---|---|
 | `por_bram` `por_linnea` `por_rook` `por_tamsin` `por_mira` | VS Sworn + Mira | 8 each | — | VS |
 | `por_flicker` | Flicker | 10 (8 + Hungry + Sheepish) | True Form (+1) at 1.0 | VS |
-| `por_caelan_prologue`, `por_vesper_prologue` | Prologue | 3 each | — | VS |
+| `por_lucan_prologue`, `por_vesper_prologue` | Prologue | 3 each | — | VS |
 | `por_hob`, `por_magpie`, `por_jackdaw`, `por_finch`, `por_humphrey` | Minor | 3 / 2 / 2 / 2 / 2 | — | VS |
-| `por_juniper` `por_marigold` `por_elowen` `por_fen` `por_aldous` `por_nix` `por_mari` `por_orin` `por_seren` | EA Sworn | 8 each | — | EA |
+| `por_juniper` `por_marigold` `por_elowen` `por_fen` `por_aldous` `por_nix` `por_kael` `por_sol` `por_orin` `por_seren` | EA Sworn | 8 each | — | EA |
 | `por_pim`, `por_pom` | Tinker twins | 8 each | — | EA |
 | `por_vesper` | Choirmaster (masked + unmasked) | 6 | — | EA |
 | `por_thane`, `por_pip` | Story NPCs | 4 each | — | EA |
-| `por_durgan` `por_kaida` `por_hollis` `por_hilde` `por_ingrid` `por_saga` `por_tor` `por_isolde` `por_caelan` | 1.0 Sworn | 8 each | — | 1.0 |
+| `por_akane` `por_hollis` `por_hilde` `por_ingrid` `por_saga` `por_tor` `por_isolde` `por_lucan` | 1.0 Sworn | 8 each | — | 1.0 |
 | `por_*_wedding` | 12 romance options | 3 each | Wedding outfits | 1.0 |
 
-**Portrait counts:** VS **67** · EA **169** · 1.0 **278** expressions (layered, so most expressions are face-layer swaps, not new paintings).
+**Portrait counts:** VS **67** · EA **177** · 1.0 **278** expressions (layered, so most expressions are face-layer swaps, not new paintings).
 
 ---
 
@@ -324,7 +324,7 @@ Most of the "reference look" comes from **props and decals placed on top** (§6.
 | Group | Contents | Milestone |
 |---|---|---|
 | Wild trees (T-TREE) | Round-canopy oak, pine, maple (VS, Spring) → + birch, palm, giant mushroom tree (EA, ×4 seasons) → + charred pine, frost fir, Veil Tree (1.0) | VS → 1.0 |
-| Fruit trees & perennials | 6 fruit trees + Tea Bush (3 stages × 4 seasons + fruit overlay) + Halcyon Rose bush | EA / 1.0 |
+| Fruit trees & perennials | 6 fruit trees + Tea Bush (3 stages × 4 seasons + fruit overlay) + the **Kingsbloom** (bud and full-bloom states) | EA / 1.0 |
 | Forest-floor set | Giant mushrooms (3 sizes), ferns, stumps, fallen logs, roots, berry bushes, flower clumps | VS (20 pieces) → 1.0 (50) |
 | Water set | Lily pads, lotuses, reeds, stepping stones, driftwood, small dock, floating log | VS (12) → EA (20) |
 | Rocks | Small, large, boulder × region variants + break animation | VS → 1.0 |
@@ -358,16 +358,16 @@ Each exterior needs: the tier illustration + a **night emissive layer** (lit win
 | `bld_tent` · `bld_hut` · `bld_well` | Early basics | 1 each | VS |
 | `bld_lumber_camp_t1…t2` · `bld_den_t1…t4` | Production | 2 + 4 | VS (t1) · EA (rest) |
 | `bld_lodge` · `bld_clinic_t1` · `bld_scout_post_t1` · `bld_smithy_t1` · `bld_tavern_t1` | VS Sworn / service | 1 each | VS |
-| `bld_clinic_t2` · `bld_scout_post_t2` · `bld_tavern_t2` | Upgrades | 1 each | EA |
+| `bld_clinic_t2` · `bld_scout_post_t2` · `bld_tavern_t2` · `bld_smithy_t2` (Great Forge) | Upgrades | 1 each | EA |
 | `bld_waybeacon` · `bld_cottage` · `bld_quarry` · `bld_mill` · `bld_glasshouse` · `bld_guard_post` · `bld_watchtower` | EA general | 1 each | EA |
 | `bld_market` · `bld_archive` · `bld_nursery` · `bld_chapel` · `bld_spire` · `bld_harbor` · `bld_bandstand` · `bld_workshop` | EA Sworn | 1 each | EA |
 | `bld_wall_*` · `bld_gate_*` | Palisade (EA) → Stone → Runed (1.0) | Wall-piece set + gate per material | EA / 1.0 |
-| `bld_smithy_t2` · `bld_townhouse` · `bld_manor` · `bld_bathhouse` | 1.0 general | 1 each | 1.0 |
+| `bld_townhouse` · `bld_manor` · `bld_bathhouse` | 1.0 general | 1 each | 1.0 |
 | `bld_arena` · `bld_lab` · `bld_brewery` · `bld_barracks` · `bld_observatory` · `bld_hunters_lodge` · `bld_tailor` · `bld_hall_of_knights` | 1.0 Sworn | 1 each | 1.0 |
 | `bld_scaffold_{s,m,l,xl}_{1..3}` | Construction stages by footprint class | 3 per class | VS (s, m) → EA (l, xl) |
 | `vfx_bld_damage_*` · `bld_snow_*` | Shared damage decals · snow caps | Sets | EA |
 
-**Exterior illustrations:** VS **16** · EA **~46** · 1.0 **65**.
+**Exterior illustrations:** VS **16** · EA **~47** · 1.0 **65**.
 
 ---
 
@@ -556,11 +556,11 @@ Every font's licence gets verified and recorded in `CREDITS.md` before shipping.
 |---|---|---|---|---|
 | Player rig animations | Animations (most in 3 views) | ~30 | ~46 | ~47 |
 | Player customization skins | Hair / outfits / hats / accessories | 6 / 3 / 0 / 0 | 12 / 10 / 6 / 4 | 16 / 24 / 12 / 12 |
-| Sworn rigs | Rigs | 5 | 15 | 24 |
+| Sworn rigs | Rigs | 5 | 16 | 24 |
 | Companion combat sets | Sets | 3 | 7 | 12 |
 | Story NPC & enemy rigs | Rigs / sheets | 10 | 18 | 19 |
 | Settler portrait kit | Parts | 39 | 67 | 80 |
-| Portraits | Expressions | 67 | 169 | 278 |
+| Portraits | Expressions | 67 | 177 | 278 |
 | Creature forms (incl. Guardians) | Rigs / sheets | 15 | 38 | 60 |
 | Ambient life | Sets | 4 | 6 | 6 |
 | Bosses (all) | Rigs | 2 | 5 | 11 |
@@ -569,7 +569,7 @@ Every font's licence gets verified and recorded in `CREDITS.md` before shipping.
 | Interior tilesets / maps | Sets / maps | 1 / 8 | 3 / 20 | 4 / 30 |
 | Ground decals | Decals | 30 | 55 | 80 |
 | Lived-in clutter pieces | Props | 10 | 25 | 40 |
-| Building exteriors | Illustrations | 16 | ~46 | 65 |
+| Building exteriors | Illustrations | 16 | ~47 | 65 |
 | Item icons | Icons | ~110 | ~375 | ~560 |
 | Furniture & decor | Objects | ~20 | ~70 | ~120 |
 | UI screens | Screens | 24 | 28 | 30 |

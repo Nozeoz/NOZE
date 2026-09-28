@@ -1,6 +1,6 @@
 # 00 — Production Roadmap
 
-> **Project NOZE** · title **TBD** (see [Q-01](12_DECISIONS_AND_OPEN_QUESTIONS.md#part-b-open-questions-for-you)) · Design Bible **v0.2**
+> ***Kingsbloom*** (Project NOZE) · Design Bible **v0.3**
 > **We are here → Step 3 (Narrative & Progression Design) 🔄 — first draft ready for your review.**
 
 ---
@@ -71,7 +71,7 @@ Legend: ✅ done · 🔄 in progress · ⏳ next · ⬜ not started · 🎨 need
 | # | Step | Scope | Status |
 |---|---|---|---|
 | 18 | **Chapter 1 complete** | All seasons' systems, Village rank, Juniper and Marigold, Court Day, Decrees v1 | ⬜ |
-| 19 | **Chapter 2: Whisperwood** | Region, Rootdeep Labyrinth, 5 Sworn, Pale Choir arc, Expeditions | ⬜ |
+| 19 | **Chapter 2: Whisperwood** | Region, Rootdeep Labyrinth, 6 Sworn (incl. Kael), Pale Choir arc, Expeditions, Faction Standing | ⬜ |
 | 20 | **Chapter 3: Saltglass Coast** | Region, Drowned Bells, 4 Sworn, fishing, trade, Veil Surges | ⬜ |
 | 21 | **EA Hardening** | Settings, accessibility, save migration, performance, bug bash, Steam demo (Next Fest) | ⬜ |
 | 22 | **🚀 Early Access Launch** | Chapters 1–3 | ⬜ |
@@ -80,7 +80,7 @@ Legend: ✅ done · 🔄 in progress · ⏳ next · ⬜ not started · 🎨 need
 
 | # | Step | Scope | Status |
 |---|---|---|---|
-| 23 | **Chapter 4: Cinderpeak** | Forgeheart, Dominion war arc, 5 Sworn, mounts, bathhouse | ⬜ |
+| 23 | **Chapter 4: Cinderpeak** | Forgeheart, Dominion war arc, 4 Sworn, Kael's Sunblade memory, mounts, bathhouse | ⬜ |
 | 24 | **Chapter 5: Frostveil** | Starfall Spire, the Long Winter event, 3 Sworn | ⬜ |
 | 25 | **Chapter 6: The Hollow Crown** | Halcyon Below, Ashen Warden, the Maw, 3 endings, post-game Veil Rifts | ⬜ |
 | 26 | **🏁 1.0 Launch** | Full game; evaluate console ports, localisation, and mod support | ⬜ |
@@ -91,7 +91,7 @@ Legend: ✅ done · 🔄 in progress · ⏳ next · ⬜ not started · 🎨 need
 
 | Track | When | What |
 |---|---|---|
-| **Title clearance** | Now → before Step 17 | Pick the title → check Indonesia's trademark database (PDKI, DJKI), USPTO, EUIPO/WIPO, Steam, domain, social handles → consider filing a trademark (classes 9 and 41) before the Steam page goes live |
+| **Title clearance** | Now → before Step 17 | Title chosen: ***Kingsbloom***. Next: check Indonesia's trademark database (PDKI, DJKI), USPTO, EUIPO/WIPO, Steam, a domain, and social handles → consider filing a trademark (classes 9 and 41) before the Steam page goes live |
 | **Artist search** | From Step 10 | Shortlist portfolios that match [08 §18](08_ART_DIRECTION.md#18-hiring-an-artist-brief--paid-test); run the paid test so the Art Style Test can start right after the Fun Check |
 | **Build in public** | From Step 6 | Weekly GIF or short clip (grey-boxes can be charming); later art reveals; wishlist call-to-action from Step 17 |
 
@@ -105,7 +105,7 @@ Legend: ✅ done · 🔄 in progress · ⏳ next · ⬜ not started · 🎨 need
 | Overworld regions | 1 (Dawnmere Vale) | 3 | 6 |
 | Dungeons (floors) | 1 (10 + boss) | 3 (10 / 15 / 15 + bosses) | 6 (+ endless Veil Rifts) |
 | Seasons | Spring | All 4 | All 4 |
-| Sworn (named recruits) | 4 | 15 | 24 |
+| Sworn (named recruits) | 4 | 16 | 24 |
 | Romanceable | 3 | 7 | 12 |
 | Creature species (+ Guardians) | 12 (+1) | 27 (+3) | 38 (+5) |
 | True Ascension forms | 2 | 8 | 17 |
@@ -138,6 +138,6 @@ Full per-asset breakdown: [`10_ASSET_LIST.md`](10_ASSET_LIST.md).
 | **System interplay bugs** | Farming × AI × economy × time interact constantly | Simulation separated from rendering, deterministic ticks, unit tests on systems |
 | **HD art throughput** | Illustrated art and animation cost more per asset than pixel art | Spine rigs and skins, layered portraits, a reusable prop kit, shaders for variants ([`10_ASSET_LIST.md` §16](10_ASSET_LIST.md#16-production-notes)) |
 | **Too similar to existing games** | Rune Factory, Palworld, and Stardew all loom large | Our differentiators: the fallen-monarch fantasy, enemy recruitment, Court Day and Decrees, the Veil/Beacon territory loop |
-| **Title conflict** | *Crownless* is already taken on Steam | Title clearance track above |
+| **Title clearance** | *Kingsbloom* has passed only a quick web search | Formal checks (PDKI, USPTO, WIPO, Steam) before the Steam page |
 
 For scale: Stardew Valley took its solo creator roughly four and a half years. Gating on a vertical slice is how we keep this project finishable.

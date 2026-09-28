@@ -174,7 +174,7 @@ Great Veilkin bound to guard the Regalia, corrupted by the Hunger. Defeat → pu
 | `boss_nix` | Nix, the Unsung | 2 | Shadow teleports, sigil traps | Spare → recruit |
 | `boss_ingrid` | Commander Ingrid Valk | 4 | Shield wall, lance charges, commands soldiers | Spare → recruit |
 | `boss_vesper` | Choirmaster Vesper | 5 | Hymn-based bullet patterns, Hollowed choir | Spare → redemption |
-| `boss_warden` | The Ashen Warden (Caelan) | 6 | Mirror of the prologue: uses your old Royal Arts | Purify → recruit |
+| `boss_warden` | The Ashen Warden (Lucan) | 6 | Mirror of the prologue: uses your old Royal Arts | Purify → recruit |
 | `boss_maw` | The Maw Below | 6 | Multi-stage finale; in Ending B your whole realm joins the fight | Ending |
 
 ---

@@ -105,7 +105,7 @@ Columns: **Days** to first harvest · **Regrow** (days between harvests, "—" =
 | `tree_pomegranate` | Pomegranate | Autumn | 900 | 140 | | 1.0 |
 | `tree_silverpear` | **Silverpear** *(fantasy)* | Winter | 1,500 | 260 | Fruit shimmers in snow | 1.0 |
 | `bush_tea` | Tea Bush | Spring–Autumn | 1,000 | Leaves 50 | Leaves every 3 days → Black Tea | EA |
-| `bush_halcyon_rose` | **Halcyon Rose** *(story)* | Any | Story | — | An "extinct" flower re-grown from a seed found in Ch5; Caelan's loved gift | 1.0 |
+| `bush_kingsbloom` | **Kingsbloom** *(story; the game's title)* | Any | Story | — | The royal flower, extinct for a thousand years. Grows from a seed found in Ch5 and **only blooms once your realm reaches Kingdom rank**; Lucan's and Isolde's loved gift | 1.0 |
 
 Wild (non-fruit) trees: Oak, Pine, Maple, Birch, Palm (coast), Giant Mushroom (Whisperwood), Charred Pine (Cinderpeak), Frost Fir (Frostveil), **Veil Tree** (outside the Realm; gives Hardwood and Veil Sap).
 
@@ -243,8 +243,8 @@ Every species has 1 common + 1 rare material: **76 creature materials at 1.0**.
 | 20 | Honey Tea *(drink)* | Honey + Tea Leaves | — | Energy regen 3h | Linnea 4♥ | EA |
 | 21 | Seaweed Tea *(drink)* | Seaweed + Tea Leaves | — | Guard 2h | Orin | EA |
 | 22 | Sunfruit Sorbet | Sunfruit + Milk + Honey | 40 | HP +80, Veil-rot immunity 2h | Nix | EA |
-| 23 | **Spicy Curry** | Emberroot + Rice + Carrot | 70 | **Warmth 6h** + Might | Kaida | 1.0 |
-| 24 | Mushroom Pie | Mushroom + Flour + Butter | 65 | Miner's Grit 6h | Durgan | 1.0 |
+| 23 | **Spicy Curry** | Emberroot + Rice + Carrot | 70 | **Warmth 6h** + Might | Akane | 1.0 |
+| 24 | Mushroom Pie | Mushroom + Flour + Butter | 65 | Miner's Grit 6h | Kael | 1.0 |
 | 25 | Frostkale Hotpot | Frostkale + Winter Radish + any fish | 70 | Warmth 6h | Saga | 1.0 |
 | 26 | **Royal Feast** | 6 dishes | 100 | Party-wide: all buffs 6h | Palace kitchen | 1.0 |
 
@@ -280,7 +280,7 @@ Every species has 1 common + 1 rare material: **76 creature materials at 1.0**.
 | Bow | — | ✔ | ✔ | ✔ | ✔ | ✔ | EA |
 | Catalyst | — | ✔ | ✔ | ✔ | ✔ | ✔ | EA |
 
-- Tiers 0–3 are forged at the **Smithy** (Tamsin); tiers 4–5 at the **Great Forge** (Durgan).
+- Tiers 0–3 are forged at the **Smithy** (Tamsin); tiers 4–5 at the **Great Forge** (Kael), which also adds **Veilforging** (gear that resists Veil-rot).
 - **Legendary line:** Sunblade (Ch4) → Sunblade, Awakened → **Sunblade of Halcyon** (Ch6).
 - Weapons can be **enchanted** with one element at the Enchanter's Spire (Nix).
 - **Count:** 32 standard weapons + 3 Sunblade stages = **35** at 1.0.
@@ -351,11 +351,12 @@ Counts: EA **13** · 1.0 **20** (5 legendary). Trash catches: Soggy Boot, Driftw
 | **Memory Fragments** | Lore; Archive donations → Lore | 30 |
 | **Crown Embers** | +10 max Energy or HP each | 10 |
 | Kingdom Charter | Received at the Founding | 1 |
+| Kael's Knife | Kael's gift (SQ-210); trinket: +crafting speed | 1 |
 | Blossom Brooch | Start dating (8♥) | Craftable |
 | Consort's Ring | Proposal (10♥): Silver Bar + Pearl + Heartflame Ember | Craftable |
 | Heartflame Ember | Rare catalyst (TA Phoenix, Sunsteel, Consort's Ring) | Rare |
 | Royal Seal | The Ch3 reveal | 1 |
-| Old Letters | Caelan's backstory | 6 |
+| Old Letters | Lucan's backstory | 6 |
 | Dungeon Keys | Vault floors | Per dungeon |
 | Ancient Tome, Poetry Book, Golden Lute String, Exotic Spice, Bittersweet Chocolate, Spiced Rum | Gifts (Market, trade routes, dungeons) | — |
 

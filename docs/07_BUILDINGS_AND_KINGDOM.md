@@ -70,24 +70,24 @@ A Sworn's building unlocks **when that Sworn joins**, as long as the minimum ran
 | `bld_lodge` | **Carpenter's Lodge** | Bram | 0 | 5×4 | Enables construction and upgrades; builder jobs | VS |
 | `bld_clinic` | Herbalist Hut → **Clinic** | Linnea | 0 | 3×3 → 5×4 | Knockout recovery, injuries, early potions, Veil-rot cleansing | VS (T1) · EA (T2) |
 | `bld_scout_post` | **Scout's Post** → Expedition Hall | Rook | 1 | 3×3 → 4×4 | Map, bounties; **Expeditions** at T2 | VS (T1) · EA (T2) |
-| `bld_smithy` | **Smithy** → Great Forge | Tamsin → Durgan | 1 | 5×4 → 7×5 | Tool and weapon upgrades, smelting, geodes; Great Forge: tiers 4–5 and the Sunblade | VS (T1) · 1.0 (T2) |
+| `bld_smithy` | **Smithy** → Great Forge | Tamsin → Kael | 1 | 5×4 → 7×5 | Tool and weapon upgrades, smelting, geodes; the Great Forge adds **Veilforging** (EA), then tiers 4–5 and the Sunblade line (1.0) | VS (T1) · EA (T2) |
 | `bld_tavern` | Cookhouse → **Tavern** | (settler cook) → Marigold | 1 | 4×3 → 6×5 | Communal meals (Food Stock → dishes), recipes, arrivals notice board, rumours | VS (T1) · EA (T2) |
 | `bld_market` | **Market** | Mira | 2 | 7×5 | Daily shop, settler stalls, trade | EA |
 | `bld_archive` | **Royal Archive** | Elowen | 2 | 6×5 | Donations, collections, Memory Fragments, **research** | EA |
 | `bld_nursery` | **Grove Nursery** | Fen | 2 | 5×5 | Saplings, rare seeds, Veil Seed germination | EA |
 | `bld_chapel` | **Chapel of Dawn** | Aldous | 2 | 5×6 | Weekly blessings, Veil-rot cleansing, festivals, **weddings** | EA |
 | `bld_spire` | **Enchanter's Spire** | Nix | 2 | 3×3 (tall) | Sigil upgrades, enchanting, Veil Essence | EA |
-| `bld_harbor` | **River Harbor** (+ Fishery wing) | Mari (+ Orin) | 3 | 8×5 (on the river) | Trade routes, sea expeditions, fishing upgrades, Tide Traps | EA |
+| `bld_harbor` | **River Harbor** (+ Fishery wing) | Sol (+ Orin) | 3 | 8×5 (on the river) | Trade routes, sea expeditions, fishing upgrades, Tide Traps | EA |
 | `bld_bandstand` | **Bandstand** | Seren | 3 | 4×4 | Morale, festival bonuses, the kingdom anthem | EA |
 | `bld_workshop` | **Workshop** | Pim & Pom | 3 | 5×4 | Dew Totems, Hauler Posts, auto-feeders, Clocktower | EA |
-| `bld_arena` | **Arena** | Kaida | 4 | 8×8 | Sparring, challenges, familiar duels, Sun Tourney venue | 1.0 |
+| `bld_arena` | **Arena** | Akane | 4 | 8×8 | Sparring, challenges, familiar duels, Sun Tourney venue | 1.0 |
 | `bld_lab` | **Alchemist Lab** | Hollis | 4 | 4×4 | Potions, fertilizers, Veil tonics | 1.0 |
 | `bld_brewery` | **Brewery** | Hilde | 4 | 5×4 | Premium ales and wines, festival drinks | 1.0 |
 | `bld_barracks` | **Barracks** | Ingrid | 4 | 6×5 | Guards, training, Surge defense | 1.0 |
 | `bld_observatory` | **Observatory** | Saga | 4 | 5×5 (tower) | Forecasts, luck, star events | 1.0 |
 | `bld_hunters_lodge` | **Hunter's Lodge** | Tor | 4 | 5×4 | Bounties, tracking, **mounts** | 1.0 |
 | `bld_tailor` | **Tailor's House** | Isolde | 4 | 4×4 | Clothing, dyes, **heraldry editor** | 1.0 |
-| `bld_hall_of_knights` | **Hall of Knights** | Caelan | 5 | 8×6 | Knight Order upgrades; final defense | 1.0 |
+| `bld_hall_of_knights` | **Hall of Knights** | Lucan | 5 | 8×6 | Knight Order upgrades; final defense | 1.0 |
 | `bld_bathhouse` | **Bathhouse** | (settlers) | 4 | 6×5 | Joy, Energy restore; heated by Kindling familiars | 1.0 |
 
 ### 3.5 Defense
@@ -157,7 +157,7 @@ Landmarks restored by delivering **bundles** of items. Inspired by community-res
 | **The Royal Aqueduct** (Dawnmere) | Bricks, Copper, Aquamarine | Commons fields watered automatically | EA |
 | **The Great Library** (Whisperwood) | Ancient Pages, Amber, Glowcaps | Archive research tree | EA |
 | **The Lighthouse** (Saltglass) | Glass, Silver Bars, Glow Oil | Safer trade routes; night fishing bonus | EA |
-| **Emberhold Gate** (Cinderpeak) | Emberite, Obsidian, Stonebrew Ale | Dwarven trade; Durgan's trust | 1.0 |
+| **Emberhold Gate** (Cinderpeak) | Emberite, Obsidian, Stonebrew Ale | Dwarven trade; Hilde's family hold opens | 1.0 |
 | **Rimewatch Beacon** (Frostveil) | Thick Cloth, Warm Brews, Sunstone | Support during the Long Winter | 1.0 |
 
 ---

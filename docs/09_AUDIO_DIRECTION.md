@@ -65,7 +65,7 @@
 | 9 | `mus_dgn_cellars` | Sunken Cellars | Dungeon 1 | VS |
 | 10 | `mus_battle` | Steel in the Mist | Overworld combat | VS |
 | 11 | `mus_guardian` | Guardian of the Anchor | Guardian fights | VS |
-| 12 | `mus_duel` | Rival's Challenge | Rook / Kaida / Ingrid duels; Sun Tourney | VS |
+| 12 | `mus_duel` | Rival's Challenge | Rook / Akane / Ingrid duels; Sun Tourney | VS |
 | 13 | `mus_shop` | Coin & Caravan | Mira, the Market | VS |
 | 14 | `mus_fest_blossom` | Blossomfall | Festival | VS |
 | 15 | `mus_town_night` | Lamplight | Town at night | EA |
@@ -96,7 +96,7 @@
 | 40 | `mus_dgn_starfall` | Starfall Spire | Dungeon 5 | 1.0 |
 | 41 | `mus_dgn_halcyon` | Halcyon Below | Dungeon 6 | 1.0 |
 | 42 | `mus_dgn_rift` | Veil Rift | Post-game | 1.0 |
-| 43 | `mus_warden` | The Ashen Warden | Caelan boss (reprises the prologue) | 1.0 |
+| 43 | `mus_warden` | The Ashen Warden | Lucan boss (reprises the prologue) | 1.0 |
 | 44 | `mus_truth` | What I Decreed | The Chapter 5 reveal | 1.0 |
 | 45 | `mus_final` | The Maw Below | Finale (multi-phase) | 1.0 |
 | 46 | `mus_end_dawn` | Halcyon Dawn | Ending B | 1.0 |
