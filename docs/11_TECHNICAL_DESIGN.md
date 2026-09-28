@@ -1,21 +1,40 @@
 # 11 — Technical Design
 
-> **TL;DR:** **TypeScript + Phaser 4 + Vite**, web-first (every build is playable in a browser, including on your phone), wrapped with **Electron** for Steam. Maps in **Tiled**, dialogue in **Ink**, content as **validated data files**. The core rule: **simulation is separate from rendering**, so farming, economy, AI, and time can be unit-tested without drawing a single pixel.
-
+> **TL;DR (v0.2):** **TypeScript + Phaser 4 + Vite**, web-first (every build is playable in a browser, including on your phone), wrapped with **Electron** for Steam. Characters animate with **Spine** (official Phaser 4 runtime). Maps in **Tiled**, dialogue in **Ink**, content as **validated data files**. The core rule: **simulation is separate from rendering**, so farming, economy, AI, and time can be unit-tested without drawing anything.
 ---
 
 ## 1. Engine decision
 
-| Option | Pros | Cons | Verdict |
-|---|---|---|---|
-| **Phaser 4 + TypeScript (web-first)** | Runs instantly in any browser (PC or phone), so **you can play every step's build from a link**; code-only workflow fits our collaboration; strong 2D and tilemap support; free; proven path to Steam through desktop wrappers | Less visual editor tooling (we build debug tools ourselves); console ports need a porting partner | ✅ **Recommended** |
-| Godot 4 (GDScript) | Excellent free 2D editor; exports to desktop, mobile, and (via partners) consoles | Heavier to share test builds from this environment; you'd need the editor installed to contribute | Strong alternative if you want to edit scenes visually yourself |
-| Unity | Industry standard, huge asset store | Heavy for a 2D pixel game; licensing history; not practical to run here | ❌ |
-| GameMaker | Great for 2D pixel games | Proprietary IDE; not practical to run here | ❌ |
+### 1.1 What an engine is (plain language)
+A game engine is the **workshop** a game is built in: it draws the graphics, plays sounds, reads the keyboard or controller, and runs the game's rules every frame. Engines differ in four ways that matter to us:
 
-**Precedents for web tech on Steam:** *CrossCode* (a pixel-art action RPG) was built with HTML5/JavaScript, and *Vampire Survivors* started in Phaser before being ported to Unity for consoles. That's the known path: web-first while building, port later if consoles call.
+1. **Editor or code?** Some give you a visual editor (drag objects into a scene); others are mostly code.
+2. **Where can the game run?** PC, web browser, phone, consoles.
+3. **Who can work in it?** Programmers only, or artists and designers too.
+4. **Cost and licence.**
 
-**Version:** Phaser **4.x** (the npm `latest` tag was 4.2.1 when this doc was written). We pin exact versions and upgrade deliberately.
+### 1.2 The options
+
+| Engine | What it's like | Good at | Weak at | Cost |
+|---|---|---|---|---|
+| **Phaser 4 (TypeScript, web)** | A code library; the game runs in any web browser | Instant playable links (PC and phone); fits a code-first workflow; official **Spine** runtime for HD animation; ships to Steam through a desktop wrapper | No built-in scene editor (we use **Tiled**, a free visual map editor); consoles need a port later | Free |
+| **Godot 4** | A full visual editor + its own scripting language | Very friendly all-round 2D engine; built-in animation and skeleton tools; exports to PC, mobile, web; console exports through partner companies | Sharing test builds from our cloud workflow is heavier; to work hands-on you'd install the editor | Free, open source |
+| **Unity** | The industry-standard editor (C#) | Huge ecosystem; the most proven console path | Heavy for a 2D game; licensing controversy in 2023; can't be run in our workflow | Free tier, paid above a revenue threshold |
+| **GameMaker** | A 2D-focused editor | Popular for 2D indie games | Proprietary editor; can't be run in our workflow | Paid tiers for commercial release |
+
+### 1.3 Recommendation for **this** team (you + me, for now)
+
+**Phaser 4, web-first.** Reasons, in order:
+1. **I write the code and you review by playing.** With Phaser I can build, test in a real browser here, and send you a **link you open on your phone or PC**, with nothing to install. With the other engines you'd have to install tools to see progress.
+2. **The art direction is supported.** HD illustrated art and **Spine** skeletal animation work in Phaser 4 through Esoteric Software's official runtime (`@esotericsoftware/spine-phaser-v4`, which targets Phaser ^4.2.1).
+3. **Your artist and you still get a visual editor for maps:** Tiled lets anyone place trees, mushrooms, and props by hand, which is exactly how the reference look is built.
+4. **Steam is covered** through an Electron desktop build (a proven path for web-built games: *CrossCode* was made with HTML5/JavaScript, and *Vampire Survivors* started in Phaser before a later Unity port for consoles).
+
+**The honest trade-off:** if the game later needs consoles, or a hired team prefers Godot or Unity, the **code** would be rewritten, but the **content carries over**: art, Spine rigs, Tiled maps, Ink dialogue, JSON data, audio. We re-check this choice at the **Vertical Slice gate (Step 16)**.
+
+**Second choice:** Godot 4, if you ever want to open the project and edit scenes yourself.
+
+**Version:** Phaser **4.x** (npm `latest` was 4.2.1 when this doc was written). Exact versions are pinned and upgraded deliberately.
 
 ---
 
@@ -24,12 +43,13 @@
 | Concern | Choice |
 |---|---|
 | Language | TypeScript (strict mode) |
-| Engine | Phaser 4 (WebGL, pixel-art mode) |
+| Engine | Phaser 4 (WebGL) |
+| Character animation | **Spine** (editor licence for the animator) + official runtime `@esotericsoftware/spine-phaser-v4` |
 | Build tool | Vite |
 | Maps & dungeon room chunks | **Tiled** (`.tmx` source → `.tmj` runtime) |
 | Dialogue & story scripting | **Ink** (compiled to JSON at build time, run with `inkjs`) |
 | Content data | JSON/TS files validated with **zod** schemas at build and test time |
-| Art pipeline | Aseprite → CLI export script → packed atlases (PNG + JSON) |
+| Art pipeline | Layered PSD/Krita at 2× → export script → packed atlases (PNG + JSON), 1× default + 2× high-res pack; Spine projects → `.skel` + atlas |
 | Audio | Phaser Web Audio sound manager; Ogg + AAC; audio sprites |
 | Save storage | IndexedDB (web) · file system (desktop) |
 | Unit tests | Vitest |
@@ -120,7 +140,7 @@ flowchart TB
 Content lives in `src/data/`, one file per domain, validated at build time. The IDs match the design docs exactly.
 
 ```ts
-// Sketch only; the real schemas are written in Step 3.
+// Sketch only; the real schemas are written in Step 5.
 type Season = "spring" | "summer" | "autumn" | "winter";
 type Element = "terra" | "aqua" | "ignis" | "zephyr" | "lumen" | "umbra";
 
@@ -185,11 +205,14 @@ interface SwornDef {
 
 ## 10. Rendering, lighting & the Veil
 
-- Phaser **pixel-art mode**, integer camera zoom, rounded pixels, texture atlases, tilemap layers.
-- **Night and the Veil:** a full-screen **darkness/fog render texture** is drawn above the world, and light sources **erase** soft pixel circles out of it every frame. The Realm border, lanterns, and Flicker cut holes into the Veil, which is exactly the visual in the art direction.
+- **HD illustrated rendering:** smooth (linear) texture filtering with mipmaps; the camera scales the 1920×1080 reference to any window size.
+- **Texture sets:** 1× atlases by default (web, laptops), a 2× high-res pack on capable desktops; later, GPU-compressed textures to cut memory.
+- **Per-region streaming:** only the current region's terrain, props, and creatures are loaded.
+- **Spine rigs** for characters and larger creatures; skins for customization; tint and gradient-map shaders for colour variants.
+- **Night and the Veil:** a full-screen **darkness/fog render texture** is drawn above the world, and light sources **erase** soft circles out of it every frame. The Realm border, lanterns, and Flicker cut glowing holes into the Veil, which is exactly the look in the art direction.
 - Time-of-day grading via tint and saturation, per the art direction.
-- **The Hollowed shader** (desaturate + rim light + white eyes) is one reusable pipeline.
-- Depth sorting by the Y coordinate of each sprite's feet.
+- **The Hollowed shader** (desaturate + rim light + white eyes) is one reusable effect.
+- Depth sorting by the Y coordinate of each object's ground pivot.
 
 ---
 
@@ -202,19 +225,20 @@ interface SwornDef {
 | Active sprites | < 2,000 on screen |
 | Settler and familiar AI | < 2 ms per frame (staggered) |
 | Pathfinding | < 1 ms per frame (queued) |
-| Memory | < 1 GB |
+| Memory | < 1 GB total; texture budget per region ≤ ~350 MB (1× set) |
+| Spine | ≤ 40 animated rigs on screen at full update rate; distant rigs update at reduced rate |
 | Region load | < 5 s |
 
-Profile from Step 4 onward, with a stress-test scene (90 residents + 40 familiars) by Step 8.
+Profile from Step 6 onward, with a stress-test scene (90 residents + 40 familiars) by Step 10.
 
 ---
 
-## 12. Project structure (planned for Step 3)
+## 12. Project structure (planned for Step 5)
 
 ```
 NOZE/
 ├── docs/                    Design Bible (this folder)
-├── art_src/  audio_src/     Source art and audio (Git LFS)
+├── art_src/  audio_src/     Layered source art, Spine projects, audio (Git LFS)
 ├── game/
 │   ├── public/assets/       Exported atlases, maps, audio, fonts
 │   ├── src/
@@ -261,7 +285,7 @@ NOZE/
 
 1. **On every push:** install → lint → typecheck → unit tests → build → Playwright smoke test.
 2. **Playable web build** uploaded as an artifact and published for review, so **you can play each step from a link**.
-3. **On release tags:** desktop builds (Windows / macOS / Linux) via Electron, then the Steam upload (from Step 19).
+3. **On release tags:** desktop builds (Windows / macOS / Linux) via Electron, then the Steam upload (from Step 21).
 
 ---
 
@@ -271,7 +295,7 @@ NOZE/
 - **Dev console:** give item, set time, skip day, spawn creature, set hearts, set rank, teleport.
 - **Time controls:** pause, ×1, ×10, ×100 for simulation testing.
 - **Content hot reload** in dev builds (edit a JSON file, see it live).
-- **Asset export script:** Aseprite CLI → atlases, with name validation against the asset list.
+- **Asset export script:** layered sources → trimmed PNGs → packed atlases (1× and 2×), with name validation against the asset list.
 
 ---
 
@@ -280,7 +304,8 @@ NOZE/
 | Risk | Mitigation |
 |---|---|
 | Phaser 4 maturity (newer than Phaser 3) | Pin versions; smoke tests; isolate engine calls in the presentation layer so a Phaser 3.x fallback is contained |
-| Many residents hurting performance | Abstract off-screen simulation; staggered AI; flow fields; a stress test by Step 8 |
+| Many residents hurting performance | Abstract off-screen simulation; staggered AI; flow fields; a stress test by Step 10 |
 | Save corruption across EA updates | Versioned migrations, golden-file tests, rolling backups |
 | Browser audio quirks | Unlock on first input; Ogg + AAC fallback |
-| Steam features in a web wrapper | Electron + a proven Steamworks bridge; test the overlay and achievements early (Step 19) |
+| Steam features in a web wrapper | Electron + a proven Steamworks bridge; test the overlay and achievements early (Step 21) |
+| HD texture memory in browsers | 1× default set, per-region streaming, compressed textures, budgets checked in CI |

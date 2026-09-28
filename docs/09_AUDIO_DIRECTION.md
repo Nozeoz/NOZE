@@ -171,7 +171,7 @@
 
 ---
 
-## 9. Audio Style Test (Step 12) deliverables
+## 9. Audio Style Test (Step 14) deliverables
 - A 60–90 s sketch of **Once a Sovereign** (main theme), plus a music-box version (Flicker's Lullaby).
 - Town theme states 0 and 1, to prove the layering concept.
 - The Gloaming (Veil night) ambience + whisper layer.

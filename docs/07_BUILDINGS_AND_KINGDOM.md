@@ -6,7 +6,7 @@
 
 ## 1. Building rules
 
-- **Placement:** prefab buildings on the 16 px tile grid, **inside the Realm** only. Footprints are in tiles (W×H) and include a 1-tile walkable apron at the door.
+- **Placement:** prefab buildings on the tile grid (1 tile = 64 px at 1080p), **inside the Realm** only. Footprints are in tiles (W×H) and include a 1-tile walkable apron at the door.
 - **The Throne is fixed** on the hill at the Ashen Throne; every other building can be moved with the Hammer (free, instant).
 - **Construction:** materials + gold, then it takes days. The site shows scaffold stages. Builders (Bram, Builder settlers, Crafting familiars) speed it up.
 - **Upgrades** happen in place. Some tiers need a specific Sworn; the footprint may grow (the player must leave room).

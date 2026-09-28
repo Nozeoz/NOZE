@@ -1,6 +1,6 @@
 # 10 — Master Asset List
 
-> **TL;DR:** Every art, audio, and UI asset the game needs, mapped by **ID**, **spec**, and **milestone** (VS / EA / 1.0), with production **templates** so each asset type is made the same way. Totals per milestone are in [§15](#15-totals-by-milestone). This file is the source of truth; when art production starts (Step 11), it gets exported to a tracker spreadsheet (owner, due date, review status).
+> **TL;DR (v0.2):** Every art, audio, and UI asset the game needs, mapped by **ID**, **spec**, and **milestone** (VS / EA / 1.0), with production **templates** so each asset type is made the same way. v0.2 specs follow the **illustrated 2D** direction ([`08_ART_DIRECTION.md`](08_ART_DIRECTION.md)): art authored at **2×**, characters and larger creatures as **Spine rigs**, a **64 px** tile grid at 1080p. Totals per milestone are in [§15](#15-totals-by-milestone). When art production starts (Step 13, the Art Style Test), this list is exported to a tracker spreadsheet (owner, due date, review status).
 
 **Status legend:** ☐ to do · ◐ in progress · ☑ done · ✖ cut. Every asset below starts at ☐.
 
@@ -10,7 +10,8 @@
 
 - **IDs** follow the prefixes in §2.1; the file name is the ID plus its extension.
 - **Milestone** = the first build that needs the asset. Later milestones only add to it.
-- **Templates** (§2.4) define frame size and animation set. Instead of repeating "idle 4 frames, walk 6 frames…" for 60 creatures, each row names its template.
+- **Templates** (§2.4) define method, size, and animation set, so each row just names its template.
+- **Sizes** are on-screen at 1080p. **Author everything at 2×** (e.g. a 64 px icon is painted at 128 px).
 - Content definitions (who, what, why) live in the design docs; this list only covers **what must be produced**.
 
 ---
@@ -21,13 +22,15 @@
 
 | Prefix | Type | Example |
 |---|---|---|
-| `spr_` | Animated sprite sheet | `spr_npc_bram` |
-| `por_` | Portrait sheet | `por_linnea` |
+| `rig_` | Spine skeleton (character, creature, boss) | `rig_npc_bram` |
+| `spr_` | Frame-by-frame sprite sheet | `spr_cre_mossbun` |
+| `por_` | Portrait (layered) | `por_linnea` |
 | `ico_` | Icon (atlas frame) | `ico_crop_turnip` |
-| `tls_` | Tileset | `tls_dawnmere_ground_spring` |
+| `tls_` | Terrain tileset | `tls_dawnmere_ground_spring` |
 | `map_` / `chk_` | Tiled map / dungeon room chunk | `map_dawnmere_vale`, `chk_cellars_combat_03` |
-| `bld_` | Building sprite | `bld_smithy_t1` |
+| `bld_` | Building | `bld_smithy_t1` |
 | `prp_` | Prop / nature object | `prp_tree_oak_mature_spring` |
+| `dcl_` | Ground decal | `dcl_clover_patch_02` |
 | `fur_` / `dec_` | Furniture / decor | `fur_bed_simple`, `dec_banner` |
 | `ui_` | UI element or screen | `ui_panel_parchment` |
 | `vfx_` | Visual effect | `vfx_hit_spark_stone` |
@@ -38,12 +41,13 @@
 ### 2.2 Folder structure
 
 ```
-art_src/                  source files (.aseprite, .psd, .kra), stored with Git LFS
-  characters/ portraits/ creatures/ tiles/ buildings/ props/ items/ ui/ vfx/ marketing/
+art_src/                  layered source files (.psd / .kra / .clip) and Spine projects (.spine), Git LFS
+  characters/ portraits/ creatures/ terrain/ props/ buildings/ items/ ui/ vfx/ marketing/
 audio_src/                DAW projects and stems (Git LFS)
 game/public/assets/       exported runtime files
-  atlases/                packed PNG + JSON
-  tilesets/  maps/  portraits/  fonts/
+  rigs/                   Spine .skel/.json + atlas
+  atlases/                packed PNG + JSON (props, icons, UI, VFX)
+  terrain/  maps/  portraits/  fonts/
   audio/music/  audio/sfx/  audio/amb/  audio/vox/
 ```
 
@@ -51,109 +55,114 @@ game/public/assets/       exported runtime files
 
 | Type | Source | Runtime |
 |---|---|---|
-| Sprites & icons | Aseprite with tagged animations (`idle_d`, `walk_s`, …) | PNG atlas + JSON |
-| Tilesets | Aseprite | PNG + Tiled `.tsj` |
+| Characters, creatures, bosses | Layered parts (PSD/Krita) → **Spine** project | Spine `.skel` (binary) + atlas |
+| Small creatures, FX | Layered file with frame folders | PNG sheet + JSON |
+| Props, decals, icons, UI | Layered PSD/Krita at 2× | Packed PNG atlases + JSON (1× default, 2× high-res pack) |
+| Terrain | Painted tiles at 2× | PNG + Tiled `.tsj` |
 | Maps & room chunks | Tiled `.tmx` | Tiled `.tmj` (JSON) |
-| Portraits | Aseprite, layered (base / eyes / brows / mouth / blush) | PNG sheet |
+| Portraits | Layered PSD (base / eyes / brows / mouth / blush / sweat / tears) | PNG layers composited at runtime |
 | Music | DAW project + stems | `.ogg` + `.m4a` |
 | SFX | WAV 48 kHz / 24-bit | `.ogg` + `.m4a` audio sprites |
-| Fonts | `.ttf` / `.otf` or bitmap | Bitmap font (`.png` + `.fnt`) |
+| Fonts | `.ttf` / `.otf` | Web font or bitmap-font export |
+
+**Layer naming for Spine parts** (so any animator can rig any character): `head`, `hair_front`, `hair_back`, `eye_l`, `eye_r`, `mouth`, `torso`, `arm_l_upper`, `arm_l_lower`, `hand_l`, `leg_l_upper`, `leg_l_lower`, `foot_l` (and `_r`), `cape`, `tail`, `weapon`, `tool`.
 
 ### 2.4 Production templates
 
-Directions: **D/U/S** = down, up, side (mirrored for left/right). Full animation tables are in [`08_ART_DIRECTION.md` §12](08_ART_DIRECTION.md#12-animation-standards).
+Views: **D/U/S** = down (front), up (back), side (mirrored for left/right). Animation lists and target durations: [`08_ART_DIRECTION.md` §13](08_ART_DIRECTION.md#13-animation-standards).
 
-| Template | Frame | Contents | ≈ Frames |
+| Template | Method | Size at 1080p | Contents |
 |---|---|---|---|
-| **T-PLAYER** | 32×48 | Full player set (move, tools, 6 weapon families, dodge, cast, pact, carry, fishing, emotes, ride) | VS ~300 · EA ~475 · 1.0 ~490 (per body frame) |
-| **T-SWORN** | 32×48 | Idle 4, walk 6 (D/U/S), signature loop 6, sit 3, talk 4, emote 4 | ~47 |
-| **T-SWORN-COMP** | 32×48 (+64×64 FX) | T-SWORN + attack 2×4, skill 5, hurt 2, KO 4 (D/U/S) | ~96 |
-| **T-SETTLER** | 32×48 | Idle, walk, carry, work-farm, work-chop, work-hammer, work-generic, sit, sleep, on shared skeletons | ~120 per skeleton |
-| **T-ENEMY** | 32×48 | Idle, move, attack ×2, hurt, KO (D/U/S) | ~60 |
-| **T-CRE-S** | 32×32 | Idle (side + front), move (side), attack, hurt, faint, work, sleep, happy | ~35 |
-| **T-CRE-M** | 48×48 | As S, idle and move in D/U/S | ~61 |
-| **T-CRE-L** | 64×64 | As M | ~61 |
-| **T-MOUNT** | 64×64 | Adds mounted idle/walk/run (D/U/S) + rider anchor points | +~40 |
-| **T-BOSS** | 96–192 | Custom per fight | 80–150 |
-| **T-PORTRAIT** | 128×128 | 8 layered expressions: Neutral, Happy, Laugh, Sad, Angry, Surprised, Blush, Signature | 8 |
-| **T-ICON** | 16×16 | 1 px dark outline, top-left light | 1 |
-| **T-CROP** | 16×16 or 16×32 | 4–6 growth stages + harvestable + regrow | ~6 |
-| **T-TREE** | 32×48 to 48×64 | Sapling, young, mature, stump, fall (4), shake (2), per season | ~12 per season |
+| **T-PLAYER** | Spine rig ×3 views + **skins** | ~64 × 128 | Full player set: move, tools, 6 weapon families, dodge, cast, pact, carry, fishing, emotes, ride (VS ~30 · EA ~46 · 1.0 ~47 animations) |
+| **T-SWORN** | Spine rig ×3 views | ~64 × 128 | Idle, walk, signature loop, sit, talk gesture, emote |
+| **T-SWORN-COMP** | T-SWORN + combat set | ~64 × 128 | + attack ×2, skill, hurt, KO |
+| **T-SETTLER** | Shared rigs (Medium / Small / Stout) + skins | ~64 × 96–128 | Idle, walk, carry, work-farm, work-chop, work-hammer, work-generic, sit, sleep |
+| **T-ENEMY** | Spine rig ×3 views | ~64 × 128 | Idle, move, attack ×2, hurt, KO |
+| **T-CRE-S** | Frame-by-frame (or small rig) | ~48–80 | Idle (side + front), move, attack, hurt, faint, work, sleep, happy |
+| **T-CRE-M** | Spine rig ×3 views | ~96–128 | As S, with idle and move in D/U/S |
+| **T-CRE-L** | Spine rig ×3 views | ~160–200 | As M |
+| **T-MOUNT** | T-CRE-L + mounted set | ~160–200 | Mounted idle/walk/run + rider attachment bone |
+| **T-BOSS** | Custom Spine rig | 300–700 | Custom per fight, multi-part |
+| **T-PORTRAIT** | Layered illustration | Shown ~512², authored 1024² | 8 expressions: Neutral, Happy, Laugh, Sad, Angry, Surprised, Blush, Signature |
+| **T-ICON** | Illustration | 64², authored 128² | Coloured line art, top-left light |
+| **T-CROP** | Illustration | 64 × 64 or 64 × 128 | 4–6 growth stages + harvestable + regrow |
+| **T-TREE** | Illustration (+ optional sway bones) | 128–320 tall | Sapling, young, mature, stump, fall, shake, per season |
+| **T-PROP** | Illustration | Varies | + collision shape + sort pivot (placed as a Tiled object) |
+| **T-TERRAIN** | Painted tiles | 64² | Full tile ×3–4 variants + soft-edge transition set per terrain pair |
 
 ---
 
 ## 3. Characters
 
-### 3.1 Player: the Sovereign (paper-doll)
+### 3.1 Player: the Sovereign (Spine skins)
 
-| Layer | Method | VS | EA | 1.0 |
+| Part | Method | VS | EA | 1.0 |
 |---|---|---|---|---|
-| Body frame A (skin via palette ramp) | Per frame (T-PLAYER) | 1 | 1 | 1 |
-| Body frame B | Edit pass over A (~30% of A's cost) | 1 | 1 | 1 |
-| Eyes (4 shapes, colour via ramp) | Per direction + head-offset table | 4 | 4 | 4 |
-| Hair styles (front + back) | Per direction + offsets | 6 | 12 | 16 |
-| Tops | Per direction × 2 poses + offsets | 3 | 10 | 24 |
-| Bottom shapes (trousers, shorts, skirt, robe) | Per frame, colour via ramp | 2 | 4 | 4 |
-| Hats | Per direction + offsets | — | 6 | 12 |
-| Accessories | Per direction + offsets | — | 4 | 12 |
-| Tool layers (hoe, can, axe, pickaxe, sickle; tiers via palette) | Per frame of tool animations | 5 | 5 | 5 |
-| Weapon layers (tiers via palette; unique shapes at T4–T5) | Per frame of attack animations | 2 families | 6 families | 6 + T4/T5 shapes |
-| Held items (lantern, fishing rod, sigil) | Per frame | 2 | 3 | 3 |
-| **Prologue Sovereign** (full regalia, combat subset) `spr_sovereign_prologue` | T-PLAYER combat subset | 1 | — | — |
+| Body rig (3 views), skin tone via tint | T-PLAYER | 1 | 1 | 1 |
+| Body shape B | Alternate torso/hip attachments on the same rig | 1 | 1 | 1 |
+| Eye shapes (colour via tint) | Attachments | 4 | 4 | 4 |
+| Hair styles (front + back) | Skins | 6 | 12 | 16 |
+| Outfits (top + bottom) | Skins | 3 | 10 | 24 |
+| Hats | Skins | — | 6 | 12 |
+| Accessories | Skins | — | 4 | 12 |
+| Tools (hoe, can, axe, pickaxe, sickle; tiers via tint + small shape changes) | Attachments on `tool` slot | 5 | 5 | 5 |
+| Weapons (unique shapes at T4–T5) | Attachments on `weapon` slot | 2 families | 6 families | 6 + T4/T5 shapes |
+| Held items (lantern, fishing rod, sigil) | Attachments | 2 | 3 | 3 |
+| **Prologue Sovereign** (full regalia, combat subset) `rig_sovereign_prologue` | T-PLAYER skin + combat subset | 1 | — | — |
 
 ### 3.2 Flicker
 
 | ID | Contents | Milestone |
 |---|---|---|
-| `spr_flicker` | Idle bob 6 · fly 4 · talk 4 · eat 6 · 6 emotes × 4 | VS |
+| `spr_flicker` | Idle bob · fly · talk · eat · 6 emotes (frame-by-frame, ~32 px) | VS |
 | `spr_flicker_growth` | One added flame/crown layer per Regalia (6 stages) | VS (stage 1) → 1.0 |
 | `spr_flicker_true` | True form (Ch6) | 1.0 |
 
-### 3.3 Sworn sprites
+### 3.3 Sworn rigs
 
 | ID | Sworn | Template | Signature loop | Milestone |
 |---|---|---|---|---|
-| `spr_npc_bram` | Bram | T-SWORN | Sawing / hammering | VS |
-| `spr_npc_linnea` | Linnea | T-SWORN-COMP | Grinding herbs | VS |
-| `spr_npc_rook` | Rook | T-SWORN-COMP | Coin flip | VS |
-| `spr_npc_tamsin` | Tamsin | T-SWORN-COMP | Anvil strike | VS |
-| `spr_npc_mira` | Mira (+ caravan cart) | T-SWORN | Counting coins | VS |
-| `spr_npc_juniper` | Juniper | T-SWORN | Feeding creatures | EA |
-| `spr_npc_marigold` | Marigold | T-SWORN | Stirring a pot | EA |
-| `spr_npc_elowen` | Elowen | T-SWORN-COMP | Reading a floating book | EA |
-| `spr_npc_fen` | Fen | T-SWORN | Playing the flute | EA |
-| `spr_npc_aldous` | Aldous | T-SWORN | Lighting a lantern | EA |
-| `spr_npc_nix` | Nix | T-SWORN-COMP | Tracing sigils | EA |
-| `spr_npc_mari` | Mari | T-SWORN-COMP | Spyglass | EA |
-| `spr_npc_orin` | Orin | T-SWORN | Fishing | EA |
-| `spr_npc_seren` | Seren | T-SWORN-COMP | Lute strum | EA |
-| `spr_npc_pim`, `spr_npc_pom` | Pim & Pom | T-SWORN (small body) ×2 | Wrenching; small explosion | EA |
-| `spr_npc_durgan` | Durgan | T-SWORN | Heavy hammer | 1.0 |
-| `spr_npc_kaida` | Kaida | T-SWORN-COMP | Shadowboxing | 1.0 |
-| `spr_npc_hollis` | Hollis | T-SWORN-COMP | Pouring flasks | 1.0 |
-| `spr_npc_hilde` | Hilde | T-SWORN | Rolling a barrel | 1.0 |
-| `spr_npc_ingrid` | Ingrid | T-SWORN-COMP | Sword drill | 1.0 |
-| `spr_npc_saga` | Saga | T-SWORN | Stargazing | 1.0 |
-| `spr_npc_tor` | Tor | T-SWORN-COMP | Whittling | 1.0 |
-| `spr_npc_isolde` | Isolde | T-SWORN | Sewing | 1.0 |
-| `spr_npc_caelan` | Caelan | T-SWORN-COMP | Kneeling vigil | 1.0 |
+| `rig_npc_bram` | Bram | T-SWORN | Sawing / hammering | VS |
+| `rig_npc_linnea` | Linnea | T-SWORN-COMP | Grinding herbs | VS |
+| `rig_npc_rook` | Rook | T-SWORN-COMP | Coin flip | VS |
+| `rig_npc_tamsin` | Tamsin | T-SWORN-COMP | Anvil strike | VS |
+| `rig_npc_mira` | Mira (+ caravan cart prop) | T-SWORN | Counting coins | VS |
+| `rig_npc_juniper` | Juniper | T-SWORN | Feeding creatures | EA |
+| `rig_npc_marigold` | Marigold | T-SWORN | Stirring a pot | EA |
+| `rig_npc_elowen` | Elowen | T-SWORN-COMP | Reading a floating book | EA |
+| `rig_npc_fen` | Fen | T-SWORN | Playing the flute | EA |
+| `rig_npc_aldous` | Aldous | T-SWORN | Lighting a lantern | EA |
+| `rig_npc_nix` | Nix | T-SWORN-COMP | Tracing sigils | EA |
+| `rig_npc_mari` | Mari | T-SWORN-COMP | Spyglass | EA |
+| `rig_npc_orin` | Orin | T-SWORN | Fishing | EA |
+| `rig_npc_seren` | Seren | T-SWORN-COMP | Lute strum | EA |
+| `rig_npc_pim`, `rig_npc_pom` | Pim & Pom | T-SWORN (Small rig) ×2 | Wrenching; small explosion | EA |
+| `rig_npc_durgan` | Durgan | T-SWORN | Heavy hammer | 1.0 |
+| `rig_npc_kaida` | Kaida | T-SWORN-COMP | Shadowboxing | 1.0 |
+| `rig_npc_hollis` | Hollis | T-SWORN-COMP | Pouring flasks | 1.0 |
+| `rig_npc_hilde` | Hilde | T-SWORN | Rolling a barrel | 1.0 |
+| `rig_npc_ingrid` | Ingrid | T-SWORN-COMP | Sword drill | 1.0 |
+| `rig_npc_saga` | Saga | T-SWORN | Stargazing | 1.0 |
+| `rig_npc_tor` | Tor | T-SWORN-COMP | Whittling | 1.0 |
+| `rig_npc_isolde` | Isolde | T-SWORN | Sewing | 1.0 |
+| `rig_npc_caelan` | Caelan | T-SWORN-COMP | Kneeling vigil | 1.0 |
 
 Companion-capable (T-SWORN-COMP) = the 12 romance options: **VS 3 · EA 7 · 1.0 12**.
 
 ### 3.4 Settlers (modular)
 
-**Sprite kit (T-SETTLER):**
+**Rig kit (T-SETTLER):**
 
 | Part | VS | EA | 1.0 |
 |---|---|---|---|
-| Skeletons × body frames A/B | Medium A/B | + Small A/B | + Stout A/B |
-| Race overlays (elf ears, beast ears + tails ×3, dragon horns ×2 + tail, fins) | — | 6 | 9 |
+| Rigs × body shapes A/B | Medium A/B | + Small A/B | + Stout A/B |
+| Race attachments (elf ears, beast ears + tails ×3, dragon horns ×2 + tail, fins) | — | 6 | 9 |
 | Hair styles | 6 | 10 | 12 |
-| Job outfits (tops; bottoms reuse the player's shapes) | 6 (farmer, forager, woodcutter, hauler, builder, cook) | 12 | 16 |
+| Job outfits | 6 (farmer, forager, woodcutter, hauler, builder, cook) | 12 | 16 |
 | Accessories (hats, bandanas, glasses) | 3 | 6 | 10 |
-| Colour ramps (skin 8, hair 12, cloth 16) | ✔ | ✔ | ✔ |
+| Colour sets via tint/gradient map (skin 8, hair 12, cloth 16) | ✔ | ✔ | ✔ |
 
-**Portrait kit (128×128, composited at runtime):**
+**Portrait kit (layered, composited at runtime):**
 
 | Part | VS | EA | 1.0 |
 |---|---|---|---|
@@ -174,17 +183,17 @@ The same portrait kit can later give the **player** a dialogue portrait (optiona
 
 | ID | Character | Template | Milestone |
 |---|---|---|---|
-| `spr_npc_caelan_prologue` | Caelan in prologue armour | T-SWORN-COMP | VS |
-| `spr_npc_vesper` | Vesper (prologue, then Choirmaster) + boss attacks | T-SWORN + boss set | VS (prologue) / EA |
-| `spr_npc_hob` | Hob Furrow | Settler kit + unique hair | VS |
-| `spr_npc_magpie`, `_jackdaw`, `_finch` | Crowfeather trio | Settler kit + T-ENEMY | VS |
-| `spr_cre_humphrey` | Mira's pack-beast | T-CRE-M | VS |
-| `spr_npc_pip` | Pip (child, 32×32 frame) | T-SWORN (child) | EA |
-| `spr_npc_thane` | Lord-Marshal Thane | T-SWORN | EA |
-| `spr_enm_cutpurse` / `_brute` / `_slinger` | Crowfeather Gang | T-ENEMY | VS |
-| `spr_enm_acolyte` / `_chanter` / `_silentblade` | Pale Choir | T-ENEMY | EA |
-| `spr_enm_soldier` / `_crossbow` | Dominion | T-ENEMY | EA |
-| `spr_enm_warden_engine` | Dominion construct | T-CRE-L | 1.0 |
+| `rig_npc_caelan_prologue` | Caelan in prologue armour (skin on Caelan's rig) | T-SWORN-COMP | VS |
+| `rig_npc_vesper` | Vesper (prologue, then Choirmaster) + boss attacks | T-SWORN + boss set | VS (prologue) / EA |
+| `rig_npc_hob` | Hob Furrow | Settler kit + unique hair | VS |
+| `rig_npc_magpie`, `_jackdaw`, `_finch` | Crowfeather trio | Settler kit + T-ENEMY set | VS |
+| `rig_cre_humphrey` | Mira's pack-beast | T-CRE-M | VS |
+| `rig_npc_pip` | Pip (child) | T-SWORN (Small rig) | EA |
+| `rig_npc_thane` | Lord-Marshal Thane | T-SWORN | EA |
+| `rig_enm_cutpurse` / `_brute` / `_slinger` | Crowfeather Gang | T-ENEMY | VS |
+| `rig_enm_acolyte` / `_chanter` / `_silentblade` | Pale Choir | T-ENEMY | EA |
+| `rig_enm_soldier` / `_crossbow` | Dominion | T-ENEMY | EA |
+| `rig_enm_warden_engine` | Dominion construct | T-CRE-L | 1.0 |
 | `spr_enm_hollow_sprout` | A Veil Seed gone wrong | T-CRE-S | EA |
 
 ### 3.6 Portraits
@@ -202,15 +211,15 @@ The same portrait kit can later give the **player** a dialogue portrait (optiona
 | `por_durgan` `por_kaida` `por_hollis` `por_hilde` `por_ingrid` `por_saga` `por_tor` `por_isolde` `por_caelan` | 1.0 Sworn | 8 each | — | 1.0 |
 | `por_*_wedding` | 12 romance options | 3 each | Wedding outfits | 1.0 |
 
-**Portrait counts:** VS **67** · EA **169** · 1.0 **278** expressions.
+**Portrait counts:** VS **67** · EA **169** · 1.0 **278** expressions (layered, so most expressions are face-layer swaps, not new paintings).
 
 ---
 
 ## 4. Creatures
 
-Species details: [`05_BESTIARY.md`](05_BESTIARY.md). Each form needs: **sprite sheet** + **compendium icon** (32×32; the unknown silhouette is generated) + 3 SFX (audio list). **The Hollowed** are a shader (0 new frames). The **Named crown mark** is one shared overlay placed via per-species anchor points.
+Species details: [`05_BESTIARY.md`](05_BESTIARY.md). Each form needs: **rig or sprite sheet** + **compendium icon** (T-ICON; the unknown silhouette is generated) + 3 SFX. **The Hollowed** are a shader (no new art). The **Named crown mark** is one shared overlay placed via a per-species anchor bone or point.
 
-| Group | IDs (`spr_cre_*`) | Template | Milestone |
+| Group | IDs (`rig_cre_*` / `spr_cre_*`) | Template | Milestone |
 |---|---|---|---|
 | VS species, S (10) | mossbun, puddlepup, emberkit, cluckatrice, glimmoth, mandragling, jellop, pebblet, wickling, gnawrat | T-CRE-S | VS |
 | VS species, M (2) | cloudfleece, duskwolf | T-CRE-M | VS |
@@ -225,55 +234,64 @@ Species details: [`05_BESTIARY.md`](05_BESTIARY.md). Each form needs: **sprite s
 
 **Creature forms:** VS **15** (incl. Ruinback) · EA **38** · 1.0 **60** (see §5 for Guardians).
 
+### 4.1 Ambient life
+
+| ID | Asset | Method | Milestone |
+|---|---|---|---|
+| `spr_amb_wispling` | **Wisplings** (idle, hop, hide, sleep, carry-gift; 3 variants) | Frame-by-frame | VS |
+| `spr_amb_dragonfly`, `spr_amb_butterfly`, `spr_amb_fish_shadow` | Ambient critters | Frame-by-frame | VS |
+| `spr_amb_songbird`, `rig_amb_deer` | Ambient critters | Frame-by-frame / rig | EA |
+
 ---
 
 ## 5. Bosses
 
-| ID | Boss | Frame | ≈ Frames | Extra parts | Milestone |
-|---|---|---|---|---|---|
-| `spr_boss_ruinback` | Ruinback | 192×128 | 100 | Breakable shell crystals, tower debris | VS |
-| `spr_boss_rook` | Rook duel | Rook's sheet | +30 | Smoke-bomb FX | VS |
-| `spr_boss_mycel` | Mother Mycel | 128×128 | 120 | Clones, root cages | EA |
-| `spr_boss_tidetoll` | Tidetoll | 192×160 | 120 | Bells, water-level states | EA |
-| `spr_boss_nix` | Nix duel | Nix's sheet | +30 | Sigil traps | EA |
-| `spr_boss_vulkarn` | Vulkarn | 192×192 | 150 | Lava rise, armour plates | 1.0 |
-| `spr_boss_astraea` | Astraea | 160×160 | 140 | Starfall zones | 1.0 |
-| `spr_boss_ingrid` | Ingrid | Ingrid's sheet | +30 | Lance charge | 1.0 |
-| `spr_boss_vesper` | Vesper | Vesper's sheet | +40 | Hymn bullet patterns | 1.0 |
-| `spr_boss_warden` | The Ashen Warden | 48×64 | 90 | Echoes of the prologue Royal Arts | 1.0 |
-| `spr_boss_maw` | The Maw Below | Multi-part, screen-sized | 300+ | Tendrils, core, phases | 1.0 |
+| ID | Boss | Size at 1080p | Extra parts | Milestone |
+|---|---|---|---|---|
+| `rig_boss_ruinback` | Ruinback | ~640 × 420 | Breakable shell crystals, tower debris | VS |
+| `rig_boss_rook` | Rook duel | Rook's rig | + smoke-bomb FX, duel animations | VS |
+| `rig_boss_mycel` | Mother Mycel | ~420 × 420 | Clones, root cages | EA |
+| `rig_boss_tidetoll` | Tidetoll | ~640 × 520 | Bells, water-level states | EA |
+| `rig_boss_nix` | Nix duel | Nix's rig | + sigil traps | EA |
+| `rig_boss_vulkarn` | Vulkarn | ~640 × 640 | Lava rise, armour plates | 1.0 |
+| `rig_boss_astraea` | Astraea | ~520 × 520 | Starfall zones | 1.0 |
+| `rig_boss_ingrid` | Ingrid | Ingrid's rig | + lance charge | 1.0 |
+| `rig_boss_vesper` | Vesper | Vesper's rig | + hymn bullet patterns | 1.0 |
+| `rig_boss_warden` | The Ashen Warden | ~160 × 210 | Echoes of the prologue Royal Arts | 1.0 |
+| `rig_boss_maw` | The Maw Below | Multi-part, screen-sized | Tendrils, core, phases | 1.0 |
 
 ---
 
 ## 6. Environments
 
-### 6.1 Overworld tilesets
+### 6.1 Terrain tilesets (T-TERRAIN, 64 px)
 
 | ID | Contents | ≈ Tiles | Seasons | Milestone |
 |---|---|---|---|---|
-| `tls_farm` | Tilled and watered soil, paddy (1.0), trellis bases | 60 | — | VS |
-| `tls_dawnmere_ground` | Grass, dirt, flowers, cliffs, transitions | 180 | Spring (VS) → ×4 (EA) | VS |
-| `tls_dawnmere_water` | River, pond, shoreline, waterfall (4-frame animation) | 90 | ×4 (EA) | VS |
-| `tls_ruins_halcyon` | Halcyon ruin set pieces used in every region | 120 | Snow overlay (EA) | VS |
-| `tls_veil` | Veil-choked soil, bramble, Veil Wall, crystal nodes, light-border dither | 70 | — | VS |
-| `tls_town` | Paths (dirt → stone → brick), plazas, wall materials | 150 | Snow overlay | VS (dirt) → 1.0 |
-| `tls_prologue` | Burning Halcyon capital | 120 | — | VS |
-| `tls_whisperwood_*` | Forest floor, giant roots, mushroom rings | 200 | ×4 | EA |
-| `tls_saltglass_*` | Sand, glass sand, cliffs, tide pools, docks | 200 | ×4 | EA |
-| `tls_cinderpeak_*` | Rock, lava (animated), obsidian, hot springs | 200 | Snow on peaks | 1.0 |
-| `tls_frostveil_*` | Snow, ice, frozen lake, aurora sky | 180 | — | 1.0 |
-| `tls_hollowcrown_*` | Ruined capital in the deep Veil | 200 | — | 1.0 |
+| `tls_farm` | Tilled and watered soil (soft edges), paddy (1.0) | 40 | — | VS |
+| `tls_dawnmere_ground` | Meadow grass, dirt, path, cliff faces, transitions | 90 | Spring (VS) → ×4 (EA) | VS |
+| `tls_dawnmere_water` | River and pond banks + animated water shader | 40 | ×4 (EA) | VS |
+| `tls_veil` | Veil-choked soil, Veil Wall, light-border glow | 30 | — | VS |
+| `tls_town` | Paths (dirt → cobble → brick), plazas | 60 | Snow overlay | VS (dirt) → 1.0 |
+| `tls_prologue` | Burning Halcyon capital | 60 | — | VS |
+| `tls_whisperwood_*` | Forest floor, root-covered ground | 90 | ×4 | EA |
+| `tls_saltglass_*` | Sand, glass sand, rock shelves, tide pools | 90 | ×4 | EA |
+| `tls_cinderpeak_*` | Rock, lava (shader), obsidian, hot springs | 90 | Snow on peaks | 1.0 |
+| `tls_frostveil_*` | Snow, ice, frozen lake | 80 | — | 1.0 |
+| `tls_hollowcrown_*` | Ruined capital ground in the deep Veil | 90 | — | 1.0 |
+
+Most of the "reference look" comes from **props and decals placed on top** (§6.5), not from terrain tiles.
 
 ### 6.2 Dungeon tilesets & room chunks
 
 | ID | Dungeon | ≈ Tiles | Room chunks | Milestone |
 |---|---|---|---|---|
-| `tls_dgn_cellars` | Sunken Cellars | 150 | 40 | VS |
-| `tls_dgn_rootdeep` | Rootdeep Labyrinth | 170 | 45 | EA |
-| `tls_dgn_bells` | Drowned Bells | 170 | 45 | EA |
-| `tls_dgn_forgeheart` | The Forgeheart | 180 | 50 | 1.0 |
-| `tls_dgn_starfall` | Starfall Spire | 180 | 50 | 1.0 |
-| `tls_dgn_halcyon` | Halcyon Below | 200 | 60 | 1.0 |
+| `tls_dgn_cellars` | Sunken Cellars | 80 | 40 | VS |
+| `tls_dgn_rootdeep` | Rootdeep Labyrinth | 90 | 45 | EA |
+| `tls_dgn_bells` | Drowned Bells | 90 | 45 | EA |
+| `tls_dgn_forgeheart` | The Forgeheart | 90 | 50 | 1.0 |
+| `tls_dgn_starfall` | Starfall Spire | 90 | 50 | 1.0 |
+| `tls_dgn_halcyon` | Halcyon Below | 100 | 60 | 1.0 |
 | — | Veil Rifts (remix all chunk sets + `tls_veil`) | — | — | 1.0 |
 
 **Chunk types per dungeon:** entrance, standard combat (majority), mining, treasure vault, spring, captive, nest, memory shrine, Veil rift, merchant, Waystone, Descent, Guardian arena.
@@ -295,40 +313,42 @@ Species details: [`05_BESTIARY.md`](05_BESTIARY.md). Each form needs: **sprite s
 | ID | Map | Milestone |
 |---|---|---|
 | `map_prologue_halcyon` | Prologue: burning capital | VS |
-| `map_dawnmere_vale` | Home region (192×144 tiles) | VS |
+| `map_dawnmere_vale` | Home region (192 × 144 tiles) | VS |
 | `map_whisperwood` · `map_saltglass_coast` | Regions 2–3 | EA |
 | `map_cinderpeak` · `map_frostveil` · `map_hollow_crown` | Regions 4–6 | 1.0 |
 | `map_thorn_court` · `map_brinemouth` · `map_emberhold` · `map_rimewatch` · `map_frozen_manor` · `map_starfall_crater` | Special locations | EA / 1.0 |
 | Festival decoration layers for the town map | Per festival | VS (1) → EA (8) |
 
-### 6.5 Props & nature
+### 6.5 Props, decals & nature (T-PROP, placed freely)
 
 | Group | Contents | Milestone |
 |---|---|---|
-| Wild trees (T-TREE) | Oak, Pine, Maple (VS, Spring) → + Birch, Palm, Giant Mushroom (EA, ×4 seasons) → + Charred Pine, Frost Fir, Veil Tree (1.0) | VS → 1.0 |
+| Wild trees (T-TREE) | Round-canopy oak, pine, maple (VS, Spring) → + birch, palm, giant mushroom tree (EA, ×4 seasons) → + charred pine, frost fir, Veil Tree (1.0) | VS → 1.0 |
 | Fruit trees & perennials | 6 fruit trees + Tea Bush (3 stages × 4 seasons + fruit overlay) + Halcyon Rose bush | EA / 1.0 |
-| Bushes | Berry and decorative bushes (8), seasonal | VS (2) → 1.0 |
+| Forest-floor set | Giant mushrooms (3 sizes), ferns, stumps, fallen logs, roots, berry bushes, flower clumps | VS (20 pieces) → 1.0 (50) |
+| Water set | Lily pads, lotuses, reeds, stepping stones, driftwood, small dock, floating log | VS (12) → EA (20) |
 | Rocks | Small, large, boulder × region variants + break animation | VS → 1.0 |
 | Ore nodes | Copper, Veilglass crystal, gem, geode (VS) → Iron, Silver (EA) → Emberite, Starmetal, Heartstone (1.0); 2 sizes + break animation | VS → 1.0 |
-| Forage on the ground | One sprite per forage item (~35) | VS (8) → 1.0 |
-| Weeds & cuttable grass | 4 types × seasons | VS |
+| Forage on the ground | One prop per forage item (~35) | VS (6) → 1.0 |
+| **Ground decals** (`dcl_`) | Clover patches, grass tufts, flower scatters, dirt specks, leaves, pebbles | VS (30) → 1.0 (80) |
 | Veil features | Bramble, crystal node, Veil Wall segment, tendrils | VS |
-| Ruins set pieces | Pillars, broken walls, sun-sigil tiles, gates, the **headless Sovereign statue** (a story hint) | VS (20) → 1.0 (60) |
-| Light props | Campfire, brazier, torch, Lumen Lamp, lantern post, light-shrine (all animated) | VS |
+| Ruins set pieces | Pillars, broken walls, sun-sigil floor stones, gates, the **headless Sovereign statue** (a story hint) | VS (20) → 1.0 (60) |
+| Light props | Campfire, brazier, torch, Lumen Lamp, lantern post, light-shrine (animated flames or glow) | VS |
+| **Lived-in clutter sets** | Laundry lines, barrels, clay pots, stools, crates, planters, **raised garden beds**, watering cans | VS (10) → EA (25) → 1.0 (40) |
 | **Story landmarks** (ruined + restored states) | Ashen Throne (dormant, kindled), Windmill Ruin, Old Bridge, Ruined Chapel, Old Granary, Reflection Pond | VS |
-| Misc | Signposts, crates, barrels, carts (Mira's caravan), fences (wood, stone), field gates | VS |
+| Misc | Signposts, carts (Mira's caravan), fences (wood, stone), field gates | VS |
 
 ### 6.6 Crops (T-CROP)
 
-- Per crop: 4–6 growth stages, harvestable stage, regrow stage if any; one shared **withered** sprite; trellis crops use 16×32.
+- Per crop: 4–6 growth stages, harvestable stage, regrow stage if any; one shared **withered** state; trellis crops are 64 × 128.
 - Seed packets: one shared packet template + per-crop art (counted as icons in §8).
-- **Crop sprites:** VS ~36 · EA ~160 · 1.0 ~190.
+- **Crop images:** VS ~36 · EA ~160 · 1.0 ~190.
 
 ---
 
 ## 7. Buildings
 
-Each exterior needs: the tier sprite + a **night emissive layer** (lit windows) + a **winter snow overlay** (EA). Surge damage uses a **shared damage-decal set**, not new sprites.
+Each exterior needs: the tier illustration + a **night emissive layer** (lit windows) + a **winter snow overlay** (EA). Surge damage uses a **shared damage-decal set**. All buildings use the same 3/4 front-facing projection ([08 §3](08_ART_DIRECTION.md#3-projection--camera)); Dawnmere buildings use the cream-stone and terracotta palette.
 
 | ID pattern | Building | Tiers to draw | Milestone |
 |---|---|---|---|
@@ -341,17 +361,17 @@ Each exterior needs: the tier sprite + a **night emissive layer** (lit windows) 
 | `bld_clinic_t2` · `bld_scout_post_t2` · `bld_tavern_t2` | Upgrades | 1 each | EA |
 | `bld_waybeacon` · `bld_cottage` · `bld_quarry` · `bld_mill` · `bld_glasshouse` · `bld_guard_post` · `bld_watchtower` | EA general | 1 each | EA |
 | `bld_market` · `bld_archive` · `bld_nursery` · `bld_chapel` · `bld_spire` · `bld_harbor` · `bld_bandstand` · `bld_workshop` | EA Sworn | 1 each | EA |
-| `bld_wall_*` · `bld_gate_*` | Palisade (EA) → Stone → Runed (1.0) | Wang set + gate per material | EA / 1.0 |
+| `bld_wall_*` · `bld_gate_*` | Palisade (EA) → Stone → Runed (1.0) | Wall-piece set + gate per material | EA / 1.0 |
 | `bld_smithy_t2` · `bld_townhouse` · `bld_manor` · `bld_bathhouse` | 1.0 general | 1 each | 1.0 |
 | `bld_arena` · `bld_lab` · `bld_brewery` · `bld_barracks` · `bld_observatory` · `bld_hunters_lodge` · `bld_tailor` · `bld_hall_of_knights` | 1.0 Sworn | 1 each | 1.0 |
 | `bld_scaffold_{s,m,l,xl}_{1..3}` | Construction stages by footprint class | 3 per class | VS (s, m) → EA (l, xl) |
 | `vfx_bld_damage_*` · `bld_snow_*` | Shared damage decals · snow caps | Sets | EA |
 
-**Exterior sprites:** VS **16** · EA **~46** · 1.0 **65**.
+**Exterior illustrations:** VS **16** · EA **~46** · 1.0 **65**.
 
 ---
 
-## 8. Items & icons (T-ICON, 16×16)
+## 8. Items & icons (T-ICON, 64 px)
 
 | Category | Technique | VS | EA | 1.0 |
 |---|---|---|---|---|
@@ -363,14 +383,14 @@ Each exterior needs: the tier sprite + a **night emissive layer** (lit windows) 
 | Creature materials | Unique | 24 | 54 | 76 |
 | Artisan goods | **Tinted templates** (jam, wine, juice, pickles, dye) | — | 22 | 30 |
 | Dishes & drinks | Unique | 8 | 22 | 26 |
-| Tools (all tiers) | Tier palettes | 12 | 27 | 34 |
-| Weapons | Tier palettes; unique T4/T5 shapes | 4 | 20 | 35 |
+| Tools (all tiers) | Tier tints + small shape changes | 12 | 27 | 34 |
+| Weapons | Tier tints; unique T4/T5 shapes | 4 | 20 | 35 |
 | Armour & trinkets | Unique | 9 | 30 | 54 |
 | Sigils, creature items, catalysts | Unique | 5 | 15 | 24 |
 | Consumables | Unique | 5 | 10 | 10 |
 | Fish (+ trash) | Unique | — | 16 | 23 |
 | Key items (Regalia, fragments, embers, charter, rings, keys…) | Unique | 5 | 16 | 26 |
-| Clothing (cosmetic) | From paper-doll parts | 3 | 20 | 60 |
+| Clothing (cosmetic) | Rendered from the Spine skins | 3 | 20 | 60 |
 | **Total icons** | | **~110** | **~375** | **~560** |
 
 Furniture and decor icons are counted in §9.
@@ -388,7 +408,7 @@ Furniture and decor icons are counted in §9.
 | Outdoor decor | Benches, flower beds, fountains, hedges, clocktower | 3 | 10 | 16 |
 | Festival decor | Lanterns, banners, stalls, pumpkins, snow sculptures | 1 | 8 | 16 |
 | **Banners (heraldry)** | Composited at runtime from field shapes (6), patterns (12), emblems (30), colours | ✔ | ✔ | ✔ |
-| **Knight statues** | Generated: a Sworn's idle-down frame remapped to a stone ramp + pedestal | — | — | up to 24 |
+| **Knight statues** | Generated: a Sworn's idle pose rendered through a stone shader + pedestal | — | — | up to 24 |
 | **Total objects** | | **~20** | **~70** | **~120** |
 
 ---
@@ -504,9 +524,9 @@ Full lists in [`09_AUDIO_DIRECTION.md`](09_AUDIO_DIRECTION.md).
 
 | ID | Use | Requirement |
 |---|---|---|
-| `fnt_body` | Dialogue, menus | Readable pixel font; Latin Extended (for future localisation); commercial-use licence (e.g. SIL OFL) |
-| `fnt_heading` | Titles, names | Royal pixel-serif |
-| `fnt_numbers` | Damage, gold, clock | Bold, monospaced digits |
+| `fnt_body` | Dialogue, menus | Rounded, friendly, highly readable sans (e.g. *Nunito*); Latin Extended for future localisation; open licence (e.g. SIL OFL) |
+| `fnt_heading` | Titles, names | Royal serif capitals (e.g. *Cinzel*) |
+| `fnt_numbers` | Damage, gold, clock | Bold weight of the body font, tabular digits |
 | `fnt_dyslexic` | Accessibility option | Dyslexia-friendly font with an open licence |
 
 Every font's licence gets verified and recorded in `CREDITS.md` before shipping.
@@ -517,16 +537,16 @@ Every font's licence gets verified and recorded in `CREDITS.md` before shipping.
 
 | ID | Asset | Milestone |
 |---|---|---|
-| `mkt_logo` | Logo (vector + pixel versions): the broken crown with a sprout | Step 15 |
-| `mkt_key_art_wide` / `_tall` | Illustrated key art (see [08 §14](08_ART_DIRECTION.md#14-logo--key-art-concept)) | Step 15 |
-| `mkt_capsule_*` | All Steam capsule and library sizes (per the current Steamworks spec) | Step 15 |
-| `mkt_screenshots` | 10 curated in-engine screenshots | Step 15 |
-| `mkt_trailer_announce` | 60–90 s announce trailer | Step 15 |
-| `mkt_gifs_weekly` | Build-in-public GIFs and clips (from Step 4 onward) | Ongoing |
-| `mkt_social_*` | Avatars and banners for X, Instagram, TikTok, YouTube | Step 15 |
-| `mkt_devlog_template` | Devlog header template | Step 15 |
-| `mkt_presskit` | Fact sheet, logos, screenshots, key art | Step 19 |
-| `mkt_trailer_ea` | Early Access launch trailer | Step 20 |
+| `mkt_logo` | Logo: the broken crown with a sprout (vector) | Step 17 |
+| `mkt_key_art_wide` / `_tall` | Illustrated key art (see [08 §15](08_ART_DIRECTION.md#15-logo--key-art-concept)) | Step 17 |
+| `mkt_capsule_*` | All Steam capsule and library sizes (per the current Steamworks spec) | Step 17 |
+| `mkt_screenshots` | 10 curated in-engine screenshots | Step 17 |
+| `mkt_trailer_announce` | 60–90 s announce trailer | Step 17 |
+| `mkt_gifs_weekly` | Build-in-public GIFs and clips (from Step 6 onward) | Ongoing |
+| `mkt_social_*` | Avatars and banners for X, Instagram, TikTok, YouTube | Step 17 |
+| `mkt_devlog_template` | Devlog header template | Step 17 |
+| `mkt_presskit` | Fact sheet, logos, screenshots, key art | Step 21 |
+| `mkt_trailer_ea` | Early Access launch trailer | Step 22 |
 
 ---
 
@@ -534,19 +554,22 @@ Every font's licence gets verified and recorded in `CREDITS.md` before shipping.
 
 | Category | Unit | VS | EA | 1.0 |
 |---|---|---|---|---|
-| Player body animation | Frames per body frame | ~300 | ~475 | ~490 |
-| Player customization | Hair / tops / hats / accessories | 6 / 3 / 0 / 0 | 12 / 10 / 6 / 4 | 16 / 24 / 12 / 12 |
-| Sworn sprite sheets | Sheets | 5 | 15 | 24 |
+| Player rig animations | Animations (most in 3 views) | ~30 | ~46 | ~47 |
+| Player customization skins | Hair / outfits / hats / accessories | 6 / 3 / 0 / 0 | 12 / 10 / 6 / 4 | 16 / 24 / 12 / 12 |
+| Sworn rigs | Rigs | 5 | 15 | 24 |
 | Companion combat sets | Sets | 3 | 7 | 12 |
-| Story NPC & enemy sheets | Sheets | 10 | 18 | 19 |
+| Story NPC & enemy rigs | Rigs / sheets | 10 | 18 | 19 |
 | Settler portrait kit | Parts | 39 | 67 | 80 |
 | Portraits | Expressions | 67 | 169 | 278 |
-| Creature forms (incl. Guardians) | Sprite sets | 15 | 38 | 60 |
-| Bosses (all) | Sheets | 2 | 5 | 11 |
-| Overworld tilesets | Sets | 7 | 9 (+ seasons) | 12 |
+| Creature forms (incl. Guardians) | Rigs / sheets | 15 | 38 | 60 |
+| Ambient life | Sets | 4 | 6 | 6 |
+| Bosses (all) | Rigs | 2 | 5 | 11 |
+| Terrain tilesets | Sets | 6 | 8 (+ seasons) | 11 |
 | Dungeon tilesets / room chunks | Sets / chunks | 1 / 40 | 3 / 130 | 6 / 290 |
 | Interior tilesets / maps | Sets / maps | 1 / 8 | 3 / 20 | 4 / 30 |
-| Building exteriors | Sprites | 16 | ~46 | 65 |
+| Ground decals | Decals | 30 | 55 | 80 |
+| Lived-in clutter pieces | Props | 10 | 25 | 40 |
+| Building exteriors | Illustrations | 16 | ~46 | 65 |
 | Item icons | Icons | ~110 | ~375 | ~560 |
 | Furniture & decor | Objects | ~20 | ~70 | ~120 |
 | UI screens | Screens | 24 | 28 | 30 |
@@ -559,33 +582,34 @@ Every font's licence gets verified and recorded in `CREDITS.md` before shipping.
 ## 16. Production notes
 
 ### 16.1 Cost savers (built into the specs above)
-1. **Paper-doll with head-offset tables** for the player and settlers: a new hairstyle is ~6 drawings, not ~300.
-2. **Palette ramps** for skin, hair, cloth, tool and weapon tiers, and seasonal tints.
-3. **The Hollowed are a shader**: 38 corrupted variants for zero new frames.
+1. **Spine skins** for the player, settlers, and outfits: a new hairstyle is one set of attachments, not a redrawn animation.
+2. **Tint and gradient-map shaders** for skin, hair, cloth, tool and weapon tiers, and seasonal colour shifts.
+3. **The Hollowed are a shader**: 38 corrupted variants with zero new art.
 4. **Layered portraits**: expressions swap eyes, brows, and mouth.
-5. **Tinted icon templates** for artisan goods (jam, wine, juice, pickles, dye).
-6. **Shared scaffolds, snow overlays, and damage decals** for all buildings.
-7. **Generated Knight statues** from Sworn sprites.
-8. **Mirrored side animations** (left = flipped right).
-9. **Room chunks** reused across floors; Veil Rifts remix all existing chunks.
-10. **The Named crown mark** is one overlay with per-species anchor points.
+5. **A small prop kit dresses big maps**: the reference look comes from **density and placement**, so trees, mushrooms, rocks, decals, and clutter are reused everywhere.
+6. **Tinted icon templates** for artisan goods (jam, wine, juice, pickles, dye).
+7. **Shared scaffolds, snow overlays, and damage decals** for all buildings.
+8. **Generated Knight statues** from Sworn rigs.
+9. **Mirrored side views** (left = flipped right).
+10. **Room chunks** reused across floors; Veil Rifts remix all existing chunks.
+11. **The Named crown mark** is one overlay with per-species anchor points.
 
-### 16.2 Outsourcing packages (if hiring artists)
+### 16.2 Outsourcing packages (for hired artists)
 | Package | Contents | Must include |
 |---|---|---|
-| A: Tiles & props | One region at a time | Aseprite template with the palette and grid, Tiled test map, reference board |
-| B: Character sprites | Sworn sheets | T-SWORN / T-SWORN-COMP template file, cast bible excerpt |
-| C: Portraits | Sworn portraits | T-PORTRAIT layered template, expression guide |
+| A: Terrain & props | One region at a time | Palette swatches, scale chart, a Tiled test map, reference board (links) |
+| B: Character parts + rigs | Sworn, player, settlers | Layer naming (§2.3), turnaround sheets, cast bible excerpt; rigging can be a separate Spine animator |
+| C: Portraits | Sworn portraits | Layered template, expression guide |
 | D: Creatures | By size class | T-CRE templates, bestiary excerpt, shape-language table |
 | E: UI & icons | Kit + icon sets | 9-slice guides, icon grid, colour-blind rules |
-| F: VFX | By group | Colour language, frame budgets |
+| F: VFX | By group | Colour language, timing targets |
 
 ### 16.3 Per-asset review checklist
-- [ ] Uses only the master palette
-- [ ] Correct frame size and pivot (bottom-centre for characters)
-- [ ] Aseprite tags follow the naming convention (`idle_d`, `walk_s`, `attack1_u`, …)
-- [ ] Reads clearly at ×1 zoom
-- [ ] No stray pixels or anti-aliasing against transparency
-- [ ] Timing matches the animation spec
+- [ ] Palette, line weight, and shading steps match [08 §5–6](08_ART_DIRECTION.md#5-line-art--shading)
+- [ ] Authored at 2×; correct pivot (ground contact point) and sort point
+- [ ] Layers and Spine slots follow the naming convention
+- [ ] Reads clearly at 1080p **and** at phone size
+- [ ] Same 3/4 projection and top-left light as everything else
+- [ ] Original work (no tracing or copying of references)
 - [ ] Exported with the project export script (never by hand)
 - [ ] Status updated in the tracker

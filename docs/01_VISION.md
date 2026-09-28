@@ -9,9 +9,9 @@
 
 | | |
 |---|---|
-| **Working title** | *Crownless* (codename **NOZE**; alternatives in [decision log](12_DECISIONS_AND_OPEN_QUESTIONS.md)) |
+| **Working title** | **TBD**: *Crownless* is already used by a game on Steam; shortlist in [Q-01](12_DECISIONS_AND_OPEN_QUESTIONS.md#part-b-open-questions-for-you). Codename **NOZE** |
 | **Genre** | Farming life-sim × dungeon crawler × kingdom builder × creature pacts, with survival at the frontier |
-| **Perspective** | Top-down 3/4 view, 2D anime-style pixel art |
+| **Perspective** | Top-down 3/4 view, hand-drawn illustrated 2D with chibi-anime characters |
 | **Platform** | PC (Steam) first; the web build is used for development and testing; consoles evaluated after 1.0 |
 | **Language** | English (all text is key-based, ready for later localization, e.g. Bahasa Indonesia) |
 | **Players** | Single-player |
@@ -139,13 +139,13 @@ The player's **personal verbs never disappear**. Even as a Sovereign you still f
 |---|---|---|
 | The settlement as an expedition base for dungeon runs | Dark-fantasy grimness as the default tone | "Cozy heart, sharp edge" |
 | Settlers with **six major abilities**, race, background, and personality traits | Real-time-with-pause as the *main* combat | Player-controlled action combat plus a **Command Mode** that slows time for tactical orders |
-| Parties of up to four | Free-form wall-by-wall room building | Prefab buildings with upgrades (reads better in 3/4 pixel art; see [D-004](12_DECISIONS_AND_OPEN_QUESTIONS.md)) |
+| Parties of up to four | Free-form wall-by-wall room building | Prefab buildings with upgrades (reads better in a 3/4 illustrated view; see [D-004](12_DECISIONS_AND_OPEN_QUESTIONS.md)) |
 | Randomized floors and rooms on each expedition | | **Expeditions**: send parties of settlers and familiars to cleared floors while you farm |
 
 ### Fields of Mistria (anime-style farming life-sim)
 | We take | We leave | Our twist |
 |---|---|---|
-| Anime-inspired pixel art with expressive portraits | Starting as the helpful newcomer | You're a fallen monarch, and the town is yours to found |
+| Anime-inspired look with expressive portraits | Starting as the helpful newcomer | You're a fallen monarch, and the town is yours to found |
 | Magic as part of daily life; restoring a broken place | | Magic is tied to the **Heartflame** and the Veil |
 | Deep romance with many candidates; festivals | | Marriage makes your spouse **Royal Consort** with a unique perk |
 | A multi-biome mine with elemental zones | | Each dungeon hides a **Regalia** and a piece of your past |

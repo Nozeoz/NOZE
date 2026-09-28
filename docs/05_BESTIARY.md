@@ -19,7 +19,7 @@
 1. **Cute-to-cool ratio:** base forms are ~70% cute and 30% cool. True Ascension forms flip to ~40/60.
 2. **One read at thumbnail size:** each species has one dominant feature (Mossbun's moss ears, Emberkit's ember tail).
 3. **No real-animal copies:** always add a fantasy twist (element, material, behaviour).
-4. **Size classes:** **S** (sprite 32×32), **M** (48×48), **L** (64×64), **Boss** (96–192 px).
+4. **Size classes** (on-screen at 1080p): **S** ~48–80 px · **M** ~96–128 px · **L** ~160–200 px · **Boss** 300–700 px (see [08 §4](08_ART_DIRECTION.md#4-resolution--scale)).
 5. **Defeated creatures dissolve into mist** and drop *materials* (fluff, gel, shells, essence), never meat or corpses.
 
 ---
@@ -108,6 +108,21 @@ Columns: **Pact** = Subdue / Offering (favourite item) / Challenge / Hatch · **
 | **VS** | **12** | Mossbun, Puddlepup, Emberkit, Cloudfleece, Cluckatrice, Glimmoth, Mandragling, Duskwolf, Jellop, Pebblet, Wickling, Gnawrat |
 | **EA** | **27** | + Creamhorn, Chompkin, 7 Whisperwood/Rootdeep, 6 Saltglass/Drowned Bells |
 | **1.0** | **38** | + 5 Cinderpeak, 5 Frostveil, 1 Halcyon Below |
+
+### 2.9 Ambient life: Wisplings
+
+Inspired by the tiny white critters in the creative lead's forest reference (our own design, not a copy).
+
+| | |
+|---|---|
+| What | **Wisplings**: palm-sized white spirit-bunnies with a faint glow. Harmless, curious, a little shy |
+| Pactable? | **No.** Ambient life, not a familiar |
+| Behaviour | Gather where the Realm is peaceful; follow Flicker around; hide in grass when you run; scatter when the Hollowed appear |
+| **System link** | Their **number in town mirrors average happiness**: a living, glanceable health bar for the kingdom. At high Prosperity they sometimes leave a small gift (forage, a flower) at your door in the morning |
+| Asset | One small frame-by-frame set (idle, hop, hide, sleep, carry-gift) with 3 variants |
+| Milestone | VS |
+
+Other ambient life (no gameplay role): dragonflies, butterflies, fish shadows, songbirds, deer herds.
 
 ---
 

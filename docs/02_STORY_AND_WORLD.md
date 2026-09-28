@@ -239,7 +239,7 @@ Donating fragments to the **Royal Archive** (Elowen) gives **Lore**, which is us
 | Memory Fragments | Backstory | Low |
 | Flicker commentary | Tutorials, humor, hints | Low |
 | Item and compendium descriptions | World texture | Very low |
-| Event CGs (pixel illustrations) | 10-heart moments, weddings, endings | High (1.0 stretch) |
+| Event CGs (full illustrations) | 10-heart moments, weddings, endings | High (1.0 stretch) |
 
 ### English writing style guide
 - **Modern, warm, readable English** with light fantasy flavour. No "thee/thou" except **Caelan** (formal, old-court speech) and prologue royal ceremony.

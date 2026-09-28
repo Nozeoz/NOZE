@@ -65,7 +65,7 @@
 | Voice markers | Exclamations, food metaphors, nicknames for you (*"Your Crispiness"*, *"Majesty"* when serious) |
 | Function | Tutorial guide, hint system, comic relief, emotional core; grows with each Regalia (see [02 §7](02_STORY_AND_WORLD.md#7-the-regalia)) |
 | Secret | Carries the memory of the Last Decree, hidden because your past self asked it to |
-| Sprite | 16×16 floating, idle bob + 6 emotes; grows slightly and gains flame layers per Regalia |
+| Sprite | ~32 px floating, idle bob + 6 emotes; grows slightly and gains flame layers per Regalia |
 | Portrait | 8 expressions + **Hungry** + **Sheepish** + **True Form** (Ch6) |
 
 > *"Oh good, you're not dead. Again."* (first line)
@@ -476,7 +476,7 @@ No birthday falls on a festival, a Sunday (Court Day), or a Surge night.
 
 ## 9. Character design rules
 
-1. **Silhouette first.** Every Sworn must be recognisable as a solid black shape at sprite size (16×32): a unique hat, ears, horns, hair shape, or prop.
+1. **Silhouette first.** Every Sworn must be recognisable as a solid black shape at gameplay size (~64×128 px at 1080p): a unique hat, ears, horns, hair shape, or prop.
 2. **Signature colours.** No two Sworn share the same primary + secondary colour pair (see the profiles).
 3. **Job-readable outfits.** You should guess the job from the outfit (apron = smith or cook, robes = scholar or priest).
 4. **Anime appeal, grounded clothing.** Expressive faces and hair; practical, job-appropriate outfits. The target rating is E10+/T; no fan-service framing.

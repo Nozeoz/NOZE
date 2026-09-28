@@ -29,6 +29,7 @@
 | **Knight** | A Sworn raised by the Sovereign (Hearts ≥ 6, Loyalty ≥ 80); gains a Knight perk. |
 | **Loyalty** | A Sworn's devotion (0–100): hearts + their happiness + Royal Standing. |
 | **The Maw (the Hunger, the Maw Below)** | The ancient devouring entity sealed beneath Halcyon; the final threat. |
+| **Main-path / Optional Sworn** | The 11 Sworn required by the main story vs. the 13 recruited through side quests. |
 | **Memory Fragment** | A collectible vignette of the Sovereign's past life. |
 | **Naming** | Spending Royal Authority to give a Bond-5 familiar a name, triggering Ascension. |
 | **Pact** | The bond that makes a Veilkin a familiar. Methods: Subdue, Offering, Challenge, Purify, Hatch, Legend Trial. |
@@ -55,3 +56,4 @@
 | **Veilwilds** | The present-day name of the land. |
 | **Waybeacon** | A small light tower on roads: clears Veil Walls and acts as a fast-travel point. |
 | **Waystone** | A dungeon checkpoint every 5 floors. |
+| **Wisplings** | Ambient white spirit critters (not pactable) whose numbers in town mirror the kingdom's happiness. |

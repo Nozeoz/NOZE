@@ -364,7 +364,7 @@ Each settler shows a **job affinity** star rating (from attributes and traits). 
 
 ### 13.5 Mercy
 - **Spare** → the enemy may join after a trust quest. Builds a *Merciful* reputation: more arrivals, slightly less Safety.
-- **Banish** → safer short-term, a *Stern* reputation, and some recruits refuse to join.
+- **Banish** → safer short-term, a *Stern* reputation, and settlers from spared factions arrive less often. **No Sworn is lost for good:** a banished enemy returns later with a different arc (see [14 §9.3](14_NARRATIVE_AND_PROGRESSION.md#93-choices-and-consequences-in-chapter-1)).
 - The theme made mechanical: **a crown is held up by many hands, even hands that once fought you.**
 
 ---
@@ -461,6 +461,7 @@ Outcomes affect happiness, the Loyalty of the Sworn involved, gold, resources, a
 ## 17. Veil Surges
 *(Early Access)*
 
+- Surges begin **once the first Regalia (the Signet) is recovered**: taking an anchor weakens the seal (the story reason is revealed in Ch5).
 - On **New Moon nights** (days 14 and 28 of each season), announced 3 days ahead by Flicker (later Saga).
 - Waves of Hollowed come from the Realm's edges toward the Beacon. Defenses: walls, gates, towers, guard settlers, Guarding familiars, and you.
 - **Sleep through it:** auto-resolved (Defense Rating vs. Surge Strength) → possible building and field damage (repairable), stolen Food Stock, injuries.
@@ -599,7 +600,7 @@ Players can lower difficulty at any time. Exile can only be chosen at the start.
 - **Build mode:** category tabs, ghost placement, Realm overlay, upgrade / move / demolish.
 - **Pact:** a sigil icon on the enemy HP bar when it's Pact-ready, plus a context prompt.
 
-### 23.4 Controls (first pass; finalised in Step 3)
+### 23.4 Controls (first pass; finalised in Step 5)
 
 | Action | Keyboard & mouse | Gamepad (Xbox layout) |
 |---|---|---|
