@@ -1,6 +1,6 @@
 # 12 — Decisions & Open Questions
 
-> **TL;DR (v0.3):** Part A logs every design decision with its reasoning and the alternatives considered. Part B lists what only **you** can answer. The title is now ***Kingsbloom*** (formal clearance pending), and the best ideas from your Grok discussion are merged (D-026 to D-031).
+> **TL;DR (v0.4):** Part A logs every design decision with its reasoning and the alternatives considered. Part B lists what only **you** can answer. The title is ***Kingsbloom*** (formal clearance pending), the best ideas from your Grok discussion are merged (D-026 to D-032), and building the playable Chapter 1 prototype added D-033 to D-038.
 
 **Status:** **Locked** = you approved it · **Default** = my call as lead designer; it stands unless you object · **Revisit** = re-check after a playtest or gate.
 
@@ -42,6 +42,12 @@
 | **D-030** | **Hearts give access** (secret places, rare-material quests, signature items) plus small quests between heart events | From the Grok discussion; makes every heart level worth it | Hearts that only unlock cutscenes | Default |
 | **D-031** | **Mira has a hidden agenda** (selling maps to the Dominion); forgive or expel, and she stays a Sworn either way | NPCs with their own agendas make the world feel political, per the Grok discussion | A plain merchant | Default |
 | **D-032** | **Guardian Echo**: a weekly re-fight of a defeated Guardian with modifiers | The Grok discussion's weekly boss-rush beat, built from existing content | New weekly bosses (costly) | Default |
+| **D-033** | **Ink owns the story flags; the game owns the numbers**, which Ink reads and changes through `EXTERNAL` functions (`item`, `give`, `stat`, `hearts`…) | The same scripts run in the Step 4 prototype and in the real game (Step 11); writers can change scenes without touching game code | Everything in Ink (hard to port); everything in code (writers blocked) | Default |
+| **D-034** | **The game decides when a scene plays; the Ink decides what happens** (a trigger table in data) | Quest timing depends on days, buildings and flags, and must be testable; the Ink stays readable | An Ink-driven day loop | Default |
+| **D-035** | **The Food Stock starts at the Founding**, and the Longhouse larder holds 20 until the Old Granary is restored | Rook's Trial needs 28 rations, so it pulls you into restoring the Granary (MQ-110): two quests that help each other | Unlimited storage from day 1 | Prototype default; tune in Step 10 |
+| **D-036** | **Sunken Cellars Waystones on floors 3, 5, 8 and 10** in the prototype ([03](03_GAMEPLAY_SYSTEMS.md) says every 5 floors) | One dive fills one part of the day; three-floor dives keep the story moving | Every fifth floor | Prototype only; revisit in grey-box 3 (Step 8) |
+| **D-037** | **Rook's Trial has a soft deadline**: on time, the gang joins at once and Rook starts a heart higher; late, they stay until you reach 28 | Keeps the pressure without breaking the no-missable-Sworn rule ([14 §1](14_NARRATIVE_AND_PROGRESSION.md#1-narrative-design-principles)) | A hard fail that sends the gang away | Default |
+| **D-038** | **Royal Summons from Hamlet rank** (15 Royal Authority brings a settler at the next dawn) | In bot runs the Banish path's slower arrivals stalled Village rank for about 20 days; Summons ([03 §15.1](03_GAMEPLAY_SYSTEMS.md#151-royal-authority-ra)) gives the player an active answer | Waiting; raising the arrival rate | Default |
 
 ---
 
@@ -68,3 +74,4 @@
 | **Q-10** | Your Grok conversation | **Merged** (D-026 to D-032): Kael, the two-answer ending, relationship-as-politics, weekly rhythm, found lore |
 | **Q-11** | Step 3 review | Treated as approved ("lanjut next step"); the playable narrative prototype (Step 4) is built from it |
 | **Q-12** | Kael as a romance option? | Default: **no** (his arc is about trust and duty, and the romance count stays at 12). Say so if you want him romanceable |
+| **Q-13** | Step 4 playtest | **Open:** play Chapter 1 ([`prototypes/narrative-ch1`](../prototypes/narrative-ch1)) and tell me: is each person's purpose clear, is the pace right, does sparing or banishing Rook matter, would you play one more day? |

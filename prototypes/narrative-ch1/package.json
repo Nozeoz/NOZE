@@ -1,0 +1,15 @@
+{
+  "name": "kingsbloom-narrative-ch1",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Kingsbloom Step 4: playable narrative prototype of Chapter 1 (Ink + a tiny JS simulation).",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node build.mjs --ink-only && node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.10",
+    "inkjs": "2.4.0"
+  }
+}

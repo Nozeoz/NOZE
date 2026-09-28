@@ -1,7 +1,7 @@
 # 00 — Production Roadmap
 
-> ***Kingsbloom*** (Project NOZE) · Design Bible **v0.3**
-> **We are here → Step 3 (Narrative & Progression Design) 🔄 — first draft ready for your review.**
+> ***Kingsbloom*** (Project NOZE) · Design Bible **v0.4**
+> **We are here → Step 4 (Narrative Prototype) 🔄: Chapter 1 is playable in a browser and waiting for your playtest.**
 
 ---
 
@@ -40,9 +40,9 @@ Legend: ✅ done · 🔄 in progress · ⏳ next · ⬜ not started · 🎨 need
 |---|---|---|---|---|
 | 1 | **Design Bible v0.1** | Vision, story, systems, cast, bestiary, items, buildings, art & audio direction, asset list, tech plan | All docs written and cross-consistent | ✅ |
 | 2 | **Review & Lock → v0.2** | Your answers applied: tone, team, art direction (illustrated 2D), engine, title search | Decisions logged; open items listed | ✅ |
-| 3 | **Narrative & Progression Design** | Lore texts, **NPC purpose matrix** (story ↔ systems ↔ progression), interaction design, heart-event arcs for all 24 Sworn, knowledge & secrets matrix, **Chapter 1 quest breakdown with flags** ([`14_NARRATIVE_AND_PROGRESSION.md`](14_NARRATIVE_AND_PROGRESSION.md)) | You approve how every NPC connects to story and progress | 🔄 |
-| 4 | **Narrative Prototype (playable)** | A browser-playable, text-first prototype of Chapter 1: days pass, you talk to NPCs, make choices (spare Rook or not), and watch flags, hearts, Kingdom Rank, and unlocks change. Written in **Ink**, so the scripts carry into the real game | You can play Chapter 1's story flow start to finish | ⏳ |
-| 5 | **Tech Foundation + Placeholder Kit** | Project scaffold (TypeScript + Phaser 4 + Vite + Spine runtime), lint/test/CI, boot → title screen, input layer, debug overlay, save/load skeleton, content registry, **placeholder art kit** in the reference style | Blank game runs in the browser; CI green; playable link shared | ⬜ |
+| 3 | **Narrative & Progression Design** | Lore texts, **NPC purpose matrix** (story ↔ systems ↔ progression), interaction design, heart-event arcs for all 24 Sworn, knowledge & secrets matrix, **Chapter 1 quest breakdown with flags** ([`14_NARRATIVE_AND_PROGRESSION.md`](14_NARRATIVE_AND_PROGRESSION.md)) | You approve how every NPC connects to story and progress | ✅ |
+| 4 | **Narrative Prototype (playable)** | A browser-playable, text-first prototype of Chapter 1: days pass, you talk to NPCs, make choices (spare Rook or not), and watch flags, hearts, Kingdom Rank, and unlocks change. Written in **Ink**, so the scripts carry into the real game | You can play Chapter 1's story flow start to finish. **Built:** [`prototypes/narrative-ch1`](../prototypes/narrative-ch1), plus the placeholder kit and Asset Atlas in [`art/placeholder`](../art/placeholder) | 🔄 |
+| 5 | **Tech Foundation + Placeholder Kit** | Project scaffold (TypeScript + Phaser 4 + Vite + Spine runtime), lint/test/CI, boot → title screen, input layer, debug overlay, save/load skeleton, content registry, **placeholder art kit** in the reference style (the first 61 assets already exist in [`art/placeholder`](../art/placeholder)) | Blank game runs in the browser; CI green; playable link shared | ⏳ |
 | 6 | **Grey-box 1: "First Day"** | Movement, camera, collision, Tiled map, hotbar, hoe/watering can/seeds, crop growth, clock, energy, sleep = save | You can farm turnips across 3 in-game days | ⬜ |
 | 7 | **Grey-box 2: "Survive the Night"** | Foraging, satiety, campfire crafting, the Veil at night, Exposure, Beacon radius, first enemy (Duskwolf), basic combat | Surviving night 1 feels tense but fair | ⬜ |
 | 8 | **Grey-box 3: "Into the Depths"** | Dungeon floor generator (room chunks), mining, loot, Waystones, knockout rules, boss prototype | 10 floors plus a boss are playable | ⬜ |

@@ -486,3 +486,7 @@ flowchart TB
 - **Tags drive presentation:** `# speaker: bram`, `# portrait: bram_happy`, `# emote: heart`, `# time: +60`, `# item: +3 frg_healing_herb`.
 - **What we're testing:** does each NPC's purpose feel clear? Is the Chapter 1 pacing right? Does sparing Rook feel meaningful? Would you play "one more day"?
 - **Success check:** a tester can explain, in their own words, why each of the 4 VS Sworn matters to the kingdom.
+
+### 10.1 Built (v0.4)
+
+The prototype lives in [`prototypes/narrative-ch1`](../prototypes/narrative-ch1): 14 Ink files covering MQ-101 to MQ-117 plus SQ-114 and SQ-115, talk lines by heart tier with deed reactions, 3♥ requests, and heart events at 2♥ and 4♥; a small simulation of days, fields, buildings, the Food Stock, settlers, dives and hearts; and a side panel that shows every flag in §9.4 as it changes. A test bot finishes the chapter on both the Spare and Banish paths: the Founding Feast (end of the VS) around day 17–18, Chapter 1 around day 30. How the game and the Ink share state is logged as D-033 and D-034; prototype-only rules as D-035 to D-038 in [12](12_DECISIONS_AND_OPEN_QUESTIONS.md#part-a-decision-log).

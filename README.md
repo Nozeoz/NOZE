@@ -16,9 +16,9 @@ You were the legendary Last Sovereign of Halcyon. A thousand years after your de
 
 | | |
 |---|---|
-| **Phase** | Pre-production, Design Bible **v0.3** |
+| **Phase** | Pre-production, Design Bible **v0.4** |
 | **Done** | ✅ Step 1: Design Bible · ✅ Step 2: Review & Lock · ✅ Step 3: Narrative & Progression Design |
-| **Now** | 🔄 Step 4: playable narrative prototype of Chapter 1 ([`prototypes/narrative-ch1`](prototypes/narrative-ch1)) · placeholder art kit + asset gallery ([`art/placeholder`](art/placeholder)) |
+| **Now** | 🔄 Step 4: the Chapter 1 narrative prototype is playable and waiting for your playtest ([`prototypes/narrative-ch1`](prototypes/narrative-ch1)) · in-house placeholder art kit and Asset Atlas ([`art/placeholder`](art/placeholder)) |
 | **Next** | ⏳ Step 5: Tech Foundation (game project scaffold) |
 | **Title** | ***Kingsbloom*** (formal trademark clearance pending, see [Q-01](docs/12_DECISIONS_AND_OPEN_QUESTIONS.md#q-01-title)) |
 
@@ -65,8 +65,8 @@ Full plan: [`docs/00_ROADMAP.md`](docs/00_ROADMAP.md)
 
 ```
 docs/          The Design Bible (you are here)
-prototypes/    (Step 4) playable prototypes, starting with the Chapter 1 narrative prototype
-art/           (Step 4) in-house placeholder art kit (never ships)
+prototypes/    (Step 4) playable prototypes: narrative-ch1 is Chapter 1 in Ink, playable in a browser
+art/           (Step 4) in-house placeholder art kit and the Asset Atlas (never ships)
 game/          (Step 5) the game project
 art_src/       (Step 13) layered source art and Spine projects
 audio_src/     (Step 14) source audio

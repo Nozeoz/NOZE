@@ -260,6 +260,8 @@ Swatches sampled from the references (approximations; locked during the Art Styl
 
 Until the hired artist delivers, prototypes use a **placeholder kit** built in-house as simple vector art in this same language (coloured outlines, flat cel shading, the palette above): terrain tiles, trees, rocks, mushrooms, water edges, soil states, the Sovereign, Flicker, a Mossbun, and a few buildings. It's legally clean, makes grey-boxes feel close to the target, and **never ships**.
 
+**Built (Step 4):** 61 assets in [`art/placeholder`](../art/placeholder), with the Asset Atlas page (`gallery.html`) showing them in a camp scene, by category, in a UI mock-up, and in a live Veil and Beacon demo.
+
 ---
 
 ## 18. Hiring an artist: brief & paid test
