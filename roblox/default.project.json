@@ -1,0 +1,49 @@
+{
+  "name": "Kingsbloom",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Shared": {
+        "$path": "src/shared"
+      }
+    },
+    "ServerScriptService": {
+      "Server": {
+        "$path": "src/server"
+      }
+    },
+    "StarterPlayer": {
+      "$properties": {
+        "CameraMaxZoomDistance": 90,
+        "CameraMinZoomDistance": 6,
+        "CharacterWalkSpeed": 20,
+        "CharacterUseJumpPower": false,
+        "CharacterJumpHeight": 8,
+        "LoadCharacterAppearance": true
+      },
+      "StarterPlayerScripts": {
+        "Client": {
+          "$path": "src/client"
+        }
+      }
+    },
+    "Lighting": {
+      "$properties": {
+        "Technology": "Future",
+        "Brightness": 2.4,
+        "GlobalShadows": true,
+        "ClockTime": 9
+      }
+    },
+    "Workspace": {
+      "$properties": {
+        "StreamingEnabled": false
+      }
+    },
+    "Players": {
+      "$properties": {
+        "RespawnTime": 3
+      }
+    }
+  }
+}

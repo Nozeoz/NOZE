@@ -1,0 +1,60 @@
+--!strict
+-- Colours for the world and the UI: a warm storybook palette by day, lantern-gold against a violet Veil by night.
+
+local rgb = Color3.fromRGB
+
+local Palette = {
+	grass = rgb(128, 172, 86),
+	grassDark = rgb(96, 140, 70),
+	forestFloor = rgb(74, 112, 62),
+	leaf = { rgb(92, 150, 74), rgb(74, 128, 66), rgb(120, 166, 82), rgb(62, 110, 72) },
+	pine = { rgb(52, 98, 70), rgb(44, 86, 64), rgb(62, 110, 76) },
+	blossom = rgb(244, 178, 196),
+	trunk = rgb(112, 80, 56),
+	stone = rgb(176, 168, 152),
+	stoneDark = rgb(128, 120, 110),
+	cobble = rgb(166, 152, 132),
+	path = { rgb(190, 178, 156), rgb(176, 164, 142), rgb(198, 186, 162) },
+	road = rgb(164, 134, 98),
+	soil = rgb(110, 78, 52),
+	soilWet = rgb(88, 62, 44),
+	wood = rgb(160, 112, 72),
+	woodLight = rgb(196, 150, 100),
+	woodDark = rgb(112, 76, 50),
+	plaster = rgb(240, 228, 204),
+	thatch = rgb(212, 176, 104),
+	roof = { rgb(184, 84, 64), rgb(72, 108, 150), rgb(98, 132, 82), rgb(150, 96, 150) },
+	cloth = { rgb(214, 80, 72), rgb(70, 120, 196), rgb(236, 184, 64), rgb(96, 170, 110) },
+	flowers = { rgb(240, 110, 130), rgb(250, 206, 80), rgb(160, 130, 230), rgb(250, 250, 245) },
+	gold = rgb(236, 184, 72),
+	goldDeep = rgb(196, 138, 40),
+	lantern = rgb(255, 196, 110),
+	lanternHot = rgb(255, 160, 70),
+	flame = rgb(255, 150, 60),
+	water = rgb(96, 170, 190),
+	veil = rgb(92, 70, 140),
+	veilDeep = rgb(40, 28, 66),
+	gloom = rgb(24, 16, 40),
+	gloomEye = rgb(200, 150, 255),
+	lumen = rgb(150, 220, 255),
+	white = rgb(255, 255, 255),
+	-- UI: the Royal Storybook
+	ui = {
+		parchment = rgb(250, 240, 218),
+		parchmentDark = rgb(232, 214, 180),
+		ink = rgb(62, 42, 30),
+		inkSoft = rgb(118, 92, 70),
+		royal = rgb(52, 70, 128),
+		royalDeep = rgb(34, 44, 88),
+		gold = rgb(240, 190, 80),
+		goldDeep = rgb(190, 130, 40),
+		green = rgb(96, 170, 96),
+		red = rgb(214, 86, 72),
+		lumen = rgb(120, 200, 255),
+		shadow = rgb(20, 14, 30),
+		night = rgb(40, 34, 72),
+		white = rgb(255, 255, 255),
+	},
+}
+
+return Palette
