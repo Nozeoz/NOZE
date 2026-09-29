@@ -2,6 +2,8 @@
 
 > **TL;DR (v0.2):** Every art, audio, and UI asset the game needs, mapped by **ID**, **spec**, and **milestone** (VS / EA / 1.0), with production **templates** so each asset type is made the same way. v0.2 specs follow the **illustrated 2D** direction ([`08_ART_DIRECTION.md`](08_ART_DIRECTION.md)): art authored at **2×**, characters and larger creatures as **Spine rigs**, a **64 px** tile grid at 1080p. Totals per milestone are in [§15](#15-totals-by-milestone). When art production starts (Step 13, the Art Style Test), this list is exported to a tracker spreadsheet (owner, due date, review status).
 
+> ⚠️ **v0.5:** the art direction is now a 3D diorama ([D-040](12_DECISIONS_AND_OPEN_QUESTIONS.md#part-a-decision-log)). The IDs and milestones below still hold; the specs (2× sprites, Spine rigs, 64 px tiles) will be redone for 3D models after the Kingdom View playtest.
+
 **Status legend:** ☐ to do · ◐ in progress · ☑ done · ✖ cut. Every asset below starts at ☐.
 
 ---

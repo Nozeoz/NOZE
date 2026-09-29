@@ -4,6 +4,7 @@
 
 | Term | Meaning |
 |---|---|
+| **Appeal** | How inviting the Lantern Market is (0–100): decor near the paths, variety, how much of the way in is lit, and Sworn stalls. More Appeal brings more visitors (v0.5). |
 | **Ascension** | The transformation a familiar undergoes when **Named**: stat boost, crown mark, unique skill. See also *True Ascension*. |
 | **Ashen Throne** | The ruined stone throne in Dawnmere Vale where the Sovereign wakes; the site of the new capital. |
 | **Ashen Warden** | Sir Lucan Ashford after a thousand years alone at the seal, hollowed by the Hunger. |
@@ -28,12 +29,15 @@
 | **Hollowed** | Veilkin or people corrupted by the Hunger; purifiable. |
 | **Kingsbloom** | The royal flower of Halcyon that opens only for a true sovereign; extinct for 1,000 years, it blooms again at Kingdom rank. Also the game's title. |
 | **Kingdom Rank** | The realm's level: Exile's Camp, Hamlet, Village, Town, City, Kingdom. |
+| **Kingdom View** | The free camera over the realm where you build and run the Lantern Market (v0.5, D-039). Its counterpart is *Walk*. |
 | **Knight** | A Sworn raised by the Sovereign (Hearts ≥ 6, Loyalty ≥ 80); gains a Knight perk. |
+| **Lantern Market** | The night market you open at dusk in Kingdom View. Visitors walk the Old Road, shop at stalls, tip, and may ask to settle (v0.5). |
 | **Loyalty** | A Sworn's devotion (0–100): hearts + their happiness + Royal Standing. |
 | **The Maw (the Hunger, the Maw Below)** | The ancient devouring entity sealed beneath Halcyon; the final threat. |
 | **Main-path / Optional Sworn** | The 11 Sworn required by the main story vs. the 13 recruited through side quests. |
 | **Memory Fragment** | A collectible vignette of the Sovereign's past life. |
 | **Naming** | Spending Royal Authority to give a Bond-5 familiar a name, triggering Ascension. |
+| **Night Ledger** | The summary after the Lantern Market closes: sales, tips, how visitors felt, what they asked for, and who moves in. |
 | **Oathbound** | A soul who died keeping an oath to the Crown and was reborn when the Heartflame rekindled (e.g. Kael). |
 | **Pact** | The bond that makes a Veilkin a familiar. Methods: Subdue, Offering, Challenge, Purify, Hatch, Legend Trial. |
 | **Pact Sigil** | The crafted item used to seal a Pact. |
@@ -50,6 +54,7 @@
 | **Sworn** | One of the 24 named, hand-made recruits, each tied to a building or service. |
 | **Standing** | A faction's attitude toward your realm (Hostile → Allied); helping one faction can cool its rivals. |
 | **Surge (Veil Surge)** | A telegraphed New Moon night attack of the Hollowed on the Realm. |
+| **Tip** | A glowing coin a happy visitor leaves behind. Click it (or walk over it) to collect; Flicker gathers half of the ones you miss. |
 | **Tithe** | Daily tax income from settlers (from Village rank). |
 | **True Ascension** | A Named familiar's evolution into a new form (17 species). |
 | **The Veil** | The living mist that seals the Maw and drowned Halcyon. |
@@ -59,6 +64,7 @@
 | **Veilglass** | A crystal that forms where the Veil is thick; used for Sigils and Beacons. |
 | **Veilkin** | The creatures of the Veilwilds. |
 | **Veilwilds** | The present-day name of the land. |
+| **Walk** | Playing as the Sovereign in the same world as Kingdom View: tend, talk, serve at a stall, carry light (v0.5, D-043). |
 | **Waybeacon** | A small light tower on roads: clears Veil Walls and acts as a fast-travel point. |
 | **Waystone** | A dungeon checkpoint every 5 floors. |
 | **Wisplings** | Ambient white spirit critters (not pactable) whose numbers in town mirror the kingdom's happiness. |

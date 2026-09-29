@@ -2,6 +2,8 @@
 
 > **TL;DR:** You were the greatest monarch who ever lived. You died, and you wake up a nobody in a mist-drowned wilderness with a talking ember for company. You survive the first nights, farm to feed yourself and later your people, dive into shifting dungeons, form pacts with mystical creatures, spare and recruit your enemies, and rebuild a kingdom from a single campfire.
 > **In one line:** *Stardew Valley meets Suikoden, with pact-bound creatures, anime heart, and a fallen monarch's second chance.*
+>
+> **v0.5 direction:** Kingsbloom is now a **hybrid**: the Sovereign's life-sim plus a **Kingdom View** where you build freely and run a lantern-lit night market, in a **3D diorama** look ([D-039](12_DECISIONS_AND_OPEN_QUESTIONS.md#part-a-decision-log), [D-040](12_DECISIONS_AND_OPEN_QUESTIONS.md#part-a-decision-log)). Playable: [`prototypes/kingdom-view`](../prototypes/kingdom-view).
 
 ---
 
@@ -10,8 +12,8 @@
 | | |
 |---|---|
 | **Title** | ***Kingsbloom*** (codename **NOZE**): the royal flower that opens only for a true sovereign, and blooms again when your kingdom is restored. Formal trademark clearance pending |
-| **Genre** | Farming life-sim × dungeon crawler × kingdom builder × creature pacts, with survival at the frontier |
-| **Perspective** | Top-down 3/4 view, hand-drawn illustrated 2D with chibi-anime characters |
+| **Genre** | Farming life-sim × dungeon crawler × kingdom builder × creature pacts, with survival at the frontier, and a **Kingdom View** for free building and the Lantern Market (v0.5) |
+| **Perspective** | **3D diorama** (v0.5, D-040): a free camera in Kingdom View, a close camera when walking; low-poly, lantern-lit, chibi characters. *(v0.4: top-down 3/4, illustrated 2D)* |
 | **Platform** | PC (Steam) first; the web build is used for development and testing; consoles evaluated after 1.0 |
 | **Language** | English (all text is key-based, ready for later localization, e.g. Bahasa Indonesia) |
 | **Players** | Single-player |
@@ -177,6 +179,16 @@ The player's **personal verbs never disappear**. Even as a Sovereign you still f
 |---|---|---|
 | **Valheim** | Food as a buff system, not a starvation punisher | Meals raise max HP/Energy and grant buffs |
 | **Don't Starve** | Darkness is the enemy | The **Veil** and **Exposure** at night; light is safety |
+
+### Oboro no Ichi (cozy spirit-market builder, TheLaba, Early Access Q4 2026)
+The reference for the **Kingdom View** (v0.5). A solo developer's 3D diorama of a night market in a misty forest: you place paths, production buildings, stalls and decor freely, open the market, and wandering spirits shop, chat in speech bubbles and leave glowing tips to click. Stalls sell one resource each and upgrade for a better price and faster service; beauty raises appeal, which brings more spirits; a library of lore pages opens as you progress. There is no fail state, and there are comfort features (a time-of-day dial, photo mode, speed control, a music player). The demo's reviews praise the look and the calm and ask for **goals, character and replay value**.
+
+| We take | We leave | Our twist |
+|---|---|---|
+| Free building in a diorama; open the market, then watch it live | The spirit-market theme (lost souls trading memories), its UI, names and art | A kingdom's **Lantern Market** on the Old Road; visitors are travelers, merchants, monks and Veilkin |
+| Stalls that sell one good each; price and speed upgrades; tips to click | Production with no pressure (the demo has endless money) | Goods come from fields, the Fishing Hut and the Cookhouse your settlers work; seasons and the Veil add pressure |
+| Beauty as appeal, appeal as more visitors | Lights as decoration only | **Light is protection:** visitors turn back on a dark road, so lamps are decor and defence at once |
+| Speech bubbles, a lore library, comfort features | Visitors who always leave | Happy visitors **ask to stay** and become settlers; the Sworn run their own stalls; the Sovereign can serve in person |
 
 ### Closest genre neighbour: Rune Factory
 Rune Factory already mixes farming, dungeons, monster taming, and romance. **How we're different:**

@@ -4,7 +4,7 @@
 
 > ***Once a sovereign. Now an exile. Rebuild the kingdom you lost.***
 
-A farming life-sim × dungeon crawler × kingdom builder with mystical creature pacts, anime heart, and survival at the frontier, in a hand-drawn illustrated storybook style.
+A farming life-sim × dungeon crawler × kingdom builder with mystical creature pacts, anime heart, and survival at the frontier, plus a **Kingdom View** where you build freely and run a lantern-lit night market, in a warm **3D diorama** look.
 
 You were the legendary Last Sovereign of Halcyon. A thousand years after your death you wake in the **Veilwilds**, a mist-drowned land you don't recognise, with only **Flicker**, a talking ember with a tiny crown, for company. You survive the first nights, farm to feed yourself and then your people, dive into shifting dungeons, form **Pacts** with mystical creatures that work and fight beside you, **spare and recruit your enemies**, and rebuild a kingdom from a single campfire.
 
@@ -16,10 +16,11 @@ You were the legendary Last Sovereign of Halcyon. A thousand years after your de
 
 | | |
 |---|---|
-| **Phase** | Pre-production, Design Bible **v0.4** |
+| **Phase** | Pre-production, Design Bible **v0.5** |
 | **Done** | ✅ Step 1: Design Bible · ✅ Step 2: Review & Lock · ✅ Step 3: Narrative & Progression Design |
-| **Now** | 🔄 Step 4: the Chapter 1 narrative prototype is playable and waiting for your playtest ([`prototypes/narrative-ch1`](prototypes/narrative-ch1)) · in-house placeholder art kit and Asset Atlas ([`art/placeholder`](art/placeholder)) |
-| **Next** | ⏳ Step 5: Tech Foundation (game project scaffold) |
+| **Now** | 🔄 **Step 4b: the Kingdom View prototype (3D)**: build, light the Old Road, run the Lantern Market, walk as the Sovereign ([`prototypes/kingdom-view`](prototypes/kingdom-view)) · 🔄 Step 4: the Chapter 1 narrative prototype ([`prototypes/narrative-ch1`](prototypes/narrative-ch1)) · both wait for your playtest |
+| **Direction (v0.5)** | **Hybrid** life-sim + Kingdom View, modeled on *Oboro no Ichi* ([D-039](docs/12_DECISIONS_AND_OPEN_QUESTIONS.md#part-a-decision-log)); **3D diorama** look ([D-040](docs/12_DECISIONS_AND_OPEN_QUESTIONS.md#part-a-decision-log)); engine to be re-chosen ([Q-14](docs/12_DECISIONS_AND_OPEN_QUESTIONS.md#other-questions)) |
+| **Next** | ⏳ Your playtests → choose the engine → re-plan Steps 5 to 12 |
 | **Title** | ***Kingsbloom*** (formal trademark clearance pending, see [Q-01](docs/12_DECISIONS_AND_OPEN_QUESTIONS.md#q-01-title)) |
 
 Full plan: [`docs/00_ROADMAP.md`](docs/00_ROADMAP.md)
@@ -38,7 +39,7 @@ Full plan: [`docs/00_ROADMAP.md`](docs/00_ROADMAP.md)
 | 05 | [Bestiary](docs/05_BESTIARY.md) | **38 creature species**, 17 True Ascensions, 5 Guardians, Wisplings, enemies |
 | 06 | [Items, Crops & Recipes](docs/06_ITEMS_CROPS_RECIPES.md) | Crops, trees, forage, ores, artisan goods, 26 recipes, tools, weapons, fish |
 | 07 | [Buildings & Kingdom](docs/07_BUILDINGS_AND_KINGDOM.md) | 42 buildings, Kingdom Ranks, Restoration Projects, 12 Decrees, Court Day, festivals |
-| 08 | [Art Direction](docs/08_ART_DIRECTION.md) | **Illustrated 2D** style from your references, palette, scale, the Veil look, UI, animation, artist hiring brief |
+| 08 | [Art Direction](docs/08_ART_DIRECTION.md) | Palette, the Veil look, UI, animation, artist hiring brief (being rewritten for the **3D diorama** look, D-040) |
 | 09 | [Audio Direction](docs/09_AUDIO_DIRECTION.md) | Adaptive music, 48-track list, SFX, ambience, voice |
 | 10 | [Master Asset List](docs/10_ASSET_LIST.md) | **Every asset mapped** by ID, template, and milestone, with totals |
 | 11 | [Technical Design](docs/11_TECHNICAL_DESIGN.md) | Engine comparison in plain language, architecture, data, saves, testing, CI |
@@ -54,18 +55,18 @@ Full plan: [`docs/00_ROADMAP.md`](docs/00_ROADMAP.md)
 
 | | |
 |---|---|
-| Genre | Farming life-sim · dungeon crawler · kingdom builder · creature pacts · frontier survival |
-| Look | Top-down 3/4, hand-drawn illustrated 2D, chibi-anime characters, HD portraits |
+| Genre | Farming life-sim · dungeon crawler · kingdom builder · creature pacts · frontier survival · cozy market builder (Kingdom View) |
+| Look | 3D diorama: low-poly, lantern-lit, tilt-shift miniature feel, chibi characters (v0.5; was illustrated 2D) |
 | Platform | PC (Steam) first; every development build is playable in a web browser |
 | Language | English (localisation-ready) |
-| Tech | TypeScript · Phaser 4 · Spine · Vite · Tiled · Ink |
+| Tech | Ink for story; the Kingdom View prototype runs on three.js; the game engine is being re-chosen for 3D (Godot 4, Unity or three.js) |
 | Business model | Premium, no microtransactions |
 
 ## Repository layout
 
 ```
 docs/          The Design Bible (you are here)
-prototypes/    (Step 4) playable prototypes: narrative-ch1 is Chapter 1 in Ink, playable in a browser
+prototypes/    (Step 4) playable prototypes: narrative-ch1 is Chapter 1 in Ink; kingdom-view is the 3D Kingdom View and Lantern Market
 art/           (Step 4) in-house placeholder art kit and the Asset Atlas (never ships)
 game/          (Step 5) the game project
 art_src/       (Step 13) layered source art and Spine projects

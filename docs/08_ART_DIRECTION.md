@@ -3,6 +3,8 @@
 > **TL;DR (v0.2):** **Hand-drawn, illustrated 2D** in a top-down 3/4 view, following the two mood references chosen by the creative lead: clean coloured line art, soft cel shading, a sunny storybook palette, and dense, lived-in props. Characters are chibi-anime and animated with **2D skeletal rigs (Spine)**. Portraits are HD anime illustrations. The visual story is still **light vs. the Veil**: colour and life spread wherever your kingdom's light reaches.
 >
 > *v0.1 proposed pixel art. v0.2 switches to illustrated 2D per the creative lead's references ([D-002](12_DECISIONS_AND_OPEN_QUESTIONS.md)).*
+>
+> ⚠️ **v0.5: the look moves to a 3D diorama** ([D-040](12_DECISIONS_AND_OPEN_QUESTIONS.md#part-a-decision-log)): low-poly 3D, warm lantern light against the night Veil, a tilt-shift miniature blur. This document still describes the 2D direction and will be rewritten after the Kingdom View playtest. What carries over unchanged: the **palette** (§6), **lighting by time of day** (§7), **the Veil's visual language** (§8) and the **Royal Storybook UI** (§12). The first 3D placeholders are in [`prototypes/kingdom-view`](../prototypes/kingdom-view).
 
 ---
 

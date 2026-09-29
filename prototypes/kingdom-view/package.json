@@ -1,0 +1,15 @@
+{
+  "name": "kingsbloom-kingdom-view",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Kingsbloom: playable 3D prototype of the Kingdom View (build, light the road, open the Lantern Market) plus walking as the Sovereign.",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.10",
+    "three": "0.186.1"
+  }
+}

@@ -1,6 +1,8 @@
 # 07 — Buildings & Kingdom
 
 > **TL;DR:** **42 building types** at 1.0 (14 in the Vertical Slice), each with footprint, tiers, unlock condition, function, and staff. Plus crafting stations, **Restoration Projects** (bundle goals), **12 Royal Decrees**, Court Day petition templates, **8 festivals**, and how the town visibly grows at each Kingdom Rank. Costs are placeholders.
+>
+> **v0.5:** the Kingdom View prototype adds **Market Stalls**, a **Fishing Hut**, **Lantern Posts** and **String Lights** that can stand beside any road ([D-042](12_DECISIONS_AND_OPEN_QUESTIONS.md#part-a-decision-log)), and free placement in 3D. They join this catalogue after the playtest.
 
 ---
 

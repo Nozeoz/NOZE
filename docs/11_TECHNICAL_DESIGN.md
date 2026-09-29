@@ -1,6 +1,8 @@
 # 11 — Technical Design
 
 > **TL;DR (v0.2):** **TypeScript + Phaser 4 + Vite**, web-first (every build is playable in a browser, including on your phone), wrapped with **Electron** for Steam. Characters animate with **Spine** (official Phaser 4 runtime). Maps in **Tiled**, dialogue in **Ink**, content as **validated data files**. The core rule: **simulation is separate from rendering**, so farming, economy, AI, and time can be unit-tested without drawing anything.
+>
+> ⚠️ **v0.5: the engine is open again.** The 3D diorama direction ([D-040](12_DECISIONS_AND_OPEN_QUESTIONS.md#part-a-decision-log)) rules out Phaser, which is 2D. Candidates are Godot 4, Unity and three.js ([Q-14](12_DECISIONS_AND_OPEN_QUESTIONS.md#other-questions)). The Kingdom View prototype uses **three.js** and keeps the core rule above: its simulation runs in Node for tests with no rendering. Ink, data-driven content and the testing approach carry over whatever we choose.
 ---
 
 ## 1. Engine decision
