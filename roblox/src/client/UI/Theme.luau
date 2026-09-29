@@ -22,6 +22,47 @@ Theme.Font = {
 -- Set by the audio controller so every button can click.
 Theme.sound = function(_name: string) end
 
+-- ─── screen size ───────────────────────────────────────────────────────────
+-- Every screen is laid out for a 1360×780 window. Phones in landscape (short side under 500 px)
+-- get the "compact" layout and a slightly bigger scale than a plain fit, so text stays readable.
+Theme.TOPBAR = 58 -- Roblox's top bar; our ScreenGuis start below it
+
+function Theme.isCompact(v: Vector2): boolean
+	return math.min(v.X, v.Y) < 500
+end
+
+function Theme.scaleFor(v: Vector2): number
+	local s = math.min(v.X / 1360, v.Y / 780) * 1.05
+	if Theme.isCompact(v) then
+		s = math.max(s, (v.Y - Theme.TOPBAR) / 500)
+	end
+	return math.clamp(s, 0.6, 1.25)
+end
+
+-- The size of a ScreenGui's canvas in its own (scaled) units.
+function Theme.canvas(): Vector2
+	local v = workspace.CurrentCamera.ViewportSize
+	local s = Theme.scaleFor(v)
+	return Vector2.new(v.X / s, (v.Y - Theme.TOPBAR) / s)
+end
+
+-- Gives a ScreenGui a UIScale that follows the window, and calls onLayout(compact, scale) now
+-- and whenever the window changes size.
+function Theme.autoScale(gui: ScreenGui, onLayout: ((boolean, number) -> ())?): UIScale
+	local scale = Instance.new("UIScale")
+	scale.Parent = gui
+	local function update()
+		local v = workspace.CurrentCamera.ViewportSize
+		scale.Scale = Theme.scaleFor(v)
+		if onLayout then
+			onLayout(Theme.isCompact(v), scale.Scale)
+		end
+	end
+	update()
+	workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(update)
+	return scale
+end
+
 function Theme.tween(inst: Instance, t: number, goals: { [string]: any }, style: Enum.EasingStyle?, dir: Enum.EasingDirection?): Tween
 	local tw = TweenService:Create(inst, TweenInfo.new(t, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out), goals)
 	tw:Play()
@@ -140,6 +181,7 @@ end
 
 export type Button = {
 	root: TextButton,
+	item: GuiObject, -- what to lay out: the button, or the button with its caption
 	label: TextLabel,
 	setText: (string) -> (),
 	setEnabled: (boolean) -> (),
@@ -201,6 +243,7 @@ function Theme.button(parent: Instance, text: string, size: UDim2, color: Color3
 	end)
 	local b: Button = {
 		root = holder,
+		item = holder,
 		label = label,
 		setText = function(t: string)
 			label.Text = t
@@ -227,21 +270,35 @@ function Theme.button(parent: Instance, text: string, size: UDim2, color: Color3
 	return b
 end
 
--- A round icon button (the HUD's side buttons).
+-- A round icon button. With a caption, `item` is a frame holding the button and the caption
+-- under it, so lists and screen edges account for both.
 function Theme.round(parent: Instance, icon: string, diameter: number, color: Color3?, onClick: (() -> ())?, hint: string?): Button
-	local b = Theme.button(parent, icon, UDim2.fromOffset(diameter, diameter), color, onClick, math.floor(diameter * 0.5))
+	local holder: Instance = parent
+	local item: Frame? = nil
+	if hint then
+		local f = Theme.frame(parent, UDim2.fromOffset(diameter + 26, diameter + 24), nil, C.shadow, 1)
+		f.Name = "Item"
+		holder = f
+		item = f
+	end
+	local b = Theme.button(holder, icon, UDim2.fromOffset(diameter, diameter), color, onClick, math.floor(diameter * 0.5))
 	for _, d in b.root:GetDescendants() do
 		if d:IsA("UICorner") then
 			d.CornerRadius = UDim.new(1, 0)
 		end
 	end
-	if hint then
-		local k = Theme.label(b.root, hint, 13, Palette.white, Theme.Font.title)
-		k.AnchorPoint = Vector2.new(0.5, 0)
-		k.Position = UDim2.new(0.5, 0, 1, 4)
-		k.Size = UDim2.fromOffset(diameter + 20, 16)
+	if hint and item then
+		b.root.AnchorPoint = Vector2.new(0.5, 0)
+		b.root.Position = UDim2.fromScale(0.5, 0)
+		local k = Theme.label(item, hint, 13, Palette.white, Theme.Font.title)
+		k.Name = "Caption"
+		k.AnchorPoint = Vector2.new(0.5, 1)
+		k.Position = UDim2.fromScale(0.5, 1)
+		k.Size = UDim2.new(1, 12, 0, 16)
 		k.TextXAlignment = Enum.TextXAlignment.Center
+		k.TextWrapped = false
 		Theme.textStroke(k, C.shadow, 1.5)
+		b.item = item
 	end
 	return b
 end

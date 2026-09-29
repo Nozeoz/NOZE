@@ -1,9 +1,13 @@
 --!strict
 -- The Build mode UI: category tabs, building cards (cost that rises as you build more, a lock
--- until the right level, how many you may own), the tool strip, the hint line and Done.
+-- until the right level, how many you may own), the tool column, the hint line, Done, and on
+-- touch screens a ✔ Build bar (tap to put the ghost somewhere, then confirm).
+--
+-- Layout: the drawer runs along the bottom; the tools stand in the margin to its left and Done
+-- in the margin to its right, so nothing covers the chat, the clock or the player list. While a
+-- building is being inspected the drawer slides away to make room for its card.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Catalog = require(Shared.Catalog)
@@ -21,15 +25,19 @@ local F = Theme.Font
 local W = Palette.white
 local B = Catalog.Buildings
 
+local DRAWER_H = 212
 local gui: ScreenGui
 local root: Frame
 local tabsRow: Frame
 local cardsFrame: ScrollingFrame
-local toolStrip: Frame
+local toolColumn: Frame
+local confirmBar: Frame
 local hint: TextLabel
 local stats: TextLabel
 local rotateButton: Theme.Button
 local tab = "light"
+local drawerOpen = true
+local inspecting = false
 local tabButtons: { [string]: Theme.Button } = {}
 local toolButtons: { [string]: Theme.Button } = {}
 type Card = { id: string, root: TextButton, stroke: UIStroke, cost: TextLabel, lock: Frame, lockText: TextLabel, limit: TextLabel }
@@ -88,15 +96,17 @@ local function card(id: string, order: number): Card
 	icon.Size = UDim2.new(1, 0, 0, 56)
 	icon.Position = UDim2.fromOffset(0, 4)
 	icon.TextXAlignment = Enum.TextXAlignment.Center
+	icon.TextYAlignment = Enum.TextYAlignment.Center
 	local name = Theme.label(b, def.name, 15, C.royalDeep, F.title)
-	name.Size = UDim2.new(1, -8, 0, 34)
-	name.Position = UDim2.fromOffset(4, 58)
+	name.Size = UDim2.new(1, -8, 0, 36)
+	name.Position = UDim2.fromOffset(4, 60)
 	name.TextXAlignment = Enum.TextXAlignment.Center
 	name.TextYAlignment = Enum.TextYAlignment.Center
 	local cost = Theme.label(b, "", 16, C.ink, F.title)
 	cost.Size = UDim2.new(1, 0, 0, 20)
 	cost.Position = UDim2.new(0, 0, 1, -26)
 	cost.TextXAlignment = Enum.TextXAlignment.Center
+	cost.TextWrapped = false
 	local limit = Theme.label(b, "", 13, C.inkSoft, F.title)
 	limit.Size = UDim2.fromOffset(50, 16)
 	limit.Position = UDim2.new(1, -54, 0, 6)
@@ -107,6 +117,7 @@ local function card(id: string, order: number): Card
 	local lockText = Theme.label(lock, "🔒", 20, W, F.title)
 	lockText.Size = UDim2.fromScale(1, 1)
 	lockText.TextXAlignment = Enum.TextXAlignment.Center
+	lockText.TextYAlignment = Enum.TextYAlignment.Center
 	lockText.ZIndex = 4
 	Theme.textStroke(lockText, C.shadow, 2)
 	local sc = Instance.new("UIScale")
@@ -151,11 +162,22 @@ local function showTab(id: string)
 	refreshCards()
 end
 
+-- The drawer slides down out of the way while a building is inspected.
+local function setDrawer(open: boolean)
+	if open == drawerOpen then
+		return
+	end
+	drawerOpen = open
+	Theme.tween(root, 0.3, { Position = UDim2.new(0.5, 0, 1, open and -10 or DRAWER_H + 40) }, open and Enum.EasingStyle.Back or Enum.EasingStyle.Quad)
+end
+
 local function refreshTools()
 	for id, b in toolButtons do
 		b.setColor(Build.tool == id and C.gold or C.royal)
 	end
-	rotateButton.root.Visible = Build.tool == "place" or Build.tool == "move"
+	local placing = Build.tool == "place" or Build.tool == "move"
+	rotateButton.item.Visible = placing
+	confirmBar.Visible = placing and Build.isTouch() and not inspecting
 	refreshCards()
 end
 
@@ -176,18 +198,11 @@ function BuildBar.start(parent: Instance)
 	gui.DisplayOrder = 2
 	gui.Enabled = false
 	gui.Parent = parent
-	local scale = Instance.new("UIScale")
-	scale.Parent = gui
-	local function rescale()
-		local v = workspace.CurrentCamera.ViewportSize
-		scale.Scale = math.clamp(math.min(v.X / 1360, v.Y / 780) * 1.05, 0.55, 1.2)
-	end
-	rescale()
-	workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(rescale)
 
 	-- the drawer
-	root = Theme.panel(gui, UDim2.new(1, -220, 0, 212), UDim2.new(0.5, 0, 1, -10), Vector2.new(0.5, 1))
+	root = Theme.panel(gui, UDim2.new(1, -236, 0, DRAWER_H), UDim2.new(0.5, 0, 1, -10), Vector2.new(0.5, 1))
 	root.Name = "Drawer"
+	root.Active = true -- a click between the cards must not build behind the drawer
 	tabsRow = Theme.frame(root, UDim2.new(1, -24, 0, 40), UDim2.fromOffset(12, 10), W, 1)
 	Theme.list(tabsRow, false, 8)
 	for i, cat in Catalog.Categories do
@@ -197,12 +212,12 @@ function BuildBar.start(parent: Instance)
 		b.root.LayoutOrder = i
 		tabButtons[cat.id] = b
 	end
-	stats = Theme.label(root, "", 16, C.inkSoft, F.title)
-	stats.Size = UDim2.new(0, 520, 0, 20)
-	stats.AnchorPoint = Vector2.new(1, 0)
-	stats.Position = UDim2.new(1, -14, 0, -26)
+	stats = Theme.label(root, "", 16, W, F.title)
+	stats.Size = UDim2.new(1, -28, 0, 22)
+	stats.AnchorPoint = Vector2.new(1, 1)
+	stats.Position = UDim2.new(1, -14, 0, -6)
 	stats.TextXAlignment = Enum.TextXAlignment.Right
-	stats.TextColor3 = W
+	stats.TextWrapped = false
 	Theme.textStroke(stats, C.shadow, 2)
 	cardsFrame = Instance.new("ScrollingFrame")
 	cardsFrame.Size = UDim2.new(1, -24, 0, 150)
@@ -215,44 +230,67 @@ function BuildBar.start(parent: Instance)
 	cardsFrame.ScrollBarThickness = 6
 	cardsFrame.ScrollBarImageColor3 = C.goldDeep
 	cardsFrame.Parent = root
-	local l = Theme.list(cardsFrame, false, 10, Enum.HorizontalAlignment.Left, Enum.VerticalAlignment.Center)
-	local _ = l
+	Theme.list(cardsFrame, false, 10, Enum.HorizontalAlignment.Left, Enum.VerticalAlignment.Center)
 	Theme.pad(cardsFrame, 6, 8)
 
-	-- the tool strip
-	toolStrip = Theme.frame(gui, UDim2.fromOffset(76, 390), UDim2.new(0, 14, 0.5, -60), W, 1)
-	toolStrip.AnchorPoint = Vector2.new(0, 0.5)
-	Theme.list(toolStrip, true, 14, Enum.HorizontalAlignment.Center)
+	-- the tools, in the margin left of the drawer
+	toolColumn = Theme.frame(gui, UDim2.fromOffset(84, 440), UDim2.new(0, 12, 1, -12), W, 1)
+	toolColumn.Name = "Tools"
+	toolColumn.Active = true
+	toolColumn.AnchorPoint = Vector2.new(0, 1)
+	Theme.list(toolColumn, true, 6, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Bottom)
+	local touch = Build.isTouch()
 	local tools = {
 		{ "select", "👆", "Select" },
 		{ "paint", "🪨", "Path" },
 		{ "erase", "🧽", "Erase" },
-		{ "remove", "🧹", "Remove [X]" },
+		{ "remove", "🧹", touch and "Remove" or "Remove [X]" },
 	}
 	for i, t in tools do
-		local b = Theme.round(toolStrip, t[2], 58, C.royal, function()
+		local b = Theme.round(toolColumn, t[2], 54, C.royal, function()
 			Build.setTool(t[1])
 		end, t[3])
-		b.root.LayoutOrder = i
+		b.item.LayoutOrder = i + 1
 		toolButtons[t[1]] = b
 	end
-	rotateButton = Theme.round(toolStrip, "↻", 58, C.green, function()
+	rotateButton = Theme.round(toolColumn, "↻", 54, C.green, function()
 		Build.rotate()
-	end, "Turn [R]")
-	rotateButton.root.LayoutOrder = 10
+	end, touch and "Turn" or "Turn [R]")
+	rotateButton.item.LayoutOrder = 1
 
-	-- Done and the hint line
-	local done = Theme.button(gui, "✔ Done  [B]", UDim2.fromOffset(160, 46), C.green, function()
+	-- Done, in the margin right of the drawer
+	local done = Theme.round(gui, "✔", 72, C.green, function()
 		Build.exit()
-	end, 20)
-	done.root.Position = UDim2.new(0, 14, 0.14, 0)
+	end, touch and "Done" or "Done [B]")
+	done.item.AnchorPoint = Vector2.new(1, 1)
+	done.item.Position = UDim2.new(1, -12, 1, -10)
+	done.item.Name = "Done"
+
+	-- touch: confirm where the ghost stands
+	confirmBar = Theme.frame(gui, UDim2.fromOffset(330, 56), UDim2.new(0.5, 0, 1, -(DRAWER_H + 44)), W, 1)
+	confirmBar.Name = "Confirm"
+	confirmBar.Active = true
+	confirmBar.AnchorPoint = Vector2.new(0.5, 1)
+	confirmBar.Visible = false
+	Theme.list(confirmBar, false, 12, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center)
+	local cancel = Theme.button(confirmBar, "✖", UDim2.fromOffset(64, 52), C.red, function()
+		Build.setTool("select")
+	end, 24)
+	cancel.root.LayoutOrder = 1
+	local ok = Theme.button(confirmBar, "✔ Build here", UDim2.fromOffset(220, 52), C.green, function()
+		Build.confirm()
+	end, 22)
+	ok.root.LayoutOrder = 2
+
 	hint = Theme.label(gui, "", 18, W, F.title)
+	hint.Name = "Hint"
 	hint.AnchorPoint = Vector2.new(0.5, 0)
 	hint.Position = UDim2.new(0.5, 0, 0, 72)
 	hint.Size = UDim2.fromOffset(820, 24)
 	hint.TextXAlignment = Enum.TextXAlignment.Center
 	Theme.textStroke(hint, C.shadow, 2)
 
+	Theme.autoScale(gui)
 	showTab("light")
 	refreshTools()
 	Build.changed.connect(refreshTools)
@@ -267,17 +305,23 @@ function BuildBar.start(parent: Instance)
 		task.defer(refreshCards)
 	end)
 	State.plotChanged.connect(refreshStats)
+	State.inspect.connect(function(id)
+		inspecting = id ~= nil and State.mode == "build"
+		setDrawer(not inspecting)
+		refreshTools()
+	end)
 	State.modeChanged.connect(function(mode)
 		gui.Enabled = mode == "build"
 		if mode == "build" then
 			showTab(tab)
 			refreshTools()
 			refreshStats()
-			root.Position = UDim2.new(0.5, 0, 1, 230)
+			inspecting = false
+			drawerOpen = true
+			root.Position = UDim2.new(0.5, 0, 1, DRAWER_H + 40)
 			Theme.tween(root, 0.35, { Position = UDim2.new(0.5, 0, 1, -10) }, Enum.EasingStyle.Back)
 		end
 	end)
-	local _ = UserInputService
 end
 
 return BuildBar

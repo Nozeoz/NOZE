@@ -27,7 +27,7 @@ local gui: ScreenGui
 local inspectFrame: Frame
 local inspectBody: Frame
 local inspectId: number? = nil
-local dim: Frame? = nil
+local dim: GuiObject? = nil
 local modalName: string? = nil
 local modalArg: any = nil
 local journalTab = "quests"
@@ -77,12 +77,26 @@ local function openModal(name: string, title: string, size: Vector2): Frame
 	Panels.close()
 	State.modal = true
 	modalName = name
-	local d = Theme.frame(gui, UDim2.fromScale(1, 1), nil, C.shadow, 0.45)
+	-- the dimmed backdrop is a button: a click or tap outside the panel closes it
+	local d = Instance.new("TextButton")
+	d.Name = "Backdrop"
+	d.Text = ""
+	d.AutoButtonColor = false
+	d.Size = UDim2.fromScale(1, 1)
+	d.BackgroundColor3 = C.shadow
+	d.BackgroundTransparency = 0.45
+	d.BorderSizePixel = 0
 	d.ZIndex = 10
-	d.Active = true
+	d.Parent = gui
+	d.Activated:Connect(Panels.close)
 	dim = d
-	local panel = Theme.panel(d, UDim2.fromOffset(size.X, size.Y), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
+	-- never taller or wider than the screen (phones): the bodies scroll or wrap instead
+	local canvas = Theme.canvas()
+	local w = math.min(size.X, canvas.X - 24)
+	local h = math.min(size.Y, canvas.Y - 16)
+	local panel = Theme.panel(d, UDim2.fromOffset(w, h), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
 	panel.ZIndex = 11
+	panel.Active = true -- clicks on the panel itself stay there
 	local head = Theme.frame(panel, UDim2.new(1, 0, 0, 56), nil, C.royal)
 	Theme.corner(head, 16)
 	Theme.gradient(head, C.royal, C.royalDeep, 90)
@@ -267,12 +281,7 @@ function Panels.inspect(id: number?)
 end
 
 -- ─── the Journal ───────────────────────────────────────────────────────────
-
-local function questsTab(body: Frame)
-	local p = State.profile
-	if not p then
-		return
-	end
+local function scroller(body: Frame): ScrollingFrame
 	local list = Instance.new("ScrollingFrame")
 	list.Size = UDim2.fromScale(1, 1)
 	list.BackgroundTransparency = 1
@@ -282,6 +291,15 @@ local function questsTab(body: Frame)
 	list.ScrollBarThickness = 6
 	list.ScrollBarImageColor3 = C.goldDeep
 	list.Parent = body
+	return list
+end
+
+local function questsTab(body: Frame)
+	local p = State.profile
+	if not p then
+		return
+	end
+	local list = scroller(body)
 	Theme.list(list, true, 8)
 	local current = p.quest and p.quest.index or (#Catalog.Quests + 1)
 	for i, q in Catalog.Quests do
@@ -314,10 +332,12 @@ local function ordersTab(body: Frame)
 	if not p then
 		return
 	end
-	Theme.list(body, true, 12)
-	text(body, "Three fresh orders from the crown every dawn. Finish all three for a Royal Seal: +5 💠.", 16, C.inkSoft, F.body, 0)
+	local list = scroller(body)
+	Theme.list(list, true, 12)
+	local intro = text(list, "Three fresh orders from the crown every dawn. Finish all three for a Royal Seal: +5 💠.", 16, C.inkSoft, F.body, 0)
+	intro.Size = UDim2.new(1, -12, 0, 0)
 	for i, o in p.orders or {} do
-		local f = Theme.frame(body, UDim2.new(1, 0, 0, 92), nil, o.claimed and C.parchmentDark or Color3.fromRGB(255, 246, 214))
+		local f = Theme.frame(list, UDim2.new(1, -12, 0, 92), nil, o.claimed and C.parchmentDark or Color3.fromRGB(255, 246, 214))
 		f.LayoutOrder = i
 		Theme.corner(f, 12)
 		Theme.stroke(f, o.claimed and C.inkSoft or C.goldDeep, 2)
@@ -345,7 +365,7 @@ local function ordersTab(body: Frame)
 		end
 	end
 	if p.sealed then
-		text(body, "🏅 Royal Seal earned today!", 18, C.green, F.title, 10)
+		text(list, "🏅 Royal Seal earned today!", 18, C.green, F.title, 10)
 	end
 end
 
@@ -354,16 +374,9 @@ local function achievementsTab(body: Frame)
 	if not p then
 		return
 	end
-	local grid = Instance.new("ScrollingFrame")
-	grid.Size = UDim2.fromScale(1, 1)
-	grid.BackgroundTransparency = 1
-	grid.BorderSizePixel = 0
-	grid.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	grid.CanvasSize = UDim2.new()
-	grid.ScrollBarThickness = 6
-	grid.Parent = body
+	local grid = scroller(body)
 	local layout = Instance.new("UIGridLayout")
-	layout.CellSize = UDim2.fromOffset(212, 104)
+	layout.CellSize = UDim2.fromOffset(216, 104)
 	layout.CellPadding = UDim2.fromOffset(10, 10)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = grid
@@ -379,17 +392,19 @@ local function achievementsTab(body: Frame)
 		ic.Position = UDim2.fromOffset(8, 8)
 		ic.TextXAlignment = Enum.TextXAlignment.Center
 		local nm = Theme.label(f, a.name, 18, C.royalDeep, F.title)
-		nm.Position = UDim2.fromOffset(58, 8)
-		nm.Size = UDim2.new(1, -62, 0, 22)
+		nm.Position = UDim2.fromOffset(60, 8)
+		nm.Size = UDim2.new(1, -66, 0, 22)
+		nm.TextWrapped = false
 		local ds = Theme.label(f, a.desc, 14, C.inkSoft, F.body)
-		ds.Position = UDim2.fromOffset(58, 30)
-		ds.Size = UDim2.new(1, -62, 0, 18)
+		ds.Position = UDim2.fromOffset(60, 31)
+		ds.Size = UDim2.new(1, -66, 0, 34)
+		ds.TextYAlignment = Enum.TextYAlignment.Top
 		local m = ""
 		for t = 1, 3 do
 			m ..= t <= have and medals[t] or "⚪"
 		end
 		local ml = Theme.label(f, m, 18, C.ink, F.title)
-		ml.Position = UDim2.fromOffset(8, 58)
+		ml.Position = UDim2.fromOffset(8, 72)
 		ml.Size = UDim2.fromOffset(90, 22)
 		local target = a.tiers[math.min(3, have + 1)]
 		local value = a.stat == "level" and p.level or (p.stats and p.stats[a.stat] or 0)
@@ -401,8 +416,8 @@ local function achievementsTab(body: Frame)
 			value = count
 		end
 		local pr = Theme.label(f, have >= 3 and "Complete!" or string.format("%s / %s", Theme.formatNumber(value), Theme.formatNumber(target)), 14, have >= 3 and C.green or C.inkSoft, F.title)
-		pr.Position = UDim2.fromOffset(100, 60)
-		pr.Size = UDim2.new(1, -108, 0, 18)
+		pr.Position = UDim2.fromOffset(100, 74)
+		pr.Size = UDim2.new(1, -110, 0, 18)
 		pr.TextXAlignment = Enum.TextXAlignment.Right
 	end
 end
@@ -412,16 +427,9 @@ local function codexTab(body: Frame)
 	if not p then
 		return
 	end
-	local grid = Instance.new("ScrollingFrame")
-	grid.Size = UDim2.fromScale(1, 1)
-	grid.BackgroundTransparency = 1
-	grid.BorderSizePixel = 0
-	grid.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	grid.CanvasSize = UDim2.new()
-	grid.ScrollBarThickness = 6
-	grid.Parent = body
+	local grid = scroller(body)
 	local layout = Instance.new("UIGridLayout")
-	layout.CellSize = UDim2.fromOffset(212, 150)
+	layout.CellSize = UDim2.fromOffset(216, 150)
 	layout.CellPadding = UDim2.fromOffset(10, 10)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = grid
@@ -524,7 +532,10 @@ local function settings()
 	slider("music", "🎵 Music", 1)
 	slider("sfx", "🔔 Effects", 2)
 	slider("amb", "🌿 Ambience", 3)
-	local controls = "<b>Play:</b> WASD move · Space jump (twice to double jump) · Shift run · Click swing · Q Radiant Burst · E tend/relight\n<b>Build (B):</b> drag to look · right-drag turn · scroll zoom · R rotate · X remove · Esc cancel"
+	local touch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+	local controls = touch
+			and "<b>Play:</b> stick to move · jump (tap twice to double jump) · ⚔️ swing · ✨ Radiant Burst · tap a prompt to tend or relight\n<b>Build (🔨):</b> one finger drags · two fingers pinch and turn · tap to place, then ✔"
+		or "<b>Play:</b> WASD move · Space jump (twice to double jump) · Shift run · Click swing · Q Radiant Burst · E tend/relight\n<b>Build (B):</b> drag to look · right-drag turn · scroll zoom · R rotate · X remove · Esc cancel"
 	text(body, controls, 15, C.inkSoft, F.body, 4)
 	local tips = Theme.button(body, "💡 Show the welcome tips again", UDim2.new(1, 0, 0, 44), C.royal, function()
 		Panels.close()
@@ -547,7 +558,7 @@ local function confirmRemove(id: number)
 		return
 	end
 	local def = B[o.type]
-	local body = openModal("confirmRemove", "🧹 Remove " .. def.name .. "?", Vector2.new(460, 250))
+	local body = openModal("confirmRemove", "🧹 Remove " .. def.name .. "?", Vector2.new(480, 206))
 	Theme.list(body, true, 14)
 	text(body, "You get half of what it cost back.", 18, C.ink, F.body, 1)
 	local r = row(body, 50, 2)
@@ -584,17 +595,12 @@ function Panels.start(parent: Instance)
 	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	gui.DisplayOrder = 5
 	gui.Parent = parent
-	local scale = Instance.new("UIScale")
-	scale.Parent = gui
-	local function rescale()
-		local v = workspace.CurrentCamera.ViewportSize
-		scale.Scale = math.clamp(math.min(v.X / 1360, v.Y / 780) * 1.05, 0.55, 1.2)
-	end
-	rescale()
-	workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(rescale)
+	Theme.autoScale(gui)
 
-	inspectFrame = Theme.panel(gui, UDim2.fromOffset(340, 0), UDim2.new(1, -110, 0.12, 0), Vector2.new(1, 0))
+	-- bottom right, next to Done; the Build drawer steps aside while it is open
+	inspectFrame = Theme.panel(gui, UDim2.fromOffset(350, 0), UDim2.new(1, -120, 1, -16), Vector2.new(1, 1))
 	inspectFrame.Name = "Inspect"
+	inspectFrame.Active = true -- clicks on the card must not reach the world behind it
 	inspectFrame.AutomaticSize = Enum.AutomaticSize.Y
 	inspectFrame.Visible = false
 	Theme.pad(inspectFrame, 14, 12)

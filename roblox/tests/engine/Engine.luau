@@ -134,7 +134,11 @@ function Signal:Fire(...)
 end
 Engine.Signal = Signal
 
-local signals = setmetatable({}, { __mode = "k" })
+-- Strong keys on purpose: Lune hands out the same userdata for an instance only while that
+-- userdata is alive. With weak keys, a button whose Lua reference was dropped (Theme.button
+-- keeps none) lost its Activated handlers at the next collection, and a later lookup through
+-- GetDescendants got a fresh userdata with no signals at all.
+local signals = {}
 local function signalOf(inst: any, name: string)
 	local t = signals[inst]
 	if not t then

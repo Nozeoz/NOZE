@@ -308,7 +308,7 @@ Catalog.Achievements = {
 	{ id = "service", name = "Royal Service", icon = "🤝", stat = "served", tiers = { 10, 100, 500 }, desc = "Serve customers yourself" },
 	{ id = "tipjar", name = "Tip Jar", icon = "💰", stat = "tips", tiers = { 25, 250, 1500 }, desc = "Collect tips" },
 	{ id = "builder", name = "Master Builder", icon = "🔨", stat = "placed", tiers = { 20, 100, 300 }, desc = "Place buildings" },
-	{ id = "flame", name = "Keeper of the Flame", icon = "🔥", stat = "tier", tiers = { 2, 3, 4 }, desc = "Raise the Heartflame" },
+	{ id = "flame", name = "Flamekeeper", icon = "🔥", stat = "tier", tiers = { 2, 3, 4 }, desc = "Raise the Heartflame" },
 	{ id = "codex", name = "Collector", icon = "📖", stat = "discovered", tiers = { 4, 7, 9 }, desc = "Discover visitor kinds" },
 	{ id = "nights", name = "Lantern Keeper", icon = "🌙", stat = "nights", tiers = { 3, 15, 50 }, desc = "Run Lantern Markets" },
 	{ id = "surges", name = "Veilbreaker", icon = "🌀", stat = "surges", tiers = { 1, 10, 40 }, desc = "Repel Veil Surges" },
@@ -7758,6 +7758,17 @@ local painting = false
 local paintList: { { number } } = {}
 local paintSet: { [number]: Part } = {}
 local lastPaint: { number }? = nil
+local lastPointer = Vector2.zero
+local lastViewport = true
+
+-- Fingers can't hover, so on a touch screen the ghost waits on the tile last tapped (or the
+-- middle of the screen) and the ✔ Build button (or a second tap on the same tile) places it.
+local touchMode = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+local touchTile: { number }? = nil
+
+function Build.isTouch(): boolean
+	return touchMode
+end
 
 local function controls(): any
 	local ps = Players.LocalPlayer:FindFirstChild("PlayerScripts")
@@ -8153,6 +8164,15 @@ local function setHover(id: number?)
 	end
 end
 
+local function hoverTile(screen: Vector2, viewport: boolean): (number?, number?)
+	local g = BuildCamera.ground(screen, viewport)
+	if not g then
+		return nil, nil
+	end
+	local x, z = Layout.toTile(plotCF, g)
+	return math.floor(x), math.floor(z)
+end
+
 local function place()
 	if pending then
 		return
@@ -8199,6 +8219,20 @@ end
 local function click(screen: Vector2, viewport: boolean)
 	local tool = Build.tool
 	if tool == "place" or tool == "move" then
+		if touchMode then
+			local x, z = hoverTile(screen, viewport)
+			if not x or not z then
+				return
+			end
+			local t = touchTile
+			if t and t[1] == x and t[2] == z then
+				place()
+			else
+				touchTile = { x, z }
+				Audio.play("click", 1.2, 0.5)
+			end
+			return
+		end
 		place()
 	elseif tool == "select" then
 		local id = objectUnder(screen, viewport)
@@ -8220,10 +8254,18 @@ local function click(screen: Vector2, viewport: boolean)
 end
 
 -- ─── tools ─────────────────────────────────────────────────────────────────
+-- Touch: build where the ghost stands.
+function Build.confirm()
+	if Build.tool == "place" or Build.tool == "move" then
+		place()
+	end
+end
+
 function Build.setTool(tool: string, item: string?)
 	if Build.tool ~= tool or Build.item ~= item then
 		clearGhost()
 		clearPaint()
+		touchTile = nil
 	end
 	Build.tool = tool
 	Build.item = item
@@ -8237,14 +8279,23 @@ function Build.setTool(tool: string, item: string?)
 	end
 	hoverHighlight.Enabled = false
 	Build.changed.fire()
-	local hints = {
-		select = "Click a building to inspect it  •  Drag to look around  •  Right-drag to turn  •  Scroll to zoom",
-		place = "Click to build  •  R to turn  •  Esc to stop  •  Drag to look around",
-		paint = "Hold and drag to paint a stone path (2 🪙 a tile)",
-		erase = "Hold and drag over paths to remove them",
-		remove = "Click a building to remove it (half the cost back)",
-		move = "Click where it should go  •  R to turn  •  Esc to cancel",
-	}
+	local hints = touchMode
+			and {
+				select = "Tap a building to inspect it  •  Drag to look around  •  Pinch to zoom",
+				place = "Tap where it should go, then ✔ Build here",
+				paint = "Drag to paint a stone path (2 🪙 a tile)  •  Two fingers to look around",
+				erase = "Drag over paths to remove them  •  Two fingers to look around",
+				remove = "Tap a building to remove it (half the cost back)",
+				move = "Tap where it should go, then ✔ Build here",
+			}
+		or {
+			select = "Click a building to inspect it  •  Drag to look around  •  Right-drag to turn  •  Scroll to zoom",
+			place = "Click to build  •  R to turn  •  Esc to stop  •  Drag to look around",
+			paint = "Hold and drag to paint a stone path (2 🪙 a tile)",
+			erase = "Hold and drag over paths to remove them",
+			remove = "Click a building to remove it (half the cost back)",
+			move = "Click where it should go  •  R to turn  •  Esc to cancel",
+		}
 	Build.info.fire(hints[tool] or "")
 end
 
@@ -8345,18 +8396,6 @@ local function isPointer(input: InputObject): boolean
 	return input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch
 end
 
-local function hoverTile(screen: Vector2, viewport: boolean): (number?, number?)
-	local g = BuildCamera.ground(screen, viewport)
-	if not g then
-		return nil, nil
-	end
-	local x, z = Layout.toTile(plotCF, g)
-	return math.floor(x), math.floor(z)
-end
-
-local lastPointer = Vector2.zero
-local lastViewport = true
-
 function Build.start()
 	BuildCamera.start()
 	State.layoutChanged.connect(function()
@@ -8380,8 +8419,18 @@ function Build.start()
 		end
 	end)
 	UserInputService.InputBegan:Connect(function(input, processed)
+		local kind = input.UserInputType
+		local was = touchMode
+		if kind == Enum.UserInputType.Touch then
+			touchMode = true
+		elseif kind == Enum.UserInputType.MouseButton1 or kind == Enum.UserInputType.MouseButton2 or kind == Enum.UserInputType.Keyboard then
+			touchMode = false
+		end
 		if State.mode ~= "build" then
 			return
+		end
+		if was ~= touchMode then
+			Build.changed.fire()
 		end
 		if input.KeyCode == Enum.KeyCode.R and not processed then
 			if Build.tool == "place" or Build.tool == "move" then
@@ -8468,6 +8517,17 @@ function Build.start()
 		end
 		local x, z = hoverTile(lastPointer, lastViewport)
 		if Build.tool == "place" or Build.tool == "move" then
+			if touchMode then
+				if not touchTile then
+					-- start in the middle of the screen
+					local cx, cz = hoverTile(Workspace.CurrentCamera.ViewportSize / 2, true)
+					if cx and cz then
+						touchTile = { cx, cz }
+					end
+				end
+				local t = touchTile
+				x, z = if t then t[1] else nil, if t then t[2] else nil
+			end
 			if x and z then
 				updateGhost(dt, x, z)
 			end
@@ -9956,10 +10016,14 @@ return State
               <string name="Name">BuildBar</string>
               <string name="Source"><![CDATA[--!strict
 -- The Build mode UI: category tabs, building cards (cost that rises as you build more, a lock
--- until the right level, how many you may own), the tool strip, the hint line and Done.
+-- until the right level, how many you may own), the tool column, the hint line, Done, and on
+-- touch screens a ✔ Build bar (tap to put the ghost somewhere, then confirm).
+--
+-- Layout: the drawer runs along the bottom; the tools stand in the margin to its left and Done
+-- in the margin to its right, so nothing covers the chat, the clock or the player list. While a
+-- building is being inspected the drawer slides away to make room for its card.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Catalog = require(Shared.Catalog)
@@ -9977,15 +10041,19 @@ local F = Theme.Font
 local W = Palette.white
 local B = Catalog.Buildings
 
+local DRAWER_H = 212
 local gui: ScreenGui
 local root: Frame
 local tabsRow: Frame
 local cardsFrame: ScrollingFrame
-local toolStrip: Frame
+local toolColumn: Frame
+local confirmBar: Frame
 local hint: TextLabel
 local stats: TextLabel
 local rotateButton: Theme.Button
 local tab = "light"
+local drawerOpen = true
+local inspecting = false
 local tabButtons: { [string]: Theme.Button } = {}
 local toolButtons: { [string]: Theme.Button } = {}
 type Card = { id: string, root: TextButton, stroke: UIStroke, cost: TextLabel, lock: Frame, lockText: TextLabel, limit: TextLabel }
@@ -10044,15 +10112,17 @@ local function card(id: string, order: number): Card
 	icon.Size = UDim2.new(1, 0, 0, 56)
 	icon.Position = UDim2.fromOffset(0, 4)
 	icon.TextXAlignment = Enum.TextXAlignment.Center
+	icon.TextYAlignment = Enum.TextYAlignment.Center
 	local name = Theme.label(b, def.name, 15, C.royalDeep, F.title)
-	name.Size = UDim2.new(1, -8, 0, 34)
-	name.Position = UDim2.fromOffset(4, 58)
+	name.Size = UDim2.new(1, -8, 0, 36)
+	name.Position = UDim2.fromOffset(4, 60)
 	name.TextXAlignment = Enum.TextXAlignment.Center
 	name.TextYAlignment = Enum.TextYAlignment.Center
 	local cost = Theme.label(b, "", 16, C.ink, F.title)
 	cost.Size = UDim2.new(1, 0, 0, 20)
 	cost.Position = UDim2.new(0, 0, 1, -26)
 	cost.TextXAlignment = Enum.TextXAlignment.Center
+	cost.TextWrapped = false
 	local limit = Theme.label(b, "", 13, C.inkSoft, F.title)
 	limit.Size = UDim2.fromOffset(50, 16)
 	limit.Position = UDim2.new(1, -54, 0, 6)
@@ -10063,6 +10133,7 @@ local function card(id: string, order: number): Card
 	local lockText = Theme.label(lock, "🔒", 20, W, F.title)
 	lockText.Size = UDim2.fromScale(1, 1)
 	lockText.TextXAlignment = Enum.TextXAlignment.Center
+	lockText.TextYAlignment = Enum.TextYAlignment.Center
 	lockText.ZIndex = 4
 	Theme.textStroke(lockText, C.shadow, 2)
 	local sc = Instance.new("UIScale")
@@ -10107,11 +10178,22 @@ local function showTab(id: string)
 	refreshCards()
 end
 
+-- The drawer slides down out of the way while a building is inspected.
+local function setDrawer(open: boolean)
+	if open == drawerOpen then
+		return
+	end
+	drawerOpen = open
+	Theme.tween(root, 0.3, { Position = UDim2.new(0.5, 0, 1, open and -10 or DRAWER_H + 40) }, open and Enum.EasingStyle.Back or Enum.EasingStyle.Quad)
+end
+
 local function refreshTools()
 	for id, b in toolButtons do
 		b.setColor(Build.tool == id and C.gold or C.royal)
 	end
-	rotateButton.root.Visible = Build.tool == "place" or Build.tool == "move"
+	local placing = Build.tool == "place" or Build.tool == "move"
+	rotateButton.item.Visible = placing
+	confirmBar.Visible = placing and Build.isTouch() and not inspecting
 	refreshCards()
 end
 
@@ -10132,18 +10214,11 @@ function BuildBar.start(parent: Instance)
 	gui.DisplayOrder = 2
 	gui.Enabled = false
 	gui.Parent = parent
-	local scale = Instance.new("UIScale")
-	scale.Parent = gui
-	local function rescale()
-		local v = workspace.CurrentCamera.ViewportSize
-		scale.Scale = math.clamp(math.min(v.X / 1360, v.Y / 780) * 1.05, 0.55, 1.2)
-	end
-	rescale()
-	workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(rescale)
 
 	-- the drawer
-	root = Theme.panel(gui, UDim2.new(1, -220, 0, 212), UDim2.new(0.5, 0, 1, -10), Vector2.new(0.5, 1))
+	root = Theme.panel(gui, UDim2.new(1, -236, 0, DRAWER_H), UDim2.new(0.5, 0, 1, -10), Vector2.new(0.5, 1))
 	root.Name = "Drawer"
+	root.Active = true -- a click between the cards must not build behind the drawer
 	tabsRow = Theme.frame(root, UDim2.new(1, -24, 0, 40), UDim2.fromOffset(12, 10), W, 1)
 	Theme.list(tabsRow, false, 8)
 	for i, cat in Catalog.Categories do
@@ -10153,12 +10228,12 @@ function BuildBar.start(parent: Instance)
 		b.root.LayoutOrder = i
 		tabButtons[cat.id] = b
 	end
-	stats = Theme.label(root, "", 16, C.inkSoft, F.title)
-	stats.Size = UDim2.new(0, 520, 0, 20)
-	stats.AnchorPoint = Vector2.new(1, 0)
-	stats.Position = UDim2.new(1, -14, 0, -26)
+	stats = Theme.label(root, "", 16, W, F.title)
+	stats.Size = UDim2.new(1, -28, 0, 22)
+	stats.AnchorPoint = Vector2.new(1, 1)
+	stats.Position = UDim2.new(1, -14, 0, -6)
 	stats.TextXAlignment = Enum.TextXAlignment.Right
-	stats.TextColor3 = W
+	stats.TextWrapped = false
 	Theme.textStroke(stats, C.shadow, 2)
 	cardsFrame = Instance.new("ScrollingFrame")
 	cardsFrame.Size = UDim2.new(1, -24, 0, 150)
@@ -10171,44 +10246,67 @@ function BuildBar.start(parent: Instance)
 	cardsFrame.ScrollBarThickness = 6
 	cardsFrame.ScrollBarImageColor3 = C.goldDeep
 	cardsFrame.Parent = root
-	local l = Theme.list(cardsFrame, false, 10, Enum.HorizontalAlignment.Left, Enum.VerticalAlignment.Center)
-	local _ = l
+	Theme.list(cardsFrame, false, 10, Enum.HorizontalAlignment.Left, Enum.VerticalAlignment.Center)
 	Theme.pad(cardsFrame, 6, 8)
 
-	-- the tool strip
-	toolStrip = Theme.frame(gui, UDim2.fromOffset(76, 390), UDim2.new(0, 14, 0.5, -60), W, 1)
-	toolStrip.AnchorPoint = Vector2.new(0, 0.5)
-	Theme.list(toolStrip, true, 14, Enum.HorizontalAlignment.Center)
+	-- the tools, in the margin left of the drawer
+	toolColumn = Theme.frame(gui, UDim2.fromOffset(84, 440), UDim2.new(0, 12, 1, -12), W, 1)
+	toolColumn.Name = "Tools"
+	toolColumn.Active = true
+	toolColumn.AnchorPoint = Vector2.new(0, 1)
+	Theme.list(toolColumn, true, 6, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Bottom)
+	local touch = Build.isTouch()
 	local tools = {
 		{ "select", "👆", "Select" },
 		{ "paint", "🪨", "Path" },
 		{ "erase", "🧽", "Erase" },
-		{ "remove", "🧹", "Remove [X]" },
+		{ "remove", "🧹", touch and "Remove" or "Remove [X]" },
 	}
 	for i, t in tools do
-		local b = Theme.round(toolStrip, t[2], 58, C.royal, function()
+		local b = Theme.round(toolColumn, t[2], 54, C.royal, function()
 			Build.setTool(t[1])
 		end, t[3])
-		b.root.LayoutOrder = i
+		b.item.LayoutOrder = i + 1
 		toolButtons[t[1]] = b
 	end
-	rotateButton = Theme.round(toolStrip, "↻", 58, C.green, function()
+	rotateButton = Theme.round(toolColumn, "↻", 54, C.green, function()
 		Build.rotate()
-	end, "Turn [R]")
-	rotateButton.root.LayoutOrder = 10
+	end, touch and "Turn" or "Turn [R]")
+	rotateButton.item.LayoutOrder = 1
 
-	-- Done and the hint line
-	local done = Theme.button(gui, "✔ Done  [B]", UDim2.fromOffset(160, 46), C.green, function()
+	-- Done, in the margin right of the drawer
+	local done = Theme.round(gui, "✔", 72, C.green, function()
 		Build.exit()
-	end, 20)
-	done.root.Position = UDim2.new(0, 14, 0.14, 0)
+	end, touch and "Done" or "Done [B]")
+	done.item.AnchorPoint = Vector2.new(1, 1)
+	done.item.Position = UDim2.new(1, -12, 1, -10)
+	done.item.Name = "Done"
+
+	-- touch: confirm where the ghost stands
+	confirmBar = Theme.frame(gui, UDim2.fromOffset(330, 56), UDim2.new(0.5, 0, 1, -(DRAWER_H + 44)), W, 1)
+	confirmBar.Name = "Confirm"
+	confirmBar.Active = true
+	confirmBar.AnchorPoint = Vector2.new(0.5, 1)
+	confirmBar.Visible = false
+	Theme.list(confirmBar, false, 12, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center)
+	local cancel = Theme.button(confirmBar, "✖", UDim2.fromOffset(64, 52), C.red, function()
+		Build.setTool("select")
+	end, 24)
+	cancel.root.LayoutOrder = 1
+	local ok = Theme.button(confirmBar, "✔ Build here", UDim2.fromOffset(220, 52), C.green, function()
+		Build.confirm()
+	end, 22)
+	ok.root.LayoutOrder = 2
+
 	hint = Theme.label(gui, "", 18, W, F.title)
+	hint.Name = "Hint"
 	hint.AnchorPoint = Vector2.new(0.5, 0)
 	hint.Position = UDim2.new(0.5, 0, 0, 72)
 	hint.Size = UDim2.fromOffset(820, 24)
 	hint.TextXAlignment = Enum.TextXAlignment.Center
 	Theme.textStroke(hint, C.shadow, 2)
 
+	Theme.autoScale(gui)
 	showTab("light")
 	refreshTools()
 	Build.changed.connect(refreshTools)
@@ -10223,17 +10321,23 @@ function BuildBar.start(parent: Instance)
 		task.defer(refreshCards)
 	end)
 	State.plotChanged.connect(refreshStats)
+	State.inspect.connect(function(id)
+		inspecting = id ~= nil and State.mode == "build"
+		setDrawer(not inspecting)
+		refreshTools()
+	end)
 	State.modeChanged.connect(function(mode)
 		gui.Enabled = mode == "build"
 		if mode == "build" then
 			showTab(tab)
 			refreshTools()
 			refreshStats()
-			root.Position = UDim2.new(0.5, 0, 1, 230)
+			inspecting = false
+			drawerOpen = true
+			root.Position = UDim2.new(0.5, 0, 1, DRAWER_H + 40)
 			Theme.tween(root, 0.35, { Position = UDim2.new(0.5, 0, 1, -10) }, Enum.EasingStyle.Back)
 		end
 	end)
-	local _ = UserInputService
 end
 
 return BuildBar
@@ -10251,6 +10355,7 @@ return BuildBar
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Catalog = require(Shared.Catalog)
@@ -10308,11 +10413,29 @@ end
 -- ─── level up ──────────────────────────────────────────────────────────────
 local function levelUp(data: any)
 	enqueue(function()
+		local compact = Theme.isCompact(workspace.CurrentCamera.ViewportSize)
 		local overlay = Theme.frame(gui, UDim2.fromScale(1, 1), nil, C.shadow, 0.35)
 		overlay.ZIndex = 20
 		overlay.Active = true
 		State.modal = true
-		local rays = Theme.frame(overlay, UDim2.fromOffset(1400, 1400), UDim2.fromScale(0.5, 0.38), W, 1)
+		-- one centred column: title, badge (with its rays), what you are now, the unlock cards, OK
+		local column = Theme.frame(overlay, UDim2.new(1, 0, 1, -16), UDim2.fromScale(0.5, 0.5), W, 1)
+		column.AnchorPoint = Vector2.new(0.5, 0.5)
+		column.ZIndex = 21
+		Theme.list(column, true, compact and 6 or 14, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center)
+		local title = Theme.label(column, data.rankUp and "RANK UP!" or "LEVEL UP!", compact and 54 or 64, C.gold, F.title)
+		title.Size = UDim2.fromOffset(800, compact and 62 or 76)
+		title.TextXAlignment = Enum.TextXAlignment.Center
+		title.TextYAlignment = Enum.TextYAlignment.Center
+		title.TextWrapped = false
+		title.LayoutOrder = 1
+		title.ZIndex = 25
+		Theme.textStroke(title, C.goldDeep, 4)
+		local size = compact and 146 or 170
+		local holder = Theme.frame(column, UDim2.fromOffset(size, size), nil, W, 1)
+		holder.LayoutOrder = 2
+		holder.ZIndex = 21
+		local rays = Theme.frame(holder, UDim2.fromOffset(1400, 1400), UDim2.fromScale(0.5, 0.5), W, 1)
 		rays.AnchorPoint = Vector2.new(0.5, 0.5)
 		rays.ZIndex = 21
 		for i = 0, 11 do
@@ -10328,36 +10451,28 @@ local function levelUp(data: any)
 		local spin = RunService.RenderStepped:Connect(function(dt: number)
 			rays.Rotation += dt * 12
 		end)
-		local title = Theme.label(overlay, data.rankUp and "RANK UP!" or "LEVEL UP!", 64, C.gold, F.title)
-		title.AnchorPoint = Vector2.new(0.5, 0.5)
-		title.Position = UDim2.fromScale(0.5, 0.18)
-		title.Size = UDim2.fromOffset(800, 80)
-		title.TextXAlignment = Enum.TextXAlignment.Center
-		title.ZIndex = 25
-		Theme.textStroke(title, C.goldDeep, 4)
-		local badge = Theme.frame(overlay, UDim2.fromOffset(170, 170), UDim2.fromScale(0.5, 0.38), C.gold)
-		badge.AnchorPoint = Vector2.new(0.5, 0.5)
+		local badge = Theme.frame(holder, UDim2.fromScale(1, 1), nil, C.gold)
 		badge.ZIndex = 24
-		Theme.corner(badge, 85)
+		Theme.corner(badge, size // 2)
 		Theme.stroke(badge, C.goldDeep, 6)
 		Theme.gradient(badge, Color3.fromRGB(255, 230, 150), C.goldDeep, 90)
-		local num = Theme.label(badge, tostring(data.level), 96, W, F.title)
+		local num = Theme.label(badge, tostring(data.level), compact and 82 or 96, W, F.title)
 		num.Size = UDim2.fromScale(1, 1)
 		num.TextXAlignment = Enum.TextXAlignment.Center
+		num.TextYAlignment = Enum.TextYAlignment.Center
 		num.ZIndex = 25
 		Theme.textStroke(num, C.goldDeep, 4)
 		Theme.pop(badge, 0.2)
 		Theme.pop(title, 0.5)
-		local sub = Theme.label(overlay, data.rankUp and string.format("Your realm is now a %s %s!", data.rank, data.rankIcon or "") or string.format("%s %s", data.rankIcon or "", data.rank or ""), 28, W, F.title)
-		sub.AnchorPoint = Vector2.new(0.5, 0.5)
-		sub.Position = UDim2.fromScale(0.5, 0.55)
+		local sub = Theme.label(column, data.rankUp and string.format("Your realm is now a %s %s!", data.rank, data.rankIcon or "") or string.format("%s %s", data.rankIcon or "", data.rank or ""), 28, W, F.title)
 		sub.Size = UDim2.fromOffset(900, 36)
 		sub.TextXAlignment = Enum.TextXAlignment.Center
+		sub.LayoutOrder = 3
 		sub.ZIndex = 25
 		Theme.textStroke(sub, C.shadow, 2)
 		-- the unlock cards
-		local row = Theme.frame(overlay, UDim2.fromOffset(1100, 150), UDim2.fromScale(0.5, 0.72), W, 1)
-		row.AnchorPoint = Vector2.new(0.5, 0.5)
+		local row = Theme.frame(column, UDim2.fromOffset(1100, 146), nil, W, 1)
+		row.LayoutOrder = 4
 		row.ZIndex = 25
 		Theme.list(row, false, 12, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center)
 		local cards = data.cards or {}
@@ -10416,11 +10531,10 @@ local function levelUp(data: any)
 			State.modal = false
 			done()
 		end
-		local btn = Theme.button(overlay, "Wonderful!", UDim2.fromOffset(240, 56), C.green, function()
+		local btn = Theme.button(column, "Wonderful!", UDim2.fromOffset(240, 56), C.green, function()
 			task.spawn(close)
 		end, 24)
-		btn.root.AnchorPoint = Vector2.new(0.5, 0.5)
-		btn.root.Position = UDim2.fromScale(0.5, 0.88)
+		btn.root.LayoutOrder = 5
 		btn.root.ZIndex = 26
 		for _, d in btn.root:GetDescendants() do
 			if d:IsA("GuiObject") then
@@ -10433,35 +10547,9 @@ local function levelUp(data: any)
 	end)
 end
 
--- ─── cards that slide in ───────────────────────────────────────────────────
-local slideSlot = 0
+-- ─── notification cards (they share the HUD's stack with the toasts) ───────
 local function slideCard(icon: string, title: string, lines: { string }, color: Color3, hold: number)
-	slideSlot = (slideSlot % 2) + 1
-	local y = slideSlot == 1 and 0.62 or 0.46
-	local card = Theme.panel(gui, UDim2.fromOffset(380, 118), UDim2.new(1, 20, y, 0), Vector2.new(0, 0))
-	card.ZIndex = 15
-	Theme.stroke(card, color, 4)
-	local ic = Theme.label(card, icon, 52, C.ink, F.title)
-	ic.Size = UDim2.fromOffset(84, 118)
-	ic.TextXAlignment = Enum.TextXAlignment.Center
-	ic.TextYAlignment = Enum.TextYAlignment.Center
-	ic.ZIndex = 16
-	local t = Theme.label(card, title, 22, C.royalDeep, F.title)
-	t.Position = UDim2.fromOffset(84, 12)
-	t.Size = UDim2.new(1, -96, 0, 26)
-	t.ZIndex = 16
-	for i, line in lines do
-		local l = Theme.label(card, line, 16, i == 1 and C.ink or C.inkSoft, i == 1 and F.title or F.body)
-		l.Position = UDim2.fromOffset(84, 20 + i * 24)
-		l.Size = UDim2.new(1, -96, 0, 22)
-		l.ZIndex = 16
-	end
-	Theme.tween(card, 0.45, { Position = UDim2.new(1, -400, y, 0) }, Enum.EasingStyle.Back)
-	task.delay(hold, function()
-		Theme.tween(card, 0.3, { Position = UDim2.new(1, 20, y, 0) }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-		task.wait(0.32)
-		card:Destroy()
-	end)
+	HUD.card(icon, title, lines, color, hold)
 end
 
 local function questDone(d: any)
@@ -10499,7 +10587,8 @@ local function ledger(d: any)
 		local overlay = Theme.frame(gui, UDim2.fromScale(1, 1), nil, C.shadow, 0.4)
 		overlay.ZIndex = 20
 		overlay.Active = true
-		local panel = Theme.panel(overlay, UDim2.fromOffset(560, 540), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
+		local height = math.min(540, Theme.canvas().Y - 16)
+		local panel = Theme.panel(overlay, UDim2.fromOffset(560, height), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
 		panel.ZIndex = 21
 		local head = Theme.frame(panel, UDim2.new(1, 0, 0, 64), nil, C.royal)
 		head.ZIndex = 22
@@ -10511,8 +10600,18 @@ local function ledger(d: any)
 		t.TextYAlignment = Enum.TextYAlignment.Center
 		t.ZIndex = 23
 		Theme.textStroke(t, C.shadow, 2)
-		local body = Theme.frame(panel, UDim2.new(1, -40, 1, -150), UDim2.fromOffset(20, 76), W, 1)
+		-- the rows scroll when the screen is short (phones)
+		local body = Instance.new("ScrollingFrame")
+		body.Size = UDim2.new(1, -40, 1, -212)
+		body.Position = UDim2.fromOffset(20, 74)
+		body.BackgroundTransparency = 1
+		body.BorderSizePixel = 0
+		body.AutomaticCanvasSize = Enum.AutomaticSize.Y
+		body.CanvasSize = UDim2.new()
+		body.ScrollBarThickness = 6
+		body.ScrollBarImageColor3 = C.goldDeep
 		body.ZIndex = 22
+		body.Parent = panel
 		Theme.list(body, true, 6)
 		local visitors = d.visitors or 0
 		local happy, content, unhappy = d.happy or 0, d.content or 0, d.unhappy or 0
@@ -10534,12 +10633,13 @@ local function ledger(d: any)
 		end
 		local rows = {
 			{ "🧳 Visitors", tostring(visitors) },
-			{ "💛 Happy · 🙂 Content · 😞 Unhappy", string.format("%d · %d · %d", happy, content, unhappy) },
+			{ "😊 Moods", string.format("💛 %d   🙂 %d   😞 %d", happy, content, unhappy) },
 			{ "🛒 Sold", #sold > 0 and table.concat(sold, "  ") or "nothing" },
 			{ "🪙 Gold earned", string.format("%d  (%d in tips)", d.gold or 0, d.tips or 0) },
 			{ "⚔️ Gloomlings defeated", tostring(d.kills or 0) },
-			{ "🌫️ Lamps snuffed · 😱 Turned back", string.format("%d · %d", d.snuffed or 0, d.fled or 0) },
-			{ "✨ XP · 💠 Lumen", string.format("+%d · +%d", d.xp or 0, d.lumen or 0) },
+			{ "🌫️ Lamps snuffed", tostring(d.snuffed or 0) },
+			{ "😱 Turned back", tostring(d.fled or 0) },
+			{ "✨ Rewards", string.format("+%d XP   +%d 💠", d.xp or 0, d.lumen or 0) },
 		}
 		if #missing > 0 then
 			table.insert(rows, { "❓ Asked for (not sold)", table.concat(missing, "  ") })
@@ -10551,7 +10651,7 @@ local function ledger(d: any)
 			table.insert(rows, { "🌀 Veil Surge", "Repelled! ✅" })
 		end
 		for i, r in rows do
-			local rowF = Theme.frame(body, UDim2.new(1, 0, 0, 30), nil, i % 2 == 0 and C.parchmentDark or W, i % 2 == 0 and 0.4 or 1)
+			local rowF = Theme.frame(body, UDim2.new(1, -8, 0, 30), nil, i % 2 == 0 and C.parchmentDark or W, i % 2 == 0 and 0.4 or 1)
 			rowF.LayoutOrder = i
 			rowF.ZIndex = 22
 			Theme.corner(rowF, 8)
@@ -10580,9 +10680,10 @@ local function ledger(d: any)
 			verdict = "A good night's trade. Decor and benches make visitors happier."
 		end
 		local v = Theme.label(panel, verdict, 18, C.inkSoft, F.title)
-		v.Position = UDim2.new(0, 20, 1, -130)
-		v.Size = UDim2.new(1, -40, 0, 46)
+		v.Position = UDim2.new(0, 20, 1, -132)
+		v.Size = UDim2.new(1, -40, 0, 44)
 		v.TextXAlignment = Enum.TextXAlignment.Center
+		v.TextYAlignment = Enum.TextYAlignment.Center
 		v.ZIndex = 22
 		local closed = false
 		local btn = Theme.button(panel, "☀️ Good morning!", UDim2.fromOffset(240, 54), C.gold, function()
@@ -10619,25 +10720,27 @@ local function welcome()
 		local overlay = Theme.frame(gui, UDim2.fromScale(1, 1), nil, C.shadow, 0.35)
 		overlay.ZIndex = 20
 		overlay.Active = true
-		local panel = Theme.panel(overlay, UDim2.fromOffset(820, 470), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
+		local panel = Theme.panel(overlay, UDim2.fromOffset(820, 484), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
 		panel.ZIndex = 21
 		local t = Theme.label(panel, "Welcome to Kingsbloom", 44, C.royalDeep, F.fancy)
-		t.Position = UDim2.fromOffset(0, 16)
+		t.Position = UDim2.fromOffset(0, 14)
 		t.Size = UDim2.new(1, 0, 0, 52)
 		t.TextXAlignment = Enum.TextXAlignment.Center
 		t.ZIndex = 22
 		local s = Theme.label(panel, "This clearing is yours, Sovereign. Grow a market that glows through the night.", 19, C.inkSoft, F.body)
-		s.Position = UDim2.fromOffset(20, 70)
-		s.Size = UDim2.new(1, -40, 0, 26)
+		s.Position = UDim2.fromOffset(40, 68)
+		s.Size = UDim2.new(1, -80, 0, 46)
 		s.TextXAlignment = Enum.TextXAlignment.Center
+		s.TextYAlignment = Enum.TextYAlignment.Center
 		s.ZIndex = 22
-		local row = Theme.frame(panel, UDim2.new(1, -40, 0, 250), UDim2.fromOffset(20, 108), W, 1)
+		local row = Theme.frame(panel, UDim2.new(1, -40, 0, 240), UDim2.fromOffset(20, 120), W, 1)
 		row.ZIndex = 22
 		Theme.list(row, false, 16, Enum.HorizontalAlignment.Center)
+		local touch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 		local cards = {
-			{ "🔨", "Build", "Press B. Place stalls, fields, homes and decor. Visitors only walk on paths." },
+			{ "🔨", "Build", (touch and "Tap 🔨 Build." or "Press B.") .. " Place stalls, fields, homes and decor. Visitors only walk on paths." },
 			{ "🏮", "Light the road", "At night travelers turn back in the dark. Lamps keep them coming (and happy)." },
-			{ "⚔️", "Guard the night", "Gloomlings snuff lamps and scare visitors. Click to swing your Lantern Staff, Q to burst." },
+			{ "⚔️", "Guard the night", "Gloomlings snuff lamps and scare visitors. " .. (touch and "Tap ⚔️ to swing your Lantern Staff, ✨ to burst." or "Click to swing your Lantern Staff, Q to burst.") },
 		}
 		for i, c in cards do
 			local card = Theme.frame(row, UDim2.fromOffset(240, 240), nil, Color3.fromRGB(255, 246, 214))
@@ -10701,14 +10804,7 @@ function Ceremony.start(parent: Instance)
 	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	gui.DisplayOrder = 8
 	gui.Parent = parent
-	local scale = Instance.new("UIScale")
-	scale.Parent = gui
-	local function rescale()
-		local v = workspace.CurrentCamera.ViewportSize
-		scale.Scale = math.clamp(math.min(v.X / 1360, v.Y / 780) * 1.05, 0.5, 1.2)
-	end
-	rescale()
-	workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(rescale)
+	Theme.autoScale(gui)
 
 	State.message.connect(function(kind: string, d: any)
 		if kind == "levelup" then
@@ -10725,7 +10821,7 @@ function Ceremony.start(parent: Instance)
 		elseif kind == "ledger" then
 			ledger(d)
 		elseif kind == "tier" then
-			HUD.banner("🔥 The Heartflame rises!", d.name .. ": the forest falls back and your realm grows.", C.gold, 4.5)
+			HUD.banner("🔥 The Heartflame rises!", d.name .. ": the forest falls back.", C.gold, 4.5)
 		elseif kind == "orders" then
 			HUD.toast("New Royal Orders have arrived!", "📜", "good")
 		elseif kind == "orderDone" then
@@ -10735,7 +10831,7 @@ function Ceremony.start(parent: Instance)
 				HUD.banner("🏅 Royal Seal!", "All three orders done today: +5 💠", C.gold, 3.5)
 			end
 		elseif kind == "surge" then
-			HUD.banner("🌀 The Veil surges!", "A wave of Gloomlings comes for your lamps. Hold the line!", Palette.veil, 4)
+			HUD.banner("🌀 The Veil surges!", "Gloomlings come for your lamps. Hold the line!", Palette.veil, 4)
 			Audio.setPlaylist("surge")
 		elseif kind == "surgeWon" then
 			HUD.banner("✨ Surge repelled!", "The Veil falls back. +5 💠", C.green, 3.5)
@@ -10780,14 +10876,17 @@ return Ceremony
               <string name="Name">HUD</string>
               <string name="Source"><![CDATA[--!strict
 -- The always-on HUD: level badge and XP bar, gold and Lumen, the clock and market status,
--- the quest card, the market strip (stock, appeal, residents), side buttons, mobile combat
--- buttons, toasts and banners.
+-- the quest card, the market strip (stock, appeal, residents), the menu buttons, the touch
+-- combat buttons, and one stack for toasts and notification cards, plus banners.
+--
+-- Two layouts share the same pieces. On a desktop the status sits on the left under the chat
+-- and the quest card on the right under the player list. On a phone (compact) everything moves
+-- to the top edge and the right-hand column, clear of the thumbstick, and the combat buttons
+-- sit beside Roblox's jump button.
 
-local GuiService = game:GetService("GuiService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Catalog = require(Shared.Catalog)
@@ -10806,7 +10905,6 @@ local F = Theme.Font
 local W = Palette.white
 
 local gui: ScreenGui
-local scale: UIScale
 HUD.buildButton = nil :: Theme.Button?
 HUD.onBuild = function() end
 HUD.onJournal = function(_tab: string?) end
@@ -10821,6 +10919,9 @@ function HUD.gui(): ScreenGui
 	return gui
 end
 
+local compact = false
+local mode = "play"
+
 -- ─── a counting number ─────────────────────────────────────────────────────
 type Counter = { label: TextLabel, value: number, shown: number, prefix: string }
 local counters: { Counter } = {}
@@ -10830,8 +10931,50 @@ local function counter(label: TextLabel, prefix: string): Counter
 	return c
 end
 
--- ─── toasts ────────────────────────────────────────────────────────────────
-local toastHolder: Frame
+-- ─── the notification stack (toasts and cards) ─────────────────────────────
+local stack: Frame
+local MAX_STACK = 4
+
+local function fadeOut(f: GuiObject, t: number)
+	Theme.tween(f, t, { BackgroundTransparency = 1 })
+	for _, d in f:GetDescendants() do
+		if d:IsA("TextLabel") then
+			Theme.tween(d, t, { TextTransparency = 1 })
+		elseif d:IsA("UIStroke") then
+			Theme.tween(d, t, { Transparency = 1 })
+		elseif d:IsA("Frame") and d.BackgroundTransparency < 1 then
+			Theme.tween(d, t, { BackgroundTransparency = 1 })
+		end
+	end
+end
+
+local order = 0
+local function push(f: GuiObject, hold: number)
+	order += 1
+	f.LayoutOrder = order
+	local items: { GuiObject } = {}
+	for _, k in stack:GetChildren() do
+		if k:IsA("GuiObject") then
+			table.insert(items, k)
+		end
+	end
+	table.sort(items, function(a, b)
+		return a.LayoutOrder < b.LayoutOrder
+	end)
+	-- only the newest few stay
+	for i = 1, #items - MAX_STACK do
+		items[i]:Destroy()
+	end
+	Theme.pop(f, 0.7)
+	task.delay(hold, function()
+		if f.Parent then
+			fadeOut(f, 0.25)
+			task.wait(0.27)
+			f:Destroy()
+		end
+	end)
+end
+
 local function toast(text: string, icon: string?, tone: string?)
 	if tone == "hurt" then
 		local v = gui:FindFirstChild("Hurt")
@@ -10845,7 +10988,7 @@ local function toast(text: string, icon: string?, tone: string?)
 		return
 	end
 	local color = tone == "warn" and C.red or (tone == "good" and C.green or C.royal)
-	local f = Theme.frame(toastHolder, UDim2.fromOffset(0, 44), nil, C.parchment)
+	local f = Theme.frame(stack, UDim2.fromOffset(0, 44), nil, C.parchment)
 	f.AutomaticSize = Enum.AutomaticSize.X
 	Theme.corner(f, 22)
 	Theme.stroke(f, color, 3)
@@ -10855,41 +10998,61 @@ local function toast(text: string, icon: string?, tone: string?)
 	i.AutomaticSize = Enum.AutomaticSize.X
 	i.Size = UDim2.fromOffset(0, 40)
 	i.TextWrapped = false
+	i.LayoutOrder = 1
 	local l = Theme.label(f, text, 20, C.ink, F.body)
 	l.AutomaticSize = Enum.AutomaticSize.X
 	l.Size = UDim2.fromOffset(0, 40)
 	l.TextWrapped = false
 	l.TextYAlignment = Enum.TextYAlignment.Center
-	Theme.pop(f, 0.7)
-	local kids = toastHolder:GetChildren()
-	local frames = {}
-	for _, k in kids do
-		if k:IsA("Frame") then
-			table.insert(frames, k)
-		end
-	end
-	if #frames > 3 then
-		frames[1]:Destroy()
-	end
-	task.delay(3.6, function()
-		if f.Parent then
-			Theme.tween(f, 0.25, { BackgroundTransparency = 1 })
-			for _, d in f:GetDescendants() do
-				if d:IsA("TextLabel") then
-					Theme.tween(d, 0.25, { TextTransparency = 1 })
-				elseif d:IsA("UIStroke") then
-					Theme.tween(d, 0.25, { Transparency = 1 })
-				end
-			end
-			task.wait(0.27)
-			f:Destroy()
-		end
-	end)
+	l.LayoutOrder = 2
+	push(f, 3.6)
 end
 HUD.toast = toast
 
+-- A bigger notification: a quest done, a feat, a new visitor for the Codex.
+function HUD.card(icon: string, title: string, lines: { string }, color: Color3, hold: number)
+	local f = Theme.panel(stack, UDim2.fromOffset(400, 0), nil, nil)
+	f.AutomaticSize = Enum.AutomaticSize.Y
+	local st = f:FindFirstChildOfClass("UIStroke")
+	if st then
+		st.Color = color
+		st.Thickness = 4
+	end
+	Theme.pad(f, 12, 10)
+	local ic = Theme.label(f, icon, 46, C.ink, F.title)
+	ic.Size = UDim2.fromOffset(62, 62)
+	ic.TextXAlignment = Enum.TextXAlignment.Center
+	ic.TextYAlignment = Enum.TextYAlignment.Center
+	local body = Theme.frame(f, UDim2.new(1, -72, 0, 0), UDim2.fromOffset(72, 0), W, 1)
+	body.AutomaticSize = Enum.AutomaticSize.Y
+	Theme.list(body, true, 2)
+	local t = Theme.label(body, title, 22, C.royalDeep, F.title)
+	t.AutomaticSize = Enum.AutomaticSize.Y
+	t.Size = UDim2.new(1, 0, 0, 0)
+	t.LayoutOrder = 0
+	for i, line in lines do
+		if line ~= "" then
+			local l = Theme.label(body, line, 16, i == 1 and C.ink or C.inkSoft, i == 1 and F.title or F.body)
+			l.AutomaticSize = Enum.AutomaticSize.Y
+			l.Size = UDim2.new(1, 0, 0, 0)
+			l.LayoutOrder = i
+		end
+	end
+	push(f, hold)
+end
+
 -- ─── banners (phase changes, surges, news) ─────────────────────────────────
+-- A banner takes the top slot under the clock and pushes the notification stack down.
 local bannerHolder: Frame
+local bannerUp = false
+local baseY = 74
+
+local function restack()
+	local y = mode == "build" and 104 or baseY
+	bannerHolder.Position = UDim2.new(0.5, 0, 0, y)
+	stack.Position = UDim2.new(0.5, 0, 0, y + (bannerUp and 104 or 0))
+end
+
 function HUD.banner(title: string, sub: string?, color: Color3?, hold: number?)
 	bannerHolder:ClearAllChildren()
 	local f = Theme.frame(bannerHolder, UDim2.fromScale(1, 1), nil, C.royalDeep, 0.15)
@@ -10897,33 +11060,32 @@ function HUD.banner(title: string, sub: string?, color: Color3?, hold: number?)
 	Theme.stroke(f, color or C.gold, 3)
 	Theme.gradient(f, (color or C.royal):Lerp(Color3.new(0, 0, 0), 0.2), C.royalDeep, 90)
 	local t = Theme.label(f, title, 38, W, F.title)
-	t.Size = UDim2.new(1, 0, 0.6, 0)
+	t.Size = UDim2.new(1, -24, 0.58, 0)
+	t.Position = UDim2.fromOffset(12, 0)
 	t.TextXAlignment = Enum.TextXAlignment.Center
 	t.TextYAlignment = Enum.TextYAlignment.Bottom
+	t.TextWrapped = false
 	Theme.textStroke(t, C.shadow, 2)
 	if sub then
 		local s = Theme.label(f, sub, 20, C.parchment, F.body)
-		s.Position = UDim2.fromScale(0, 0.6)
-		s.Size = UDim2.new(1, 0, 0.36, 0)
+		s.Position = UDim2.new(0, 12, 0.6, 0)
+		s.Size = UDim2.new(1, -24, 0.36, 0)
 		s.TextXAlignment = Enum.TextXAlignment.Center
 	end
 	bannerHolder.Visible = true
+	bannerUp = true
+	restack()
 	Theme.pop(f, 0.5)
 	local id = os.clock()
 	bannerHolder:SetAttribute("Shown", id)
 	task.delay(hold or 3.2, function()
 		if bannerHolder:GetAttribute("Shown") == id then
-			Theme.tween(f, 0.3, { BackgroundTransparency = 1 })
-			for _, d in f:GetDescendants() do
-				if d:IsA("TextLabel") then
-					Theme.tween(d, 0.3, { TextTransparency = 1 })
-				elseif d:IsA("UIStroke") then
-					Theme.tween(d, 0.3, { Transparency = 1 })
-				end
-			end
+			fadeOut(f, 0.3)
 			task.wait(0.32)
 			if bannerHolder:GetAttribute("Shown") == id then
 				bannerHolder.Visible = false
+				bannerUp = false
+				restack()
 			end
 		end
 	end)
@@ -10954,7 +11116,7 @@ local residentsLabel: TextLabel
 local roadLabel: TextLabel
 local mobile: Frame
 local burstCooldown: Frame
-local sideButtons: Frame
+local menuRow: Frame
 local marketStrip: Frame
 local statusCluster: Frame
 
@@ -10969,17 +11131,19 @@ local function pill(parent: Instance, icon: string, color: Color3, order: number
 	local il = Theme.label(ic, icon, 22, W, F.title)
 	il.Size = UDim2.fromScale(1, 1)
 	il.TextXAlignment = Enum.TextXAlignment.Center
+	il.TextYAlignment = Enum.TextYAlignment.Center
 	local v = Theme.label(f, "0", 24, W, F.title)
 	v.Position = UDim2.fromOffset(44, 0)
-	v.Size = UDim2.new(1, -52, 1, 0)
+	v.Size = UDim2.new(1, -56, 1, 0)
 	v.TextXAlignment = Enum.TextXAlignment.Right
 	v.TextYAlignment = Enum.TextYAlignment.Center
+	v.TextWrapped = false
 	Theme.textStroke(v, C.shadow, 1.5)
 	return f, v
 end
 
-local function buildTopLeft()
-	local holder = Theme.frame(gui, UDim2.fromOffset(330, 140), UDim2.new(0, 14, 0.3, 0), W, 1)
+local function buildStatus()
+	local holder = Theme.frame(gui, UDim2.fromOffset(330, 134), nil, W, 1)
 	holder.Name = "Status"
 	statusCluster = holder
 	-- level badge
@@ -11000,13 +11164,15 @@ local function buildTopLeft()
 	rankLabel = Theme.label(holder, "⛺ Exile's Camp", 22, W, F.title)
 	rankLabel.Position = UDim2.fromOffset(84, 6)
 	rankLabel.Size = UDim2.fromOffset(240, 26)
+	rankLabel.TextWrapped = false
 	Theme.textStroke(rankLabel, C.shadow, 2)
-	xpBar = Theme.bar(holder, UDim2.fromOffset(236, 16), C.lumen)
+	xpBar = Theme.bar(holder, UDim2.fromOffset(236, 18), C.lumen)
 	xpBar.root.Position = UDim2.fromOffset(84, 38)
 	Theme.stroke(xpBar.root, C.shadow, 2, 0.3)
 	xpText = Theme.label(xpBar.root, "0 / 110 XP", 13, W, F.title)
 	xpText.Size = UDim2.fromScale(1, 1)
 	xpText.TextXAlignment = Enum.TextXAlignment.Center
+	xpText.TextYAlignment = Enum.TextYAlignment.Center
 	Theme.textStroke(xpText, C.shadow, 1.5)
 	-- gold and Lumen
 	local row = Theme.frame(holder, UDim2.fromOffset(320, 40), UDim2.fromOffset(4, 88), W, 1)
@@ -11027,21 +11193,24 @@ local function buildClock()
 	clockLabel.Size = UDim2.new(1, 0, 0, 30)
 	clockLabel.Position = UDim2.fromOffset(0, 3)
 	clockLabel.TextXAlignment = Enum.TextXAlignment.Center
+	clockLabel.TextWrapped = false
 	Theme.textStroke(clockLabel, C.shadow, 1.5)
 	statusLabel = Theme.label(f, "Market day", 15, C.parchmentDark, F.body)
 	statusLabel.Size = UDim2.new(1, 0, 0, 18)
 	statusLabel.Position = UDim2.fromOffset(0, 30)
 	statusLabel.TextXAlignment = Enum.TextXAlignment.Center
+	statusLabel.TextWrapped = false
 	phaseBar = Theme.bar(f, UDim2.new(1, -24, 0, 4), C.gold)
 	phaseBar.root.Position = UDim2.new(0, 12, 1, -7)
 end
 
 local function buildQuest()
-	questCard = Theme.panel(gui, UDim2.fromOffset(300, 150), UDim2.new(1, -14, 0.34, 0), Vector2.new(1, 0))
+	questCard = Theme.panel(gui, UDim2.fromOffset(300, 150), nil, Vector2.new(1, 0))
 	questCard.Name = "Quest"
 	Theme.pad(questCard, 12, 10)
 	questGiver = Theme.label(questCard, "🔥 Flicker", 16, C.inkSoft, F.title)
 	questGiver.Size = UDim2.new(1, -60, 0, 18)
+	questGiver.TextWrapped = false
 	questCount = Theme.label(questCard, "1/20", 14, C.inkSoft, F.title)
 	questCount.Size = UDim2.new(0, 60, 0, 18)
 	questCount.Position = UDim2.new(1, -60, 0, 0)
@@ -11049,6 +11218,7 @@ local function buildQuest()
 	questTitle = Theme.label(questCard, "Your Realm Awaits", 21, C.royalDeep, F.title)
 	questTitle.Position = UDim2.fromOffset(0, 18)
 	questTitle.Size = UDim2.new(1, 0, 0, 24)
+	questTitle.TextWrapped = false
 	questText = Theme.label(questCard, "", 15, C.ink, F.light)
 	questText.Position = UDim2.fromOffset(0, 44)
 	questText.Size = UDim2.new(1, 0, 0, 52)
@@ -11062,24 +11232,37 @@ local function buildQuest()
 				toast(res.reason or "Not yet.", "📜", "warn")
 			end
 		end)
-	end, 20)
-	claimButton.root.Position = UDim2.new(0, 0, 1, -38)
+	end, 18)
+	claimButton.root.Position = UDim2.new(0, 0, 1, -40)
 	claimButton.root.Visible = false
+	claimButton.root.ZIndex = 3
+	-- the rest of the card opens the Journal at the quest list
+	local open = Instance.new("TextButton")
+	open.Name = "Open"
+	open.Text = ""
+	open.AutoButtonColor = false
+	open.BackgroundTransparency = 1
+	open.Size = UDim2.new(1, 24, 1, 20)
+	open.Position = UDim2.fromOffset(-12, -10)
+	open.ZIndex = 2
+	open.Parent = questCard
+	open.Activated:Connect(function()
+		Theme.sound("click")
+		HUD.onJournal("quests")
+	end)
 	-- Royal Orders shortcut
 	local orders = Theme.button(gui, "📜 Royal Orders", UDim2.fromOffset(300, 38), C.royal, function()
 		HUD.onJournal("orders")
 	end, 18)
 	orders.root.AnchorPoint = Vector2.new(1, 0)
-	orders.root.Position = UDim2.new(1, -14, 0.34, 160)
 	orders.root.Name = "Orders"
 	ordersRoot = orders.root
 	ordersLabel = orders.label
 end
 
 local function buildMarketStrip()
-	marketStrip = Theme.frame(gui, UDim2.fromOffset(0, 44), UDim2.new(0, 14, 1, -14), C.royalDeep, 0.15)
+	marketStrip = Theme.frame(gui, UDim2.fromOffset(0, 44), nil, C.royalDeep, 0.15)
 	marketStrip.Name = "Market"
-	marketStrip.AnchorPoint = Vector2.new(0, 1)
 	marketStrip.AutomaticSize = Enum.AutomaticSize.X
 	Theme.corner(marketStrip, 14)
 	Theme.stroke(marketStrip, C.gold, 2)
@@ -11103,46 +11286,82 @@ local function buildMarketStrip()
 	residentsLabel = item("👥 0/0", 12)
 end
 
-local function buildSide()
+local function buildMenu()
 	local touch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
-	sideButtons = Theme.frame(gui, UDim2.fromOffset(84, 290), UDim2.new(1, -14, 1, touch and -250 or -14), W, 1)
-	sideButtons.Name = "Side"
-	sideButtons.AnchorPoint = Vector2.new(1, 1)
-	Theme.list(sideButtons, true, 26, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Bottom)
-	local b = Theme.round(sideButtons, "🔨", 72, C.gold, function()
-		HUD.onBuild()
-	end, "Build [B]")
-	b.root.LayoutOrder = 3
-	HUD.buildButton = b
-	local j = Theme.round(sideButtons, "📖", 58, C.royal, function()
-		HUD.onJournal()
-	end, "Journal [J]")
-	j.root.LayoutOrder = 2
-	local s = Theme.round(sideButtons, "⚙️", 48, C.inkSoft, function()
+	menuRow = Theme.frame(gui, UDim2.fromOffset(300, 96), nil, W, 1)
+	menuRow.Name = "Menu"
+	Theme.list(menuRow, false, 10, Enum.HorizontalAlignment.Right, Enum.VerticalAlignment.Bottom)
+	local s = Theme.round(menuRow, "⚙️", 48, C.inkSoft, function()
 		HUD.onSettings()
-	end, nil)
-	s.root.LayoutOrder = 1
+	end, "Settings")
+	s.item.LayoutOrder = 1
+	local j = Theme.round(menuRow, "📖", 60, C.royal, function()
+		HUD.onJournal()
+	end, touch and "Journal" or "Journal [J]")
+	j.item.LayoutOrder = 2
+	local b = Theme.round(menuRow, "🔨", 72, C.gold, function()
+		HUD.onBuild()
+	end, touch and "Build" or "Build [B]")
+	b.item.LayoutOrder = 3
+	HUD.buildButton = b
 end
 
 local function buildMobile()
-	mobile = Theme.frame(gui, UDim2.fromOffset(230, 200), UDim2.new(1, -150, 1, -24), W, 1)
+	mobile = Theme.frame(gui, UDim2.fromOffset(190, 150), nil, W, 1)
 	mobile.Name = "Mobile"
 	mobile.AnchorPoint = Vector2.new(1, 1)
-	mobile.Visible = UserInputService.TouchEnabled
 	local attack = Theme.round(mobile, "⚔️", 96, C.red, function()
 		HUD.onAttack()
 	end, nil)
 	attack.root.AnchorPoint = Vector2.new(1, 1)
-	attack.root.Position = UDim2.new(1, 0, 1, 0)
+	attack.root.Position = UDim2.fromScale(1, 1)
 	local burst = Theme.round(mobile, "✨", 66, C.lumen, function()
 		HUD.onBurst()
 	end, nil)
-	burst.root.AnchorPoint = Vector2.new(1, 1)
-	burst.root.Position = UDim2.new(1, -110, 1, -40)
+	burst.root.Position = UDim2.fromOffset(0, 0)
 	burstCooldown = Theme.frame(burst.root, UDim2.fromScale(1, 1), nil, C.shadow, 0.35)
 	Theme.corner(burstCooldown, 40)
 	burstCooldown.ZIndex = 5
 	burstCooldown.Visible = false
+end
+
+-- ─── layout ────────────────────────────────────────────────────────────────
+
+-- Where Roblox puts its touch jump button: offset from the right, offset from the bottom, and
+-- size, in screen pixels.
+local function jumpButton(v: Vector2): (number, number, number)
+	if math.min(v.X, v.Y) <= 500 then
+		return 95, 90, 70
+	end
+	return 170, 210, 120
+end
+
+local function layout(isCompact: boolean, scale: number)
+	compact = isCompact
+	local v = workspace.CurrentCamera.ViewportSize
+	if compact then
+		statusCluster.Position = UDim2.fromOffset(14, 8)
+		questCard.Position = UDim2.new(1, -14, 0, 8)
+		ordersRoot.Position = UDim2.new(1, -14, 0, 166)
+		menuRow.AnchorPoint = Vector2.new(1, 0)
+		menuRow.Position = UDim2.new(1, -14, 0, 212)
+		marketStrip.AnchorPoint = Vector2.new(0.5, 0)
+		marketStrip.Position = UDim2.new(0.5, 0, 0, 72)
+		baseY = 124
+	else
+		statusCluster.Position = UDim2.new(0, 14, 0.3, 0)
+		questCard.Position = UDim2.new(1, -14, 0.4, 0)
+		ordersRoot.Position = UDim2.new(1, -14, 0.4, 158)
+		menuRow.AnchorPoint = Vector2.new(1, 1)
+		menuRow.Position = UDim2.new(1, -14, 1, -10)
+		marketStrip.AnchorPoint = Vector2.new(0, 1)
+		marketStrip.Position = UDim2.new(0, 14, 1, -14)
+		baseY = 74
+	end
+	-- the combat buttons sit just left of the jump button, bottoms lined up
+	local right, bottom, size = jumpButton(v)
+	mobile.Position = UDim2.new(1, -(right / scale) - 10, 1, -((bottom - size) / scale))
+	restack()
 end
 
 -- ─── updates ───────────────────────────────────────────────────────────────
@@ -11163,13 +11382,13 @@ local function onProfile(p: any)
 	lastLevel = p.level
 	goldCounter.value = p.gold
 	lumenCounter.value = p.lumen
-	if lastGold >= 0 and p.gold > lastGold + 0 then
+	if lastGold >= 0 and p.gold > lastGold then
 		Theme.pop(goldCounter.label.Parent :: GuiObject, 0.92)
 	end
 	lastGold = p.gold
 	local q = p.quest
 	if q then
-		questCard.Visible = true
+		questCard.Visible = mode == "play"
 		local npc = Catalog.Npcs[q.giver]
 		questGiver.Text = string.format("%s %s", npc and npc.icon or "📜", q.giver)
 		questTitle.Text = q.title
@@ -11218,10 +11437,10 @@ local function updateClock()
 	clockLabel.Text = string.format("%s %s · Day %d", phaseIcon[c.phase] or "☀️", DayCycle.clockText(c.hours), c.day)
 	phaseBar.set(c.progress, false)
 	if c.phase == "night" then
-		statusLabel.Text = "🏮 Lantern Market · prices +25% · beware the Veil"
+		statusLabel.Text = "🏮 Lantern Market · prices +25%"
 		statusLabel.TextColor3 = Color3.fromRGB(255, 214, 150)
 	elseif c.phase == "dusk" then
-		statusLabel.Text = "The lanterns are lit: the Lantern Market opens"
+		statusLabel.Text = "The Lantern Market opens"
 		statusLabel.TextColor3 = Color3.fromRGB(255, 200, 160)
 	elseif c.phase == "dawn" then
 		statusLabel.Text = "Dawn: the Veil retreats"
@@ -11233,16 +11452,16 @@ local function updateClock()
 	end
 end
 
-function HUD.setMode(mode: string)
-	local play = mode == "play"
+function HUD.setMode(m: string)
+	mode = m
+	local play = m == "play"
 	questCard.Visible = play and State.profile ~= nil and State.profile.quest ~= nil
 	ordersRoot.Visible = play
 	mobile.Visible = play and UserInputService.TouchEnabled
 	marketStrip.Visible = play
 	statusCluster.Visible = play
-	if HUD.buildButton then
-		HUD.buildButton.label.Text = play and "🔨" or "✖"
-	end
+	menuRow.Visible = play
+	restack()
 end
 
 function HUD.start(parent: Instance)
@@ -11250,36 +11469,30 @@ function HUD.start(parent: Instance)
 	gui.Name = "KingsbloomHUD"
 	gui.ResetOnSpawn = false
 	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	gui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
 	gui.DisplayOrder = 1
 	gui.Parent = parent
-	scale = Instance.new("UIScale")
-	scale.Parent = gui
-	local function rescale()
-		local v = Workspace.CurrentCamera.ViewportSize
-		local s = math.min(v.X / 1360, v.Y / 780)
-		scale.Scale = math.clamp(s * 1.05, 0.6, 1.2)
-	end
-	rescale()
-	Workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(rescale)
 	local hurt = Theme.frame(gui, UDim2.fromScale(1, 1), nil, Color3.fromRGB(200, 20, 30), 1)
 	hurt.Name = "Hurt"
 	hurt.ZIndex = 0
 	local hg = Instance.new("UIGradient")
 	hg.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.35, 1), NumberSequenceKeypoint.new(0.65, 1), NumberSequenceKeypoint.new(1, 0) })
 	hg.Parent = hurt
-	buildTopLeft()
+	buildStatus()
 	buildClock()
 	buildQuest()
 	buildMarketStrip()
-	buildSide()
+	buildMenu()
 	buildMobile()
-	toastHolder = Theme.frame(gui, UDim2.fromOffset(700, 200), UDim2.new(0.5, 0, 0, 74), W, 1)
-	toastHolder.AnchorPoint = Vector2.new(0.5, 0)
-	Theme.list(toastHolder, true, 6, Enum.HorizontalAlignment.Center)
-	bannerHolder = Theme.frame(gui, UDim2.fromOffset(560, 96), UDim2.new(0.5, 0, 0.26, 0), W, 1)
-	bannerHolder.AnchorPoint = Vector2.new(0.5, 0.5)
+	mobile.Visible = UserInputService.TouchEnabled
+	stack = Theme.frame(gui, UDim2.fromOffset(700, 0), nil, W, 1)
+	stack.Name = "Notifications"
+	stack.AnchorPoint = Vector2.new(0.5, 0)
+	Theme.list(stack, true, 6, Enum.HorizontalAlignment.Center)
+	bannerHolder = Theme.frame(gui, UDim2.fromOffset(600, 96), nil, W, 1)
+	bannerHolder.Name = "Banner"
+	bannerHolder.AnchorPoint = Vector2.new(0.5, 0)
 	bannerHolder.Visible = false
+	Theme.autoScale(gui, layout)
 	State.profileChanged.connect(onProfile)
 	State.plotChanged.connect(onPlot)
 	State.toast.connect(toast)
@@ -11310,7 +11523,6 @@ function HUD.start(parent: Instance)
 			end
 		end
 	end)
-	local _ = GuiService
 end
 
 return HUD
@@ -11349,7 +11561,7 @@ local gui: ScreenGui
 local inspectFrame: Frame
 local inspectBody: Frame
 local inspectId: number? = nil
-local dim: Frame? = nil
+local dim: GuiObject? = nil
 local modalName: string? = nil
 local modalArg: any = nil
 local journalTab = "quests"
@@ -11399,12 +11611,26 @@ local function openModal(name: string, title: string, size: Vector2): Frame
 	Panels.close()
 	State.modal = true
 	modalName = name
-	local d = Theme.frame(gui, UDim2.fromScale(1, 1), nil, C.shadow, 0.45)
+	-- the dimmed backdrop is a button: a click or tap outside the panel closes it
+	local d = Instance.new("TextButton")
+	d.Name = "Backdrop"
+	d.Text = ""
+	d.AutoButtonColor = false
+	d.Size = UDim2.fromScale(1, 1)
+	d.BackgroundColor3 = C.shadow
+	d.BackgroundTransparency = 0.45
+	d.BorderSizePixel = 0
 	d.ZIndex = 10
-	d.Active = true
+	d.Parent = gui
+	d.Activated:Connect(Panels.close)
 	dim = d
-	local panel = Theme.panel(d, UDim2.fromOffset(size.X, size.Y), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
+	-- never taller or wider than the screen (phones): the bodies scroll or wrap instead
+	local canvas = Theme.canvas()
+	local w = math.min(size.X, canvas.X - 24)
+	local h = math.min(size.Y, canvas.Y - 16)
+	local panel = Theme.panel(d, UDim2.fromOffset(w, h), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
 	panel.ZIndex = 11
+	panel.Active = true -- clicks on the panel itself stay there
 	local head = Theme.frame(panel, UDim2.new(1, 0, 0, 56), nil, C.royal)
 	Theme.corner(head, 16)
 	Theme.gradient(head, C.royal, C.royalDeep, 90)
@@ -11589,12 +11815,7 @@ function Panels.inspect(id: number?)
 end
 
 -- ─── the Journal ───────────────────────────────────────────────────────────
-
-local function questsTab(body: Frame)
-	local p = State.profile
-	if not p then
-		return
-	end
+local function scroller(body: Frame): ScrollingFrame
 	local list = Instance.new("ScrollingFrame")
 	list.Size = UDim2.fromScale(1, 1)
 	list.BackgroundTransparency = 1
@@ -11604,6 +11825,15 @@ local function questsTab(body: Frame)
 	list.ScrollBarThickness = 6
 	list.ScrollBarImageColor3 = C.goldDeep
 	list.Parent = body
+	return list
+end
+
+local function questsTab(body: Frame)
+	local p = State.profile
+	if not p then
+		return
+	end
+	local list = scroller(body)
 	Theme.list(list, true, 8)
 	local current = p.quest and p.quest.index or (#Catalog.Quests + 1)
 	for i, q in Catalog.Quests do
@@ -11636,10 +11866,12 @@ local function ordersTab(body: Frame)
 	if not p then
 		return
 	end
-	Theme.list(body, true, 12)
-	text(body, "Three fresh orders from the crown every dawn. Finish all three for a Royal Seal: +5 💠.", 16, C.inkSoft, F.body, 0)
+	local list = scroller(body)
+	Theme.list(list, true, 12)
+	local intro = text(list, "Three fresh orders from the crown every dawn. Finish all three for a Royal Seal: +5 💠.", 16, C.inkSoft, F.body, 0)
+	intro.Size = UDim2.new(1, -12, 0, 0)
 	for i, o in p.orders or {} do
-		local f = Theme.frame(body, UDim2.new(1, 0, 0, 92), nil, o.claimed and C.parchmentDark or Color3.fromRGB(255, 246, 214))
+		local f = Theme.frame(list, UDim2.new(1, -12, 0, 92), nil, o.claimed and C.parchmentDark or Color3.fromRGB(255, 246, 214))
 		f.LayoutOrder = i
 		Theme.corner(f, 12)
 		Theme.stroke(f, o.claimed and C.inkSoft or C.goldDeep, 2)
@@ -11667,7 +11899,7 @@ local function ordersTab(body: Frame)
 		end
 	end
 	if p.sealed then
-		text(body, "🏅 Royal Seal earned today!", 18, C.green, F.title, 10)
+		text(list, "🏅 Royal Seal earned today!", 18, C.green, F.title, 10)
 	end
 end
 
@@ -11676,16 +11908,9 @@ local function achievementsTab(body: Frame)
 	if not p then
 		return
 	end
-	local grid = Instance.new("ScrollingFrame")
-	grid.Size = UDim2.fromScale(1, 1)
-	grid.BackgroundTransparency = 1
-	grid.BorderSizePixel = 0
-	grid.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	grid.CanvasSize = UDim2.new()
-	grid.ScrollBarThickness = 6
-	grid.Parent = body
+	local grid = scroller(body)
 	local layout = Instance.new("UIGridLayout")
-	layout.CellSize = UDim2.fromOffset(212, 104)
+	layout.CellSize = UDim2.fromOffset(216, 104)
 	layout.CellPadding = UDim2.fromOffset(10, 10)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = grid
@@ -11701,17 +11926,19 @@ local function achievementsTab(body: Frame)
 		ic.Position = UDim2.fromOffset(8, 8)
 		ic.TextXAlignment = Enum.TextXAlignment.Center
 		local nm = Theme.label(f, a.name, 18, C.royalDeep, F.title)
-		nm.Position = UDim2.fromOffset(58, 8)
-		nm.Size = UDim2.new(1, -62, 0, 22)
+		nm.Position = UDim2.fromOffset(60, 8)
+		nm.Size = UDim2.new(1, -66, 0, 22)
+		nm.TextWrapped = false
 		local ds = Theme.label(f, a.desc, 14, C.inkSoft, F.body)
-		ds.Position = UDim2.fromOffset(58, 30)
-		ds.Size = UDim2.new(1, -62, 0, 18)
+		ds.Position = UDim2.fromOffset(60, 31)
+		ds.Size = UDim2.new(1, -66, 0, 34)
+		ds.TextYAlignment = Enum.TextYAlignment.Top
 		local m = ""
 		for t = 1, 3 do
 			m ..= t <= have and medals[t] or "⚪"
 		end
 		local ml = Theme.label(f, m, 18, C.ink, F.title)
-		ml.Position = UDim2.fromOffset(8, 58)
+		ml.Position = UDim2.fromOffset(8, 72)
 		ml.Size = UDim2.fromOffset(90, 22)
 		local target = a.tiers[math.min(3, have + 1)]
 		local value = a.stat == "level" and p.level or (p.stats and p.stats[a.stat] or 0)
@@ -11723,8 +11950,8 @@ local function achievementsTab(body: Frame)
 			value = count
 		end
 		local pr = Theme.label(f, have >= 3 and "Complete!" or string.format("%s / %s", Theme.formatNumber(value), Theme.formatNumber(target)), 14, have >= 3 and C.green or C.inkSoft, F.title)
-		pr.Position = UDim2.fromOffset(100, 60)
-		pr.Size = UDim2.new(1, -108, 0, 18)
+		pr.Position = UDim2.fromOffset(100, 74)
+		pr.Size = UDim2.new(1, -110, 0, 18)
 		pr.TextXAlignment = Enum.TextXAlignment.Right
 	end
 end
@@ -11734,16 +11961,9 @@ local function codexTab(body: Frame)
 	if not p then
 		return
 	end
-	local grid = Instance.new("ScrollingFrame")
-	grid.Size = UDim2.fromScale(1, 1)
-	grid.BackgroundTransparency = 1
-	grid.BorderSizePixel = 0
-	grid.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	grid.CanvasSize = UDim2.new()
-	grid.ScrollBarThickness = 6
-	grid.Parent = body
+	local grid = scroller(body)
 	local layout = Instance.new("UIGridLayout")
-	layout.CellSize = UDim2.fromOffset(212, 150)
+	layout.CellSize = UDim2.fromOffset(216, 150)
 	layout.CellPadding = UDim2.fromOffset(10, 10)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = grid
@@ -11846,7 +12066,10 @@ local function settings()
 	slider("music", "🎵 Music", 1)
 	slider("sfx", "🔔 Effects", 2)
 	slider("amb", "🌿 Ambience", 3)
-	local controls = "<b>Play:</b> WASD move · Space jump (twice to double jump) · Shift run · Click swing · Q Radiant Burst · E tend/relight\n<b>Build (B):</b> drag to look · right-drag turn · scroll zoom · R rotate · X remove · Esc cancel"
+	local touch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+	local controls = touch
+			and "<b>Play:</b> stick to move · jump (tap twice to double jump) · ⚔️ swing · ✨ Radiant Burst · tap a prompt to tend or relight\n<b>Build (🔨):</b> one finger drags · two fingers pinch and turn · tap to place, then ✔"
+		or "<b>Play:</b> WASD move · Space jump (twice to double jump) · Shift run · Click swing · Q Radiant Burst · E tend/relight\n<b>Build (B):</b> drag to look · right-drag turn · scroll zoom · R rotate · X remove · Esc cancel"
 	text(body, controls, 15, C.inkSoft, F.body, 4)
 	local tips = Theme.button(body, "💡 Show the welcome tips again", UDim2.new(1, 0, 0, 44), C.royal, function()
 		Panels.close()
@@ -11869,7 +12092,7 @@ local function confirmRemove(id: number)
 		return
 	end
 	local def = B[o.type]
-	local body = openModal("confirmRemove", "🧹 Remove " .. def.name .. "?", Vector2.new(460, 250))
+	local body = openModal("confirmRemove", "🧹 Remove " .. def.name .. "?", Vector2.new(480, 206))
 	Theme.list(body, true, 14)
 	text(body, "You get half of what it cost back.", 18, C.ink, F.body, 1)
 	local r = row(body, 50, 2)
@@ -11906,17 +12129,12 @@ function Panels.start(parent: Instance)
 	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	gui.DisplayOrder = 5
 	gui.Parent = parent
-	local scale = Instance.new("UIScale")
-	scale.Parent = gui
-	local function rescale()
-		local v = workspace.CurrentCamera.ViewportSize
-		scale.Scale = math.clamp(math.min(v.X / 1360, v.Y / 780) * 1.05, 0.55, 1.2)
-	end
-	rescale()
-	workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(rescale)
+	Theme.autoScale(gui)
 
-	inspectFrame = Theme.panel(gui, UDim2.fromOffset(340, 0), UDim2.new(1, -110, 0.12, 0), Vector2.new(1, 0))
+	-- bottom right, next to Done; the Build drawer steps aside while it is open
+	inspectFrame = Theme.panel(gui, UDim2.fromOffset(350, 0), UDim2.new(1, -120, 1, -16), Vector2.new(1, 1))
 	inspectFrame.Name = "Inspect"
+	inspectFrame.Active = true -- clicks on the card must not reach the world behind it
 	inspectFrame.AutomaticSize = Enum.AutomaticSize.Y
 	inspectFrame.Visible = false
 	Theme.pad(inspectFrame, 14, 12)
@@ -11999,6 +12217,47 @@ Theme.Font = {
 
 -- Set by the audio controller so every button can click.
 Theme.sound = function(_name: string) end
+
+-- ─── screen size ───────────────────────────────────────────────────────────
+-- Every screen is laid out for a 1360×780 window. Phones in landscape (short side under 500 px)
+-- get the "compact" layout and a slightly bigger scale than a plain fit, so text stays readable.
+Theme.TOPBAR = 58 -- Roblox's top bar; our ScreenGuis start below it
+
+function Theme.isCompact(v: Vector2): boolean
+	return math.min(v.X, v.Y) < 500
+end
+
+function Theme.scaleFor(v: Vector2): number
+	local s = math.min(v.X / 1360, v.Y / 780) * 1.05
+	if Theme.isCompact(v) then
+		s = math.max(s, (v.Y - Theme.TOPBAR) / 500)
+	end
+	return math.clamp(s, 0.6, 1.25)
+end
+
+-- The size of a ScreenGui's canvas in its own (scaled) units.
+function Theme.canvas(): Vector2
+	local v = workspace.CurrentCamera.ViewportSize
+	local s = Theme.scaleFor(v)
+	return Vector2.new(v.X / s, (v.Y - Theme.TOPBAR) / s)
+end
+
+-- Gives a ScreenGui a UIScale that follows the window, and calls onLayout(compact, scale) now
+-- and whenever the window changes size.
+function Theme.autoScale(gui: ScreenGui, onLayout: ((boolean, number) -> ())?): UIScale
+	local scale = Instance.new("UIScale")
+	scale.Parent = gui
+	local function update()
+		local v = workspace.CurrentCamera.ViewportSize
+		scale.Scale = Theme.scaleFor(v)
+		if onLayout then
+			onLayout(Theme.isCompact(v), scale.Scale)
+		end
+	end
+	update()
+	workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(update)
+	return scale
+end
 
 function Theme.tween(inst: Instance, t: number, goals: { [string]: any }, style: Enum.EasingStyle?, dir: Enum.EasingDirection?): Tween
 	local tw = TweenService:Create(inst, TweenInfo.new(t, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out), goals)
@@ -12118,6 +12377,7 @@ end
 
 export type Button = {
 	root: TextButton,
+	item: GuiObject, -- what to lay out: the button, or the button with its caption
 	label: TextLabel,
 	setText: (string) -> (),
 	setEnabled: (boolean) -> (),
@@ -12179,6 +12439,7 @@ function Theme.button(parent: Instance, text: string, size: UDim2, color: Color3
 	end)
 	local b: Button = {
 		root = holder,
+		item = holder,
 		label = label,
 		setText = function(t: string)
 			label.Text = t
@@ -12205,21 +12466,35 @@ function Theme.button(parent: Instance, text: string, size: UDim2, color: Color3
 	return b
 end
 
--- A round icon button (the HUD's side buttons).
+-- A round icon button. With a caption, `item` is a frame holding the button and the caption
+-- under it, so lists and screen edges account for both.
 function Theme.round(parent: Instance, icon: string, diameter: number, color: Color3?, onClick: (() -> ())?, hint: string?): Button
-	local b = Theme.button(parent, icon, UDim2.fromOffset(diameter, diameter), color, onClick, math.floor(diameter * 0.5))
+	local holder: Instance = parent
+	local item: Frame? = nil
+	if hint then
+		local f = Theme.frame(parent, UDim2.fromOffset(diameter + 26, diameter + 24), nil, C.shadow, 1)
+		f.Name = "Item"
+		holder = f
+		item = f
+	end
+	local b = Theme.button(holder, icon, UDim2.fromOffset(diameter, diameter), color, onClick, math.floor(diameter * 0.5))
 	for _, d in b.root:GetDescendants() do
 		if d:IsA("UICorner") then
 			d.CornerRadius = UDim.new(1, 0)
 		end
 	end
-	if hint then
-		local k = Theme.label(b.root, hint, 13, Palette.white, Theme.Font.title)
-		k.AnchorPoint = Vector2.new(0.5, 0)
-		k.Position = UDim2.new(0.5, 0, 1, 4)
-		k.Size = UDim2.fromOffset(diameter + 20, 16)
+	if hint and item then
+		b.root.AnchorPoint = Vector2.new(0.5, 0)
+		b.root.Position = UDim2.fromScale(0.5, 0)
+		local k = Theme.label(item, hint, 13, Palette.white, Theme.Font.title)
+		k.Name = "Caption"
+		k.AnchorPoint = Vector2.new(0.5, 1)
+		k.Position = UDim2.fromScale(0.5, 1)
+		k.Size = UDim2.new(1, 12, 0, 16)
 		k.TextXAlignment = Enum.TextXAlignment.Center
+		k.TextWrapped = false
 		Theme.textStroke(k, C.shadow, 1.5)
+		b.item = item
 	end
 	return b
 end

@@ -33,8 +33,9 @@ Everything is built from ordinary Parts in code, so nothing has to be uploaded f
 | Collect a tip | Walk over it or click it | Walk over it or tap it |
 | Build mode | B (or 🔨) | 🔨 |
 | In Build: look around | Drag · right-drag to turn and tilt · scroll to zoom · WASD · Q/E | One finger drags · two fingers pinch and turn |
-| In Build: place, rotate, remove, cancel | Click · R · X · Esc | Tap · ↻ · 🧹 |
-| Journal (quests, Royal Orders, feats, Codex) | J (or 📖) | 📖 |
+| In Build: place, rotate, remove, cancel | Click · R · X · Esc | Tap a spot, then ✔ Build here (or tap it again) · ↻ · 🧹 · ✖ |
+| Journal (quests, Royal Orders, feats, Codex) | J (or 📖, or click the quest card) | 📖 or the quest card |
+| Close a menu | Esc, ✖, or click outside it | ✖ or tap outside it |
 
 ## How it plays
 
@@ -80,6 +81,16 @@ rojo sourcemap default.project.json -o sourcemap.json && \
 
 **Seeing the models without Studio:** `lune run tests/engine/dump.luau tests/engine/Kingsbloom.rbxlx out.json` writes every part of a grown plot plus a showcase row of all buildings and characters. [`tools/preview`](tools/preview) renders it with three.js (`npm install`, `npm run bundle`, `node build_html.mjs out.json out.html`, `node shot.mjs $PWD/out.html shot.png "view=close"`).
 
+**Seeing the UI without Studio:** `ui_dump.luau` runs the client at a given window size, opens every screen (welcome, HUD, a busy moment with a banner and notifications, Build, Inspect, the Journal tabs, Settings, a level-up, the Night Ledger) and writes the GUI trees. `ui.mjs` lays them out with a small Roblox layout engine (`ui_layout.js`) and `ui_shot.mjs` screenshots them and lists any text that overflows its box. Roblox's own top bar, chat, player list, thumbstick and jump button are drawn as grey shapes, so overlaps show.
+
+```bash
+lune run tests/engine/ui_dump.luau tests/engine/Kingsbloom.rbxlx desk.json 1366 768
+lune run tests/engine/ui_dump.luau tests/engine/Kingsbloom.rbxlx phone.json 844 390 touch
+cd tools/preview
+FONTS=<dir with the @fontsource woff2 files> node ui.mjs ../../desk.json out d 1366 768
+node ui_shot.mjs out 1366 768                  # writes out/d_*.png
+```
+
 ### Swapping in real art
 
 Put a Model named after a building's id (for example `lamp`, `stall` or `cottage`) in **ReplicatedStorage → Assets**. It replaces the procedural model. Its pivot must sit at the footprint's centre on the ground, with the front facing +Z. Toolbox models work too, as long as they're anchored.
@@ -92,6 +103,14 @@ These bugs showed up before any Studio run:
 - The Heartflame's crown rendered as a solid disc.
 - Speech bubbles tried to animate after their visitor had left.
 - Gloomlings hit too hard for a cozy game. They now deal 6 damage every 1.6 s, and the Heartflame's glow heals you.
+
+The UI preview caught these:
+
+- On a phone the quest card sat under the menu buttons, the market strip sat on the thumbstick, and the combat buttons overlapped the jump button. Phones now get their own layout.
+- In Build mode the tool strip covered the Done button and the chat window.
+- The Night Ledger's rows ran under its closing line once a night had ten or more of them.
+- Notification cards slid in over the quest card, and banners landed on top of toasts. They now share one stack under the clock.
+- The Build button's caption was cut off at the bottom of the screen.
 
 What it can't check: real rendering, physics, touch input and the feel of it all. Please report anything from Studio's **Output** window.
 

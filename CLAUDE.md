@@ -43,6 +43,7 @@ Read [`roblox/README.md`](roblox/README.md) for how to play, publish and the con
 - Models are built around the footprint centre on the ground, with the front facing +Z. Light sources are Neon parts named `Glow` with a PointLight named `Light`. **A WedgePart is full height at its +Z end and slopes down to −Z.**
 - Don't set Ref properties (`Adornee`, `PrimaryPart`…) to `nil`. Toggle `Enabled` instead: it works in Roblox, and Lune can't clear Refs.
 - Tune the game in `Config.luau` and `Catalog.luau`, then check pacing with `lune run tests/report.luau 8 1`.
+- **UI layout:** every ScreenGui gets its scale from `Theme.autoScale(gui, onLayout)`. The screens are designed for 1360×780. Phones in landscape (short side under 500 px) get the **compact** layout: the HUD moves to the top edge and the right-hand column, clear of the thumbstick, and the touch combat buttons sit left of Roblox's jump button. Size modals with `Theme.canvas()` so they never outgrow a phone, and let long bodies scroll. A round button with a caption returns `item` (button plus caption); put `item`, not `root`, in lists and against screen edges. Give panels that sit over the world `Active = true`, so clicks on them don't reach the world behind.
 
 **Before you push Roblox changes (all must pass):**
 
@@ -56,7 +57,7 @@ rojo sourcemap default.project.json -o sourcemap.json && luau-lsp analyze --plat
 rojo build default.project.json -o Kingsbloom.rbxlx                    # refresh the committed place file
 ```
 
-To look at models without Studio, use `tests/engine/dump.luau` with `tools/preview` (see the README). The mock engine is `tests/engine/Engine.luau`: it runs the real scripts under Lune with a simulated clock. If a script uses a Roblox API the mock doesn't have yet, add it there.
+To look at models without Studio, use `tests/engine/dump.luau` with `tools/preview` (see the README). **To look at the UI**, use `tests/engine/ui_dump.luau` (it opens every screen at a given window size, with `touch` for a phone) with `tools/preview/ui.mjs`, `ui_layout.js` (a small Roblox layout engine) and `ui_shot.mjs` (screenshots, and prints any text that overflows its box). Check both 1366×768 and 844×390 touch after UI changes. The mock engine is `tests/engine/Engine.luau`: it runs the real scripts under Lune with a simulated clock. If a script uses a Roblox API the mock doesn't have yet, add it there.
 
 **Installing the tools in a cloud container:** GitHub release downloads were blocked (403), but crates.io and `git clone` work.
 - `cargo install rojo --version 7.7.0 --locked` and `cargo install lune --locked` (selene installs too, but `selene generate-roblox-std` needs network access that was blocked; luau-lsp's lints cover the gap).

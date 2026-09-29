@@ -1,2 +1,4 @@
 node_modules/
 scene.bundle.js
+# pages and screenshots from ui.mjs and ui_shot.mjs
+out/

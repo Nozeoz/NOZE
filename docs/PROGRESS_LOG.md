@@ -53,6 +53,7 @@ I can't run Roblox Studio here, so I checked the build four ways:
 2. **Strict type-checking** of every script against the Roblox API (luau-lsp with the Roblox definitions): clean.
 3. **A stand-in Roblox engine** ([`roblox/tests/engine`](../roblox/tests/engine)). It runs the real server and client scripts together under Lune, with a simulated clock, signals, remotes, DataStores, tweens and terrain. A scripted player plays two full days: builds, paints paths, claims quests, serves, tends, fights, opens every panel, leaves, and comes back. **36 of 36 checks pass**, with no script errors, no invalid network payloads or saves, and a largest snapshot of 82 bytes.
 4. **Visual preview.** Every part of a grown plot and a showcase of all models was dumped and rendered with three.js, then checked by eye.
+5. **UI preview.** The client ran at a desktop size (1366×768) and a phone size (844×390, touch), and every screen was dumped and laid out by a small Roblox layout engine in the browser, with Roblox's own top bar, chat, thumbstick and jump button drawn in. 14 screens on each size were checked by eye, and the tool flags any text that overflows its box.
 
 **Bugs this caught before you ever opened Studio:**
 - Every gable roof was upside down (a WedgePart is tall at +Z).
@@ -60,6 +61,17 @@ I can't run Roblox Studio here, so I checked the build four ways:
 - Speech bubbles animated after their visitor had left.
 - Gloomlings were deadly for a cozy game. They now deal 6 damage every 1.6 s, and the Heartflame's glow heals you.
 - A tuning pass cut day-one XP from 1,700 to about 1,200, cut Gloomlings from about 32 to about 20 a night, fixed settlers never moving in, and made the Cookhouse leave some fish for the stalls.
+
+### The menu and HUD pass
+
+The UI preview showed the menus worked on a desktop but broke on a phone, where most Roblox players are. Fixes:
+
+- **Phone layout.** On a phone the HUD moves to the top edge and the right-hand column, away from the thumbstick. The ⚔️ and ✨ buttons sit just left of Roblox's jump button. Text is a little larger than a plain fit to the screen.
+- **Build mode.** The tools stand in a column left of the drawer and one big ✔ Done sits right of it, so nothing covers the chat or the clock. The drawer slides away while you inspect a building. On a phone you **tap a spot to move the ghost, then press ✔ Build here**, so a stray tap never builds by accident.
+- **Notifications.** Toasts and cards (quest done, feats, new visitors) share one stack under the clock. A banner takes the top slot and pushes the stack down, so they never overlap.
+- **Menus.** Clicking outside a menu closes it. The quest card opens the Journal. Menus never grow taller than the screen; long lists scroll. The level-up screen is one centred column that fits a phone.
+- **Bugs found:** the Night Ledger's rows ran under its closing line once a night had ten or more of them; the Build button's caption was cut off; clicks between the Build drawer's cards could build behind it.
+- **The mock engine** lost the handlers of buttons whose Lua reference had been dropped (Lune gave a fresh userdata after garbage collection). Signals are now kept for the life of the run.
 
 **Not checked:** real rendering in Roblox, physics, touch input, network latency, and how it *feels*. That's your playtest.
 

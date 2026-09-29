@@ -6,6 +6,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Catalog = require(Shared.Catalog)
@@ -63,11 +64,29 @@ end
 -- ─── level up ──────────────────────────────────────────────────────────────
 local function levelUp(data: any)
 	enqueue(function()
+		local compact = Theme.isCompact(workspace.CurrentCamera.ViewportSize)
 		local overlay = Theme.frame(gui, UDim2.fromScale(1, 1), nil, C.shadow, 0.35)
 		overlay.ZIndex = 20
 		overlay.Active = true
 		State.modal = true
-		local rays = Theme.frame(overlay, UDim2.fromOffset(1400, 1400), UDim2.fromScale(0.5, 0.38), W, 1)
+		-- one centred column: title, badge (with its rays), what you are now, the unlock cards, OK
+		local column = Theme.frame(overlay, UDim2.new(1, 0, 1, -16), UDim2.fromScale(0.5, 0.5), W, 1)
+		column.AnchorPoint = Vector2.new(0.5, 0.5)
+		column.ZIndex = 21
+		Theme.list(column, true, compact and 6 or 14, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center)
+		local title = Theme.label(column, data.rankUp and "RANK UP!" or "LEVEL UP!", compact and 54 or 64, C.gold, F.title)
+		title.Size = UDim2.fromOffset(800, compact and 62 or 76)
+		title.TextXAlignment = Enum.TextXAlignment.Center
+		title.TextYAlignment = Enum.TextYAlignment.Center
+		title.TextWrapped = false
+		title.LayoutOrder = 1
+		title.ZIndex = 25
+		Theme.textStroke(title, C.goldDeep, 4)
+		local size = compact and 146 or 170
+		local holder = Theme.frame(column, UDim2.fromOffset(size, size), nil, W, 1)
+		holder.LayoutOrder = 2
+		holder.ZIndex = 21
+		local rays = Theme.frame(holder, UDim2.fromOffset(1400, 1400), UDim2.fromScale(0.5, 0.5), W, 1)
 		rays.AnchorPoint = Vector2.new(0.5, 0.5)
 		rays.ZIndex = 21
 		for i = 0, 11 do
@@ -83,36 +102,28 @@ local function levelUp(data: any)
 		local spin = RunService.RenderStepped:Connect(function(dt: number)
 			rays.Rotation += dt * 12
 		end)
-		local title = Theme.label(overlay, data.rankUp and "RANK UP!" or "LEVEL UP!", 64, C.gold, F.title)
-		title.AnchorPoint = Vector2.new(0.5, 0.5)
-		title.Position = UDim2.fromScale(0.5, 0.18)
-		title.Size = UDim2.fromOffset(800, 80)
-		title.TextXAlignment = Enum.TextXAlignment.Center
-		title.ZIndex = 25
-		Theme.textStroke(title, C.goldDeep, 4)
-		local badge = Theme.frame(overlay, UDim2.fromOffset(170, 170), UDim2.fromScale(0.5, 0.38), C.gold)
-		badge.AnchorPoint = Vector2.new(0.5, 0.5)
+		local badge = Theme.frame(holder, UDim2.fromScale(1, 1), nil, C.gold)
 		badge.ZIndex = 24
-		Theme.corner(badge, 85)
+		Theme.corner(badge, size // 2)
 		Theme.stroke(badge, C.goldDeep, 6)
 		Theme.gradient(badge, Color3.fromRGB(255, 230, 150), C.goldDeep, 90)
-		local num = Theme.label(badge, tostring(data.level), 96, W, F.title)
+		local num = Theme.label(badge, tostring(data.level), compact and 82 or 96, W, F.title)
 		num.Size = UDim2.fromScale(1, 1)
 		num.TextXAlignment = Enum.TextXAlignment.Center
+		num.TextYAlignment = Enum.TextYAlignment.Center
 		num.ZIndex = 25
 		Theme.textStroke(num, C.goldDeep, 4)
 		Theme.pop(badge, 0.2)
 		Theme.pop(title, 0.5)
-		local sub = Theme.label(overlay, data.rankUp and string.format("Your realm is now a %s %s!", data.rank, data.rankIcon or "") or string.format("%s %s", data.rankIcon or "", data.rank or ""), 28, W, F.title)
-		sub.AnchorPoint = Vector2.new(0.5, 0.5)
-		sub.Position = UDim2.fromScale(0.5, 0.55)
+		local sub = Theme.label(column, data.rankUp and string.format("Your realm is now a %s %s!", data.rank, data.rankIcon or "") or string.format("%s %s", data.rankIcon or "", data.rank or ""), 28, W, F.title)
 		sub.Size = UDim2.fromOffset(900, 36)
 		sub.TextXAlignment = Enum.TextXAlignment.Center
+		sub.LayoutOrder = 3
 		sub.ZIndex = 25
 		Theme.textStroke(sub, C.shadow, 2)
 		-- the unlock cards
-		local row = Theme.frame(overlay, UDim2.fromOffset(1100, 150), UDim2.fromScale(0.5, 0.72), W, 1)
-		row.AnchorPoint = Vector2.new(0.5, 0.5)
+		local row = Theme.frame(column, UDim2.fromOffset(1100, 146), nil, W, 1)
+		row.LayoutOrder = 4
 		row.ZIndex = 25
 		Theme.list(row, false, 12, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center)
 		local cards = data.cards or {}
@@ -171,11 +182,10 @@ local function levelUp(data: any)
 			State.modal = false
 			done()
 		end
-		local btn = Theme.button(overlay, "Wonderful!", UDim2.fromOffset(240, 56), C.green, function()
+		local btn = Theme.button(column, "Wonderful!", UDim2.fromOffset(240, 56), C.green, function()
 			task.spawn(close)
 		end, 24)
-		btn.root.AnchorPoint = Vector2.new(0.5, 0.5)
-		btn.root.Position = UDim2.fromScale(0.5, 0.88)
+		btn.root.LayoutOrder = 5
 		btn.root.ZIndex = 26
 		for _, d in btn.root:GetDescendants() do
 			if d:IsA("GuiObject") then
@@ -188,35 +198,9 @@ local function levelUp(data: any)
 	end)
 end
 
--- ─── cards that slide in ───────────────────────────────────────────────────
-local slideSlot = 0
+-- ─── notification cards (they share the HUD's stack with the toasts) ───────
 local function slideCard(icon: string, title: string, lines: { string }, color: Color3, hold: number)
-	slideSlot = (slideSlot % 2) + 1
-	local y = slideSlot == 1 and 0.62 or 0.46
-	local card = Theme.panel(gui, UDim2.fromOffset(380, 118), UDim2.new(1, 20, y, 0), Vector2.new(0, 0))
-	card.ZIndex = 15
-	Theme.stroke(card, color, 4)
-	local ic = Theme.label(card, icon, 52, C.ink, F.title)
-	ic.Size = UDim2.fromOffset(84, 118)
-	ic.TextXAlignment = Enum.TextXAlignment.Center
-	ic.TextYAlignment = Enum.TextYAlignment.Center
-	ic.ZIndex = 16
-	local t = Theme.label(card, title, 22, C.royalDeep, F.title)
-	t.Position = UDim2.fromOffset(84, 12)
-	t.Size = UDim2.new(1, -96, 0, 26)
-	t.ZIndex = 16
-	for i, line in lines do
-		local l = Theme.label(card, line, 16, i == 1 and C.ink or C.inkSoft, i == 1 and F.title or F.body)
-		l.Position = UDim2.fromOffset(84, 20 + i * 24)
-		l.Size = UDim2.new(1, -96, 0, 22)
-		l.ZIndex = 16
-	end
-	Theme.tween(card, 0.45, { Position = UDim2.new(1, -400, y, 0) }, Enum.EasingStyle.Back)
-	task.delay(hold, function()
-		Theme.tween(card, 0.3, { Position = UDim2.new(1, 20, y, 0) }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-		task.wait(0.32)
-		card:Destroy()
-	end)
+	HUD.card(icon, title, lines, color, hold)
 end
 
 local function questDone(d: any)
@@ -254,7 +238,8 @@ local function ledger(d: any)
 		local overlay = Theme.frame(gui, UDim2.fromScale(1, 1), nil, C.shadow, 0.4)
 		overlay.ZIndex = 20
 		overlay.Active = true
-		local panel = Theme.panel(overlay, UDim2.fromOffset(560, 540), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
+		local height = math.min(540, Theme.canvas().Y - 16)
+		local panel = Theme.panel(overlay, UDim2.fromOffset(560, height), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
 		panel.ZIndex = 21
 		local head = Theme.frame(panel, UDim2.new(1, 0, 0, 64), nil, C.royal)
 		head.ZIndex = 22
@@ -266,8 +251,18 @@ local function ledger(d: any)
 		t.TextYAlignment = Enum.TextYAlignment.Center
 		t.ZIndex = 23
 		Theme.textStroke(t, C.shadow, 2)
-		local body = Theme.frame(panel, UDim2.new(1, -40, 1, -150), UDim2.fromOffset(20, 76), W, 1)
+		-- the rows scroll when the screen is short (phones)
+		local body = Instance.new("ScrollingFrame")
+		body.Size = UDim2.new(1, -40, 1, -212)
+		body.Position = UDim2.fromOffset(20, 74)
+		body.BackgroundTransparency = 1
+		body.BorderSizePixel = 0
+		body.AutomaticCanvasSize = Enum.AutomaticSize.Y
+		body.CanvasSize = UDim2.new()
+		body.ScrollBarThickness = 6
+		body.ScrollBarImageColor3 = C.goldDeep
 		body.ZIndex = 22
+		body.Parent = panel
 		Theme.list(body, true, 6)
 		local visitors = d.visitors or 0
 		local happy, content, unhappy = d.happy or 0, d.content or 0, d.unhappy or 0
@@ -289,12 +284,13 @@ local function ledger(d: any)
 		end
 		local rows = {
 			{ "🧳 Visitors", tostring(visitors) },
-			{ "💛 Happy · 🙂 Content · 😞 Unhappy", string.format("%d · %d · %d", happy, content, unhappy) },
+			{ "😊 Moods", string.format("💛 %d   🙂 %d   😞 %d", happy, content, unhappy) },
 			{ "🛒 Sold", #sold > 0 and table.concat(sold, "  ") or "nothing" },
 			{ "🪙 Gold earned", string.format("%d  (%d in tips)", d.gold or 0, d.tips or 0) },
 			{ "⚔️ Gloomlings defeated", tostring(d.kills or 0) },
-			{ "🌫️ Lamps snuffed · 😱 Turned back", string.format("%d · %d", d.snuffed or 0, d.fled or 0) },
-			{ "✨ XP · 💠 Lumen", string.format("+%d · +%d", d.xp or 0, d.lumen or 0) },
+			{ "🌫️ Lamps snuffed", tostring(d.snuffed or 0) },
+			{ "😱 Turned back", tostring(d.fled or 0) },
+			{ "✨ Rewards", string.format("+%d XP   +%d 💠", d.xp or 0, d.lumen or 0) },
 		}
 		if #missing > 0 then
 			table.insert(rows, { "❓ Asked for (not sold)", table.concat(missing, "  ") })
@@ -306,7 +302,7 @@ local function ledger(d: any)
 			table.insert(rows, { "🌀 Veil Surge", "Repelled! ✅" })
 		end
 		for i, r in rows do
-			local rowF = Theme.frame(body, UDim2.new(1, 0, 0, 30), nil, i % 2 == 0 and C.parchmentDark or W, i % 2 == 0 and 0.4 or 1)
+			local rowF = Theme.frame(body, UDim2.new(1, -8, 0, 30), nil, i % 2 == 0 and C.parchmentDark or W, i % 2 == 0 and 0.4 or 1)
 			rowF.LayoutOrder = i
 			rowF.ZIndex = 22
 			Theme.corner(rowF, 8)
@@ -335,9 +331,10 @@ local function ledger(d: any)
 			verdict = "A good night's trade. Decor and benches make visitors happier."
 		end
 		local v = Theme.label(panel, verdict, 18, C.inkSoft, F.title)
-		v.Position = UDim2.new(0, 20, 1, -130)
-		v.Size = UDim2.new(1, -40, 0, 46)
+		v.Position = UDim2.new(0, 20, 1, -132)
+		v.Size = UDim2.new(1, -40, 0, 44)
 		v.TextXAlignment = Enum.TextXAlignment.Center
+		v.TextYAlignment = Enum.TextYAlignment.Center
 		v.ZIndex = 22
 		local closed = false
 		local btn = Theme.button(panel, "☀️ Good morning!", UDim2.fromOffset(240, 54), C.gold, function()
@@ -374,25 +371,27 @@ local function welcome()
 		local overlay = Theme.frame(gui, UDim2.fromScale(1, 1), nil, C.shadow, 0.35)
 		overlay.ZIndex = 20
 		overlay.Active = true
-		local panel = Theme.panel(overlay, UDim2.fromOffset(820, 470), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
+		local panel = Theme.panel(overlay, UDim2.fromOffset(820, 484), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
 		panel.ZIndex = 21
 		local t = Theme.label(panel, "Welcome to Kingsbloom", 44, C.royalDeep, F.fancy)
-		t.Position = UDim2.fromOffset(0, 16)
+		t.Position = UDim2.fromOffset(0, 14)
 		t.Size = UDim2.new(1, 0, 0, 52)
 		t.TextXAlignment = Enum.TextXAlignment.Center
 		t.ZIndex = 22
 		local s = Theme.label(panel, "This clearing is yours, Sovereign. Grow a market that glows through the night.", 19, C.inkSoft, F.body)
-		s.Position = UDim2.fromOffset(20, 70)
-		s.Size = UDim2.new(1, -40, 0, 26)
+		s.Position = UDim2.fromOffset(40, 68)
+		s.Size = UDim2.new(1, -80, 0, 46)
 		s.TextXAlignment = Enum.TextXAlignment.Center
+		s.TextYAlignment = Enum.TextYAlignment.Center
 		s.ZIndex = 22
-		local row = Theme.frame(panel, UDim2.new(1, -40, 0, 250), UDim2.fromOffset(20, 108), W, 1)
+		local row = Theme.frame(panel, UDim2.new(1, -40, 0, 240), UDim2.fromOffset(20, 120), W, 1)
 		row.ZIndex = 22
 		Theme.list(row, false, 16, Enum.HorizontalAlignment.Center)
+		local touch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 		local cards = {
-			{ "🔨", "Build", "Press B. Place stalls, fields, homes and decor. Visitors only walk on paths." },
+			{ "🔨", "Build", (touch and "Tap 🔨 Build." or "Press B.") .. " Place stalls, fields, homes and decor. Visitors only walk on paths." },
 			{ "🏮", "Light the road", "At night travelers turn back in the dark. Lamps keep them coming (and happy)." },
-			{ "⚔️", "Guard the night", "Gloomlings snuff lamps and scare visitors. Click to swing your Lantern Staff, Q to burst." },
+			{ "⚔️", "Guard the night", "Gloomlings snuff lamps and scare visitors. " .. (touch and "Tap ⚔️ to swing your Lantern Staff, ✨ to burst." or "Click to swing your Lantern Staff, Q to burst.") },
 		}
 		for i, c in cards do
 			local card = Theme.frame(row, UDim2.fromOffset(240, 240), nil, Color3.fromRGB(255, 246, 214))
@@ -456,14 +455,7 @@ function Ceremony.start(parent: Instance)
 	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	gui.DisplayOrder = 8
 	gui.Parent = parent
-	local scale = Instance.new("UIScale")
-	scale.Parent = gui
-	local function rescale()
-		local v = workspace.CurrentCamera.ViewportSize
-		scale.Scale = math.clamp(math.min(v.X / 1360, v.Y / 780) * 1.05, 0.5, 1.2)
-	end
-	rescale()
-	workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(rescale)
+	Theme.autoScale(gui)
 
 	State.message.connect(function(kind: string, d: any)
 		if kind == "levelup" then
@@ -480,7 +472,7 @@ function Ceremony.start(parent: Instance)
 		elseif kind == "ledger" then
 			ledger(d)
 		elseif kind == "tier" then
-			HUD.banner("🔥 The Heartflame rises!", d.name .. ": the forest falls back and your realm grows.", C.gold, 4.5)
+			HUD.banner("🔥 The Heartflame rises!", d.name .. ": the forest falls back.", C.gold, 4.5)
 		elseif kind == "orders" then
 			HUD.toast("New Royal Orders have arrived!", "📜", "good")
 		elseif kind == "orderDone" then
@@ -490,7 +482,7 @@ function Ceremony.start(parent: Instance)
 				HUD.banner("🏅 Royal Seal!", "All three orders done today: +5 💠", C.gold, 3.5)
 			end
 		elseif kind == "surge" then
-			HUD.banner("🌀 The Veil surges!", "A wave of Gloomlings comes for your lamps. Hold the line!", Palette.veil, 4)
+			HUD.banner("🌀 The Veil surges!", "Gloomlings come for your lamps. Hold the line!", Palette.veil, 4)
 			Audio.setPlaylist("surge")
 		elseif kind == "surgeWon" then
 			HUD.banner("✨ Surge repelled!", "The Veil falls back. +5 💠", C.green, 3.5)

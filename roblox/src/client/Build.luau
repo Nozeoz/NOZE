@@ -82,6 +82,17 @@ local painting = false
 local paintList: { { number } } = {}
 local paintSet: { [number]: Part } = {}
 local lastPaint: { number }? = nil
+local lastPointer = Vector2.zero
+local lastViewport = true
+
+-- Fingers can't hover, so on a touch screen the ghost waits on the tile last tapped (or the
+-- middle of the screen) and the ✔ Build button (or a second tap on the same tile) places it.
+local touchMode = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+local touchTile: { number }? = nil
+
+function Build.isTouch(): boolean
+	return touchMode
+end
 
 local function controls(): any
 	local ps = Players.LocalPlayer:FindFirstChild("PlayerScripts")
@@ -477,6 +488,15 @@ local function setHover(id: number?)
 	end
 end
 
+local function hoverTile(screen: Vector2, viewport: boolean): (number?, number?)
+	local g = BuildCamera.ground(screen, viewport)
+	if not g then
+		return nil, nil
+	end
+	local x, z = Layout.toTile(plotCF, g)
+	return math.floor(x), math.floor(z)
+end
+
 local function place()
 	if pending then
 		return
@@ -523,6 +543,20 @@ end
 local function click(screen: Vector2, viewport: boolean)
 	local tool = Build.tool
 	if tool == "place" or tool == "move" then
+		if touchMode then
+			local x, z = hoverTile(screen, viewport)
+			if not x or not z then
+				return
+			end
+			local t = touchTile
+			if t and t[1] == x and t[2] == z then
+				place()
+			else
+				touchTile = { x, z }
+				Audio.play("click", 1.2, 0.5)
+			end
+			return
+		end
 		place()
 	elseif tool == "select" then
 		local id = objectUnder(screen, viewport)
@@ -544,10 +578,18 @@ local function click(screen: Vector2, viewport: boolean)
 end
 
 -- ─── tools ─────────────────────────────────────────────────────────────────
+-- Touch: build where the ghost stands.
+function Build.confirm()
+	if Build.tool == "place" or Build.tool == "move" then
+		place()
+	end
+end
+
 function Build.setTool(tool: string, item: string?)
 	if Build.tool ~= tool or Build.item ~= item then
 		clearGhost()
 		clearPaint()
+		touchTile = nil
 	end
 	Build.tool = tool
 	Build.item = item
@@ -561,14 +603,23 @@ function Build.setTool(tool: string, item: string?)
 	end
 	hoverHighlight.Enabled = false
 	Build.changed.fire()
-	local hints = {
-		select = "Click a building to inspect it  •  Drag to look around  •  Right-drag to turn  •  Scroll to zoom",
-		place = "Click to build  •  R to turn  •  Esc to stop  •  Drag to look around",
-		paint = "Hold and drag to paint a stone path (2 🪙 a tile)",
-		erase = "Hold and drag over paths to remove them",
-		remove = "Click a building to remove it (half the cost back)",
-		move = "Click where it should go  •  R to turn  •  Esc to cancel",
-	}
+	local hints = touchMode
+			and {
+				select = "Tap a building to inspect it  •  Drag to look around  •  Pinch to zoom",
+				place = "Tap where it should go, then ✔ Build here",
+				paint = "Drag to paint a stone path (2 🪙 a tile)  •  Two fingers to look around",
+				erase = "Drag over paths to remove them  •  Two fingers to look around",
+				remove = "Tap a building to remove it (half the cost back)",
+				move = "Tap where it should go, then ✔ Build here",
+			}
+		or {
+			select = "Click a building to inspect it  •  Drag to look around  •  Right-drag to turn  •  Scroll to zoom",
+			place = "Click to build  •  R to turn  •  Esc to stop  •  Drag to look around",
+			paint = "Hold and drag to paint a stone path (2 🪙 a tile)",
+			erase = "Hold and drag over paths to remove them",
+			remove = "Click a building to remove it (half the cost back)",
+			move = "Click where it should go  •  R to turn  •  Esc to cancel",
+		}
 	Build.info.fire(hints[tool] or "")
 end
 
@@ -669,18 +720,6 @@ local function isPointer(input: InputObject): boolean
 	return input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch
 end
 
-local function hoverTile(screen: Vector2, viewport: boolean): (number?, number?)
-	local g = BuildCamera.ground(screen, viewport)
-	if not g then
-		return nil, nil
-	end
-	local x, z = Layout.toTile(plotCF, g)
-	return math.floor(x), math.floor(z)
-end
-
-local lastPointer = Vector2.zero
-local lastViewport = true
-
 function Build.start()
 	BuildCamera.start()
 	State.layoutChanged.connect(function()
@@ -704,8 +743,18 @@ function Build.start()
 		end
 	end)
 	UserInputService.InputBegan:Connect(function(input, processed)
+		local kind = input.UserInputType
+		local was = touchMode
+		if kind == Enum.UserInputType.Touch then
+			touchMode = true
+		elseif kind == Enum.UserInputType.MouseButton1 or kind == Enum.UserInputType.MouseButton2 or kind == Enum.UserInputType.Keyboard then
+			touchMode = false
+		end
 		if State.mode ~= "build" then
 			return
+		end
+		if was ~= touchMode then
+			Build.changed.fire()
 		end
 		if input.KeyCode == Enum.KeyCode.R and not processed then
 			if Build.tool == "place" or Build.tool == "move" then
@@ -792,6 +841,17 @@ function Build.start()
 		end
 		local x, z = hoverTile(lastPointer, lastViewport)
 		if Build.tool == "place" or Build.tool == "move" then
+			if touchMode then
+				if not touchTile then
+					-- start in the middle of the screen
+					local cx, cz = hoverTile(Workspace.CurrentCamera.ViewportSize / 2, true)
+					if cx and cz then
+						touchTile = { cx, cz }
+					end
+				end
+				local t = touchTile
+				x, z = if t then t[1] else nil, if t then t[2] else nil
+			end
 			if x and z then
 				updateGhost(dt, x, z)
 			end

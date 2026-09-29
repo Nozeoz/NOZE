@@ -281,7 +281,7 @@ Catalog.Achievements = {
 	{ id = "service", name = "Royal Service", icon = "🤝", stat = "served", tiers = { 10, 100, 500 }, desc = "Serve customers yourself" },
 	{ id = "tipjar", name = "Tip Jar", icon = "💰", stat = "tips", tiers = { 25, 250, 1500 }, desc = "Collect tips" },
 	{ id = "builder", name = "Master Builder", icon = "🔨", stat = "placed", tiers = { 20, 100, 300 }, desc = "Place buildings" },
-	{ id = "flame", name = "Keeper of the Flame", icon = "🔥", stat = "tier", tiers = { 2, 3, 4 }, desc = "Raise the Heartflame" },
+	{ id = "flame", name = "Flamekeeper", icon = "🔥", stat = "tier", tiers = { 2, 3, 4 }, desc = "Raise the Heartflame" },
 	{ id = "codex", name = "Collector", icon = "📖", stat = "discovered", tiers = { 4, 7, 9 }, desc = "Discover visitor kinds" },
 	{ id = "nights", name = "Lantern Keeper", icon = "🌙", stat = "nights", tiers = { 3, 15, 50 }, desc = "Run Lantern Markets" },
 	{ id = "surges", name = "Veilbreaker", icon = "🌀", stat = "surges", tiers = { 1, 10, 40 }, desc = "Repel Veil Surges" },
