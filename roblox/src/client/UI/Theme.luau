@@ -272,14 +272,15 @@ end
 
 -- A bouncy "pop" on any GUI object (adds a UIScale if needed).
 function Theme.pop(obj: GuiObject, from: number?)
-	local s = obj:FindFirstChildOfClass("UIScale")
-	if not s then
-		s = Instance.new("UIScale")
-		s.Parent = obj
+	local sc = obj:FindFirstChildOfClass("UIScale")
+	if not sc then
+		local created = Instance.new("UIScale")
+		created.Parent = obj
+		sc = created
 	end
-	local sc = s :: UIScale
-	sc.Scale = from or 0.6
-	Theme.tween(sc, 0.35, { Scale = 1 }, Enum.EasingStyle.Back)
+	local scale = sc :: UIScale
+	scale.Scale = from or 0.6
+	Theme.tween(scale, 0.35, { Scale = 1 }, Enum.EasingStyle.Back)
 end
 
 function Theme.formatNumber(n: number): string

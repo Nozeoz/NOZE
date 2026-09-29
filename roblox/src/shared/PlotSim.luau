@@ -2133,7 +2133,7 @@ function PlotSim:updateGloom(g, dt: number)
 	if prey then
 		tx, tz = prey.x, prey.z
 		if preyD < 1.05 and g.touchCd <= 0 then
-			g.touchCd = 1.2
+			g.touchCd = Config.GLOOM_TOUCH_COOLDOWN
 			self:emit({ k = "touch", player = prey.id, dmg = Config.GLOOM_TOUCH_DAMAGE, id = g.id })
 		end
 	else

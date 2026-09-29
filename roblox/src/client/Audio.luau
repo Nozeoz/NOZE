@@ -197,7 +197,7 @@ end
 
 -- night: 0..1; crowd: 0..1 (how busy the market near you is)
 function Audio.setAmbience(night: number, crowd: number)
-	local goals = {
+	local goals: { [string]: number } = {
 		ambDay = (1 - night) * 0.35,
 		ambNight = night * 0.4,
 		ambWind = 0.12 + night * 0.08,

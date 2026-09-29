@@ -37,7 +37,9 @@ Config.LIT = 0.18
 Config.GLOOM_MAX = 5 -- at once, before the midnight surge; +1 every 5 levels
 Config.GLOOM_HP = 36
 Config.GLOOM_SPEED = 1.15
-Config.GLOOM_TOUCH_DAMAGE = 9
+Config.GLOOM_TOUCH_DAMAGE = 6
+Config.GLOOM_TOUCH_COOLDOWN = 1.6
+Config.HEARTH_HEAL = 12 -- health per second while you stand in the Heartflame's glow
 Config.LAMP_SNUFF_TIME = 14 -- seconds a Gloomling needs beside a lamp to snuff it
 
 -- Combat (the Lantern Staff)

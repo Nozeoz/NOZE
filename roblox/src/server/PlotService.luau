@@ -573,12 +573,15 @@ local function tick(dt: number)
 		local hum = char and char:FindFirstChildOfClass("Humanoid")
 		if hrp and hum and hum.Health > 0 then
 			roots[p] = hrp.Position
-			if not p:GetAttribute("Building") then
-				local i, x, z = Layout.plotAt(hrp.Position)
-				if i then
-					positions[i] = positions[i] or {}
-					table.insert(positions[i], { id = p.UserId, x = x, z = z, owner = plots[i].owner == p })
-				end
+			local i, x, z = Layout.plotAt(hrp.Position)
+			if i and not p:GetAttribute("Building") then
+				positions[i] = positions[i] or {}
+				table.insert(positions[i], { id = p.UserId, x = x, z = z, owner = plots[i].owner == p })
+			end
+			-- the Heartflame's glow mends you
+			local sim = i and plots[i].sim
+			if sim and hum.Health < hum.MaxHealth and sim:sanctuary(x, z) then
+				hum.Health = math.min(hum.MaxHealth, hum.Health + Config.HEARTH_HEAL * dt)
 			end
 		end
 	end

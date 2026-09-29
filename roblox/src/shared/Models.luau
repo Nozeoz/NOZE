@@ -90,10 +90,11 @@ local function wedge(parent: Instance, size: Vector3, cf: CFrame, color: Color3,
 end
 
 -- A gable roof whose ridge runs along local z: two wedges meeting at x = 0.
--- `cf` is the centre of the roof's base.
+-- `cf` is the centre of the roof's base. (A WedgePart is full height at its +z end and slopes
+-- down to its -z end, so each half is turned to put its tall end on the ridge.)
 local function gable(parent: Instance, length: number, width: number, height: number, cf: CFrame, color: Color3, material: Enum.Material?)
-	wedge(parent, Vector3.new(length, height, width / 2), cf * CFrame.new(-width / 4, height / 2, 0) * CFrame.Angles(0, -PI / 2, 0), color, material)
-	wedge(parent, Vector3.new(length, height, width / 2), cf * CFrame.new(width / 4, height / 2, 0) * CFrame.Angles(0, PI / 2, 0), color, material)
+	wedge(parent, Vector3.new(length, height, width / 2), cf * CFrame.new(-width / 4, height / 2, 0) * CFrame.Angles(0, PI / 2, 0), color, material)
+	wedge(parent, Vector3.new(length, height, width / 2), cf * CFrame.new(width / 4, height / 2, 0) * CFrame.Angles(0, -PI / 2, 0), color, material)
 end
 Models.gable = gable
 
@@ -201,7 +202,12 @@ builders.heartflame = function(m, _v, extra)
 			box(m, Vector3.new(1.2, 10, 1.2), p * CFrame.new(0, 5, 0), stone, M.Slate)
 			box(m, Vector3.new(1.6, 0.6, 1.6), p * CFrame.new(0, 10.3, 0), Palette.gold, M.Metal)
 		end
-		cyl(m, 0.5, 12, CFrame.new(0, 10.4, 0), Palette.goldDeep, M.Metal, false).Transparency = 0.3
+		-- a golden crown of beams joining the pillar tops
+		for i = 0, 3 do
+			local a = i * PI / 2 + PI / 4
+			local mid = CFrame.new(math.cos(a) * 3.54, 10.6, math.sin(a) * 3.54) * CFrame.Angles(0, -a + PI / 2, 0)
+			box(m, Vector3.new(7.4, 0.5, 0.5), mid, Palette.gold, M.Metal, false)
+		end
 		bowlY = 7.2
 	end
 	if tier >= 4 then
@@ -486,12 +492,12 @@ local function house(m: Model, v: number, w: number, d: number, wallH: number, r
 end
 
 builders.hut = function(m, v, _extra)
-	house(m, v, 8.4, 8.4, 5, 3.6)
+	house(m, v, 8.4, 8.4, 5, 5.5)
 end
 
 builders.cottage = function(m, v, _extra)
-	house(m, v, 13.4, 12.4, 7, 5)
-	box(m, Vector3.new(1.8, 5, 1.8), CFrame.new(-4, 12.2, -2), Palette.stoneDark, M.Brick)
+	house(m, v, 13.4, 12.4, 7, 7.5)
+	box(m, Vector3.new(1.8, 6, 1.8), CFrame.new(-4, 13.6, -2), Palette.stoneDark, M.Brick)
 	box(m, Vector3.new(1.6, 1.4, 0.3), CFrame.new(-4, 5.2, 6.3), rgb(255, 214, 140), M.Glass, false)
 	box(m, Vector3.new(3, 0.5, 1.6), CFrame.new(0, 0.25, 7.4), Palette.stone, M.Slate)
 	for i = 0, 2 do
@@ -607,7 +613,7 @@ builders.statue = function(m, _v, _extra)
 	box(m, Vector3.new(8, 2.4, 8), CFrame.new(0, 1.2, 0), Palette.stoneDark, M.Marble)
 	box(m, Vector3.new(6.6, 1, 6.6), CFrame.new(0, 2.9, 0), marble, M.Marble)
 	box(m, Vector3.new(2.6, 5, 1.8), CFrame.new(0, 5.9, 0), marble, M.Marble)
-	wedge(m, Vector3.new(3.4, 3, 1.2), CFrame.new(0, 4.9, 1.2), marble, M.Marble, false)
+	wedge(m, Vector3.new(3.4, 3, 1.2), CFrame.new(0, 4.9, 1.2) * CFrame.Angles(0, PI, 0), marble, M.Marble, false)
 	box(m, Vector3.new(4, 1.2, 1.4), CFrame.new(0, 8.6, 0), marble, M.Marble)
 	ball(m, 2, CFrame.new(0, 10.2, 0), marble, M.Marble)
 	cyl(m, 0.7, 1.6, CFrame.new(0, 11.4, 0), Palette.gold, M.Metal, false)
