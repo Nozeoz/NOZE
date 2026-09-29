@@ -18,12 +18,12 @@ You were the legendary Last Sovereign of Halcyon. A thousand years after your de
 |---|---|
 | **Phase** | Pre-production, Design Bible **v0.5** |
 | **Done** | ✅ Step 1: Design Bible · ✅ Step 2: Review & Lock · ✅ Step 3: Narrative & Progression Design |
-| **Now** | 🔄 **Step 4b: the Kingdom View prototype (3D)**: build, light the Old Road, run the Lantern Market, walk as the Sovereign ([`prototypes/kingdom-view`](prototypes/kingdom-view)) · 🔄 Step 4: the Chapter 1 narrative prototype ([`prototypes/narrative-ch1`](prototypes/narrative-ch1)) · both wait for your playtest |
+| **Now** | 🔄 **Step 4c: the Roblox test build**, *Kingsbloom: Lantern Market* for up to 6 players ([`roblox/`](roblox), open [`roblox/Kingsbloom.rbxlx`](roblox/Kingsbloom.rbxlx) in Roblox Studio) · 🔄 Step 4b: the Kingdom View prototype in three.js ([`prototypes/kingdom-view`](prototypes/kingdom-view)) · 🔄 Step 4: the Chapter 1 narrative prototype ([`prototypes/narrative-ch1`](prototypes/narrative-ch1)) · all three wait for your playtest |
 | **Direction (v0.5)** | **Hybrid** life-sim + Kingdom View, modeled on *Oboro no Ichi* ([D-039](docs/12_DECISIONS_AND_OPEN_QUESTIONS.md#part-a-decision-log)); **3D diorama** look ([D-040](docs/12_DECISIONS_AND_OPEN_QUESTIONS.md#part-a-decision-log)); engine to be re-chosen ([Q-14](docs/12_DECISIONS_AND_OPEN_QUESTIONS.md#other-questions)) |
-| **Next** | ⏳ Your playtests → choose the engine → re-plan Steps 5 to 12 |
+| **Next** | ⏳ Your playtests (the Roblox build first, [Q-16](docs/12_DECISIONS_AND_OPEN_QUESTIONS.md#other-questions)) → choose the engine → re-plan Steps 5 to 12 |
 | **Title** | ***Kingsbloom*** (formal trademark clearance pending, see [Q-01](docs/12_DECISIONS_AND_OPEN_QUESTIONS.md#q-01-title)) |
 
-Full plan: [`docs/00_ROADMAP.md`](docs/00_ROADMAP.md)
+Full plan: [`docs/00_ROADMAP.md`](docs/00_ROADMAP.md) · What happened so far: [`docs/PROGRESS_LOG.md`](docs/PROGRESS_LOG.md) · Notes for Claude Code: [`CLAUDE.md`](CLAUDE.md)
 
 ---
 
@@ -59,7 +59,7 @@ Full plan: [`docs/00_ROADMAP.md`](docs/00_ROADMAP.md)
 | Look | 3D diorama: low-poly, lantern-lit, tilt-shift miniature feel, chibi characters (v0.5; was illustrated 2D) |
 | Platform | PC (Steam) first; every development build is playable in a web browser |
 | Language | English (localisation-ready) |
-| Tech | Ink for story; the Kingdom View prototype runs on three.js; the game engine is being re-chosen for 3D (Godot 4, Unity or three.js) |
+| Tech | Ink for story; the Kingdom View prototype runs on three.js; the Roblox test build is Luau with Rojo; the game engine is being re-chosen for 3D (Godot 4, Unity or three.js) |
 | Business model | Premium, no microtransactions |
 
 ## Repository layout
@@ -67,6 +67,7 @@ Full plan: [`docs/00_ROADMAP.md`](docs/00_ROADMAP.md)
 ```
 docs/          The Design Bible (you are here)
 prototypes/    (Step 4) playable prototypes: narrative-ch1 is Chapter 1 in Ink; kingdom-view is the 3D Kingdom View and Lantern Market
+roblox/        (Step 4c) Kingsbloom: Lantern Market, the Roblox test build (Rojo project, tests, ready-to-open place file)
 art/           (Step 4) in-house placeholder art kit and the Asset Atlas (never ships)
 game/          (Step 5) the game project
 art_src/       (Step 13) layered source art and Spine projects

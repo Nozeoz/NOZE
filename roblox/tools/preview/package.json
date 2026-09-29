@@ -1,0 +1,14 @@
+{
+  "name": "kingsbloom-roblox-preview",
+  "private": true,
+  "type": "module",
+  "description": "Renders parts dumped by tests/engine/dump.luau with three.js, to eyeball models without Roblox Studio.",
+  "scripts": {
+    "bundle": "esbuild scene.js --bundle --format=iife --outfile=scene.bundle.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "playwright-core": "^1.55.0",
+    "three": "^0.186.0"
+  }
+}

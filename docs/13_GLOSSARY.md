@@ -22,6 +22,7 @@
 | **Food Stock** | The Granary's supply of rations that feeds residents and familiars daily. |
 | **Founding** | The ceremony at Hamlet rank where the player names the kingdom and designs its banner. |
 | **Gloaming** | Night (20:00–02:00), when the Veil rises outside the light. |
+| **Gloomling** | A small creature of the Veil that comes out at night in the Roblox build, snuffs lamps and scares visitors. The Lantern Staff and Lumen Towers drive it off (D-044). |
 | **Guardian** | A great Veilkin boss that guards a Regalia at the bottom of a dungeon. |
 | **Guardian Echo** | A weekly re-fight of a defeated Guardian with modifiers, for rare rewards. |
 | **Halcyon** | The Sovereign's lost kingdom, 1,000 years ago. |
@@ -32,7 +33,9 @@
 | **Kingdom View** | The free camera over the realm where you build and run the Lantern Market (v0.5, D-039). Its counterpart is *Walk*. |
 | **Knight** | A Sworn raised by the Sovereign (Hearts ≥ 6, Loyalty ≥ 80); gains a Knight perk. |
 | **Lantern Market** | The night market you open at dusk in Kingdom View. Visitors walk the Old Road, shop at stalls, tip, and may ask to settle (v0.5). |
+| **Lantern Staff** | The Sovereign's weapon and light in the Roblox build: a three-hit combo whose lantern lights the dark around you (D-044). |
 | **Loyalty** | A Sworn's devotion (0–100): hearts + their happiness + Royal Standing. |
+| **Lumen** | The second currency in the Roblox build, dropped by Gloomlings and paid for feats. It raises the Heartflame and builds Lumen Towers (D-044). |
 | **The Maw (the Hunger, the Maw Below)** | The ancient devouring entity sealed beneath Halcyon; the final threat. |
 | **Main-path / Optional Sworn** | The 11 Sworn required by the main story vs. the 13 recruited through side quests. |
 | **Memory Fragment** | A collectible vignette of the Sovereign's past life. |
@@ -50,10 +53,12 @@
 | **Royal Authority (RA)** | The kingly resource spent on Naming, Knighting, and changing Decrees. |
 | **Royal Fields / Commons** | Personal farm plots vs. communal fields that feed the Granary. |
 | **Settler** | A procedurally generated resident with attributes, traits, and a job. |
+| **Radiant Burst** | The Lantern Staff's burst of light (Q): hurts every Gloomling nearby and relights snuffed lamps (D-044). |
+| **Royal Orders** | Three small goals from the crown every dawn in the Roblox build. Finishing all three earns a Royal Seal (D-044). |
 | **Sovereign** | The player character: the reborn Last Sovereign of Halcyon. |
 | **Sworn** | One of the 24 named, hand-made recruits, each tied to a building or service. |
 | **Standing** | A faction's attitude toward your realm (Hostile → Allied); helping one faction can cool its rivals. |
-| **Surge (Veil Surge)** | A telegraphed New Moon night attack of the Hollowed on the Realm. |
+| **Surge (Veil Surge)** | A telegraphed New Moon night attack of the Hollowed on the Realm. In the Roblox build: a midnight wave of Gloomlings; defeat them all for a Lumen reward (D-044). |
 | **Tip** | A glowing coin a happy visitor leaves behind. Click it (or walk over it) to collect; Flicker gathers half of the ones you miss. |
 | **Tithe** | Daily tax income from settlers (from Village rank). |
 | **True Ascension** | A Named familiar's evolution into a new form (17 species). |

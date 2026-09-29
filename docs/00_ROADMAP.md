@@ -1,7 +1,7 @@
 # 00 — Production Roadmap
 
 > ***Kingsbloom*** (Project NOZE) · Design Bible **v0.5**
-> **We are here → Step 4b (Kingdom View prototype, 3D) 🔄: build, light the road, run the Lantern Market, and walk as the Sovereign, in the browser. Step 4 (Chapter 1) is also waiting for your playtest.**
+> **We are here → Step 4c (Roblox test build) 🔄: *Kingsbloom: Lantern Market* in [`roblox/`](../roblox), waiting for your Studio playtest (Q-16). Steps 4 and 4b are waiting for your playtests too.**
 
 ---
 
@@ -45,6 +45,7 @@ Legend: ✅ done · 🔄 in progress · ⏳ next · ⬜ not started · 🎨 need
 | 3 | **Narrative & Progression Design** | Lore texts, **NPC purpose matrix** (story ↔ systems ↔ progression), interaction design, heart-event arcs for all 24 Sworn, knowledge & secrets matrix, **Chapter 1 quest breakdown with flags** ([`14_NARRATIVE_AND_PROGRESSION.md`](14_NARRATIVE_AND_PROGRESSION.md)) | You approve how every NPC connects to story and progress | ✅ |
 | 4 | **Narrative Prototype (playable)** | A browser-playable, text-first prototype of Chapter 1: days pass, you talk to NPCs, make choices (spare Rook or not), and watch flags, hearts, Kingdom Rank, and unlocks change. Written in **Ink**, so the scripts carry into the real game | You can play Chapter 1's story flow start to finish. **Built:** [`prototypes/narrative-ch1`](../prototypes/narrative-ch1), plus the placeholder kit and Asset Atlas in [`art/placeholder`](../art/placeholder) | 🔄 |
 | 4b | **Kingdom View Prototype (3D)** | A browser-playable 3D diorama of the hamlet: free building, lanterns against the Veil, the Lantern Market at night (stalls, visitors, appeal, tips, settlers), walking as the Sovereign, tasks and Chronicle pages. **Built:** [`prototypes/kingdom-view`](../prototypes/kingdom-view) | You can play from Hamlet to Village and say whether the loop is fun ([Q-15](12_DECISIONS_AND_OPEN_QUESTIONS.md#other-questions)) | 🔄 |
+| 4c | **Roblox Test Build** | *Kingsbloom: Lantern Market*: the Kingdom View as a Roblox game for up to 6 players, with levels and ranks, quests, Royal Orders, feats, a fluid Build camera, the Lantern Staff and Gloomlings, sound and saves. **Built:** [`roblox/`](../roblox), tested under a stand-in engine | You play it in Studio and say whether progress feels earned and the night is fun ([Q-16](12_DECISIONS_AND_OPEN_QUESTIONS.md#other-questions)) | 🔄 |
 | 5 | **Tech Foundation + Placeholder Kit** | Project scaffold (TypeScript + Phaser 4 + Vite + Spine runtime), lint/test/CI, boot → title screen, input layer, debug overlay, save/load skeleton, content registry, **placeholder art kit** in the reference style (the first 61 assets already exist in [`art/placeholder`](../art/placeholder)) | Blank game runs in the browser; CI green; playable link shared | ⏳ |
 | 6 | **Grey-box 1: "First Day"** | Movement, camera, collision, Tiled map, hotbar, hoe/watering can/seeds, crop growth, clock, energy, sleep = save | You can farm turnips across 3 in-game days | ⬜ |
 | 7 | **Grey-box 2: "Survive the Night"** | Foraging, satiety, campfire crafting, the Veil at night, Exposure, Beacon radius, first enemy (Duskwolf), basic combat | Surviving night 1 feels tense but fair | ⬜ |
