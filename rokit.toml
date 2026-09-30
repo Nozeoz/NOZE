@@ -1,0 +1,7 @@
+# Command-line tools for this project, managed by Rokit (https://github.com/rojo-rbx/rokit).
+# Run `rokit install` anywhere in the repository to get them. See roblox/LOCAL_SETUP.md.
+
+[tools]
+rojo = "rojo-rbx/rojo@7.7.0"
+lune = "lune-org/lune@0.10.5"
+luau-lsp = "JohnnyMorganz/luau-lsp@1.70.1"

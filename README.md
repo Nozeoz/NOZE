@@ -23,7 +23,7 @@ You were the legendary Last Sovereign of Halcyon. A thousand years after your de
 | **Next** | ⏳ Your playtests (the Roblox build first, [Q-16](docs/12_DECISIONS_AND_OPEN_QUESTIONS.md#other-questions)) → choose the engine → re-plan Steps 5 to 12 |
 | **Title** | ***Kingsbloom*** (formal trademark clearance pending, see [Q-01](docs/12_DECISIONS_AND_OPEN_QUESTIONS.md#q-01-title)) |
 
-Full plan: [`docs/00_ROADMAP.md`](docs/00_ROADMAP.md) · What happened so far: [`docs/PROGRESS_LOG.md`](docs/PROGRESS_LOG.md) · Notes for Claude Code: [`CLAUDE.md`](CLAUDE.md)
+Full plan: [`docs/00_ROADMAP.md`](docs/00_ROADMAP.md) · What happened so far: [`docs/PROGRESS_LOG.md`](docs/PROGRESS_LOG.md) · Notes for Claude Code: [`CLAUDE.md`](CLAUDE.md) · **Play the Roblox build and keep working on it with Claude Code on your own computer: [`roblox/LOCAL_SETUP.md`](roblox/LOCAL_SETUP.md)**
 
 ---
 

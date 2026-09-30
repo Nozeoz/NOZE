@@ -4,6 +4,15 @@
 
 ---
 
+## Session 5 (2026-09-30): moving to your computer
+
+- You couldn't find the place file. The reason: all the work is on the branch `claude/inspiring-bardeen-cxmi0l`, and the repository's `main` branch still holds only the first README, so the GitHub front page looks empty.
+- The place file and a zip of the whole project were sent to you in the chat.
+- [`roblox/LOCAL_SETUP.md`](../roblox/LOCAL_SETUP.md) explains how to open the game in Studio, connect Studio's built-in MCP server to Claude Code, and keep working there with Rojo live sync. [`rokit.toml`](../rokit.toml) pins the tools: Rojo 7.7.0, Lune 0.10.5 and luau-lsp 1.70.1.
+- [`CLAUDE.md`](../CLAUDE.md) now tells Claude Code how to work on your computer: edit `roblox/src`, let Rojo sync it into Studio, and playtest for real through the Studio MCP.
+
+---
+
 ## Session 4 (2026-09-29): the Roblox build
 
 ### What you asked

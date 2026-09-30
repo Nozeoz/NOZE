@@ -8,7 +8,9 @@ Everything is built from ordinary Parts in code, so nothing has to be uploaded f
 
 ## Play it in Roblox Studio (5 minutes)
 
-1. Download [`Kingsbloom.rbxlx`](Kingsbloom.rbxlx) from this folder.
+To keep working on it with Claude Code on your own computer, connected to Studio, follow [`LOCAL_SETUP.md`](LOCAL_SETUP.md).
+
+1. Download [`Kingsbloom.rbxlx`](Kingsbloom.rbxlx) from this folder. It is on the branch `claude/inspiring-bardeen-cxmi0l`; the repository's `main` branch is still empty.
 2. Open **Roblox Studio** → **File → Open from File…** → pick `Kingsbloom.rbxlx`.
 3. Press **Play** (F5). To try it with friends, use **Test → Clients and Servers** with 2 or 3 players.
 4. Saving only works once the place is published and **Game Settings → Security → Enable Studio Access to API Services** is on. Until then the game still runs, and a notice says saving is off.

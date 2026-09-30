@@ -59,6 +59,12 @@ rojo build default.project.json -o Kingsbloom.rbxlx                    # refresh
 
 To look at models without Studio, use `tests/engine/dump.luau` with `tools/preview` (see the README). **To look at the UI**, use `tests/engine/ui_dump.luau` (it opens every screen at a given window size, with `touch` for a phone) with `tools/preview/ui.mjs`, `ui_layout.js` (a small Roblox layout engine) and `ui_shot.mjs` (screenshots, and prints any text that overflows its box). Check both 1366×768 and 844×390 touch after UI changes. The mock engine is `tests/engine/Engine.luau`: it runs the real scripts under Lune with a simulated clock. If a script uses a Roblox API the mock doesn't have yet, add it there.
 
+**On the owner's computer (Roblox Studio + Claude Code):** the owner's steps are in [`roblox/LOCAL_SETUP.md`](roblox/LOCAL_SETUP.md).
+- `rokit install` at the repo root installs Rojo, Lune and luau-lsp at the versions in `rokit.toml`. For the type-check, download the Roblox definitions from `https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/main/scripts/globalTypes.None.d.luau`. `rojo plugin install` adds the Rojo plugin to Studio.
+- Run `rojo serve` in `roblox/` in the background and keep it running. The owner clicks **Connect** in Studio's Rojo plugin (Plugins tab). From then on, edit the files in `roblox/src`: Rojo copies every change into Studio. Never edit the synced scripts inside Studio; Rojo overwrites them.
+- If Studio's built-in MCP server is connected (tools such as `start_stop_play`, `get_console_output`, `screen_capture`, `get_studio_state`, `execute_luau`), use it to playtest for real: start Play, read the Output after every change, look at screenshots, stop Play. This is what the cloud sessions could not check, so trust it over the mock engine when they disagree, and fix the mock too.
+- The Lune tests and the type-check are still the gate before every push.
+
 **Installing the tools in a cloud container:** GitHub release downloads were blocked (403), but crates.io and `git clone` work.
 - `cargo install rojo --version 7.7.0 --locked` and `cargo install lune --locked` (selene installs too, but `selene generate-roblox-std` needs network access that was blocked; luau-lsp's lints cover the gap).
 - Build luau-lsp from `git clone --recursive https://github.com/JohnnyMorganz/luau-lsp` with CMake. Remove `-Werror` from its `CMakeLists.txt` for GCC 13, then `make Luau.LanguageServer.CLI`. The Roblox definitions are in its `scripts/globalTypes.None.d.luau`.
