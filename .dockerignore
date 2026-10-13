@@ -1,0 +1,9 @@
+noze-data
+.env
+.git
+tests
+docs
+build
+*.egg-info
+__pycache__
+.pytest_cache

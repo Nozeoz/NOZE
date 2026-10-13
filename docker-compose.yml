@@ -1,0 +1,13 @@
+services:
+  noze:
+    build: .
+    restart: unless-stopped
+    # only reachable from this machine; set NOZE_PASSWORD before exposing it to your network
+    ports:
+      - "127.0.0.1:8787:8787"
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./noze-data:/data          # the whole bank: database, thumbnails, stored files, models
+      # - /mnt/external/assets:/assets:ro   # index an existing folder: docker compose exec noze noze import-folder /assets --link

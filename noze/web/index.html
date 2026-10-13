@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NOZE asset bank</title>
+  <meta name="description" content="Your creative asset bank: search free & open sources by vibe, keep what you find.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='11' cy='16' r='9' fill='%23ff5a36'/%3E%3Ccircle cx='22' cy='16' r='7' fill='%23111'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="bar">
+      <a class="logo" href="#/" title="NOZE home"><span class="dot"></span><span class="word">NOZE</span></a>
+      <form class="search" id="search-form" role="search" autocomplete="off">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <label class="sr-only" for="q">Search</label>
+        <input id="q" name="q" type="search" placeholder="Cari vibe… “hujan malam neon video”, “y2k chrome”, “whoosh sfx”" enterkeyhint="search">
+      </form>
+      <nav class="nav">
+        <a href="#/" data-nav="home" title="Home feed"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg><span class="lbl">Home</span></a>
+        <a href="#/boards" data-nav="boards" title="Your boards"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span class="lbl">Boards</span></a>
+        <a href="#/bank" data-nav="bank" title="Sources, storage, auto-crawl"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="8" ry="3"/><path d="M4 5.5v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6M4 11.5v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg><span class="lbl">Bank</span></a>
+      </nav>
+      <button class="btn primary" id="add-btn" title="Save a link or upload files"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="lbl">Add</span></button>
+    </div>
+    <div class="filters" id="filters"></div>
+  </header>
+
+  <main id="view"></main>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+  <script src="/static/vendor/lottie_light.min.js" defer></script>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>

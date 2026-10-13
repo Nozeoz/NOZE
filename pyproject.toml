@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "noze"
+version = "0.1.0"
+description = "NOZE — personal creative asset bank: search many free/open creative sources by vibe, keep what you find."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "fastapi>=0.110",
+  "uvicorn>=0.27",
+  "httpx[http2]>=0.27",
+  "pillow>=10.0",
+  "numpy>=1.24",
+  "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+# Real visual "vibe" search (CLIP / SigLIP2 via ONNX, no PyTorch needed).
+clip = ["fastembed>=0.4"]
+# Cloud storage for the bank: Cloudflare R2, Backblaze B2, Wasabi, MinIO, AWS S3.
+s3 = ["boto3>=1.28"]
+dev = ["pytest>=8", "respx>=0.21"]
+all = ["fastembed>=0.4", "boto3>=1.28"]
+
+[project.scripts]
+noze = "noze.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["noze*"]
+
+[tool.setuptools.package-data]
+noze = ["web/*", "web/vendor/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning:fastapi.testclient", "ignore:Using `httpx` with `starlette.testclient`"]
