@@ -9,6 +9,7 @@ import threading
 import time
 from typing import Any
 
+from . import autopilot
 from .context import Context
 from .enrich import Enricher
 from .generate import generate
@@ -60,6 +61,9 @@ async def run_job(job: dict[str, Any], ctx: Context, harvester: Harvester, http:
         if tags:
             await harvester.search(parse_query(" ".join(tags)), page=1)
         return {"expanded": a["id"]}
+    if kind == "pinterest_sync":
+        from .importers.pinterest import sync_pinterest
+        return await sync_pinterest(ctx, http)
     if kind == "generate":
         a = await generate(ctx, http, p["prompt"], p.get("kind") or "image", p.get("model"), p.get("input"))
         return {"asset_id": a["id"]}
@@ -90,6 +94,8 @@ class Worker(threading.Thread):
         self.status["state"] = "loading embedder"
         await asyncio.to_thread(ctx.ensure_embedder)
         ctx.db.requeue_stale_jobs()
+        if ctx.settings.autopilot:
+            autopilot.seed_if_new(ctx.db)
         last_interest_check = 0.0
         self.status["state"] = "running"
         try:
@@ -112,6 +118,9 @@ class Worker(threading.Thread):
                     last_interest_check = time.time()
                     for interest in ctx.db.due_interests():
                         ctx.db.enqueue_job("interest", {"interest_id": interest["id"]})
+                    from .importers.pinterest import sync_due
+                    if sync_due(ctx):
+                        ctx.db.enqueue_job("pinterest_sync", {})
                 if not did:
                     await asyncio.sleep(2.0)
         finally:

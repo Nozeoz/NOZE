@@ -14,8 +14,10 @@ Satu tempat buat nyari **referensi & aset** (motion, video, Lottie, GIF, gambar,
 - **Board + bank**: tekan *Save* → file aslinya otomatis di-download ke bank (dedup pakai SHA-256). *Export pack* → zip berisi semua file + `CREDITS.txt` yang sudah dikelompokkan per lisensi.
 - **Mode Inspiration** (default): hasil pencarian fokus ke visual (gambar, video, GIF, link, tekstur). Ikon/font/Lottie/SFX/kode cuma muncul kalau kamu minta ("font retro", "whoosh sfx") atau pilih chip-nya. Hasil yang cuma nyerempet satu kata dibuang.
 - **Pinterest lewat bookmarklet**: buka Pinterest seperti biasa → klik "Save to NOZE" → *Select all* → semua pin yang kamu lihat (versi 736px + link pin) masuk bank sekaligus, dan saling terhubung untuk "More like this". Berlaku juga buat Behance, Dribbble, X, galeri AI (Dreamina/Higgsfield/Kling). Detail: [docs/SOURCES.md](docs/SOURCES.md#pinterest).
-- **Import** folder aset lama (`noze import-folder`) dan board Pinterest **milikmu sendiri** lewat API resmi (`noze import-pinterest`).
-- **Bank tumbuh sendiri**: tambah "interest" (mis. *liquid chrome*, *film burn transition*) atau *starter pack* 50 topik motion/design → di-crawl di background tiap hari, makin dalam tiap putaran.
+- **Pinterest otomatis**: klik *Connect Pinterest* sekali di halaman Bank → semua board & pin **milikmu** ikut masuk dan di-sync sendiri tiap 6 jam (API resmi, token diperpanjang otomatis). Kamu tinggal save pin di Pinterest kayak biasa — dari HP juga bisa.
+- **Autopilot (default nyala)**: bank langsung ngisi sendiri dari *starter pack* 50 topik motion/design pas pertama jalan; yang kamu cari 2× atau kamu save dari pencarian, plus nama tiap board Pinterest-mu, otomatis jadi "interest" yang di-crawl di background makin dalam tiap putaran. Hapus interest → nggak dipelajari lagi. Matikan: `NOZE_AUTOPILOT=0`.
+- **API key ditempel di web**, nggak perlu edit file: halaman Bank → *Sources* → paste key → sumbernya langsung nyala.
+- **Import** folder aset lama (`noze import-folder`).
 - **Generate yang nggak ketemu** (opsional): Seedance (video) / FLUX (gambar) via Replicate, hasilnya masuk bank sebagai asetmu.
 
 | Vibe search | Detail + lisensi + "More like this" |
@@ -38,17 +40,15 @@ Buka **http://localhost:8787**, ketik vibe apa aja. Hasil dari sumber langsung d
 
 Pakai Docker: `cp .env.example .env && docker compose up -d`.
 
-Isi API key (opsional) di `.env` — lihat [.env.example](.env.example). Mau dibuka dari HP? Jalankan `noze serve --host 0.0.0.0` **dengan** `NOZE_PASSWORD` di-set (atau pakai Tailscale).
+API key (opsional) bisa ditempel langsung di halaman **Bank**, atau ditulis di `.env` — lihat [.env.example](.env.example). Mau dibuka dari HP? Jalankan `noze serve --host 0.0.0.0` **dengan** `NOZE_PASSWORD` di-set (atau pakai Tailscale).
 
 ## Soal Pinterest & "free"
 
-Konten Pinterest **bukan** otomatis bebas pakai: kebanyakan pin adalah repost karya orang lain, hak ciptanya tetap milik kreator aslinya, dan ToS Pinterest melarang scraping. Jadi NOZE sengaja:
-
-Pinterest juga nggak punya API pencarian publik — API resminya cuma bisa baca board milikmu sendiri.
+Konten Pinterest **bukan** otomatis bebas pakai: kebanyakan pin adalah repost karya orang lain, hak ciptanya tetap milik kreator aslinya, dan ToS Pinterest melarang scraping. Pinterest juga nggak punya API pencarian publik — API resminya cuma bisa baca board milikmu sendiri. Jadi NOZE sengaja:
 
 1. narik dari sumber yang **lisensinya jelas** (CC0, public domain, Pexels/Unsplash/Pixabay License, CC BY, OFL, MIT, Lottie Simple License…), dengan label per aset;
 2. nyimpen **referensi dari situs mana pun** lewat bookmarklet — kamu yang milih, kayak nekan "Save" — ditandai `Ref only`;
-3. mengimpor **board Pinterest milikmu** lewat API resmi, juga sebagai referensi.
+3. nge-sync **board Pinterest milikmu** otomatis lewat API resmi, juga sebagai referensi.
 
 Hasil AI publik (Civitai) dilabeli `Check`: status hak ciptanya belum jelas dan tergantung aturan platform.
 
@@ -90,7 +90,7 @@ Perbandingan opsi, estimasi biaya, dan cara setup: [docs/STORAGE.md](docs/STORAG
 | `noze search "y2k chrome" [--live]` | cari dari terminal |
 | `noze sources` | status semua sumber + key yang kurang |
 | `noze import-folder ~/Assets --board "Old packs" [--link]` | indeks folder aset lama (nama folder jadi tag) |
-| `noze import-pinterest` | impor board Pinterest milikmu (API resmi) |
+| `noze import-pinterest` | impor board Pinterest milikmu sekali jalan (biasanya nggak perlu: *Connect Pinterest* di web sudah sync otomatis) |
 | `noze save <url> --board Refs` | simpan link/gambar/video dari web |
 | `noze export-board "Client X" pack.zip` | zip + CREDITS.txt |
 | `noze enrich` / `noze reindex` | proses thumbnail & vektor sekarang / hitung ulang setelah pasang CLIP |

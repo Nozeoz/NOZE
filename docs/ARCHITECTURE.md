@@ -78,6 +78,8 @@ Tetangga dari vektor selera + tetangga dari 8 simpanan terakhir + tag favorit + 
 - Setiap hasil dari sumber disimpan (metadata + thumbnail kecil) begitu muncul. Pencarian yang sama/mirip berikutnya dijawab dari bank — sumber hanya ditanya lagi setelah cache kedaluwarsa atau kalau kamu scroll lebih dalam.
 - File asli hanya diunduh untuk yang kamu **Save/Download**, disimpan berdasarkan hash konten (file sama = sekali simpan).
 - **Interests** di-crawl di background (default tiap 24 jam, 1 halaman lebih dalam tiap putaran) — bank tumbuh sendiri sesuai minatmu.
+- **Autopilot** (`noze/autopilot.py`): bank baru langsung diisi *starter pack*; query yang kamu cari 2×, query tempat kamu nge-save sesuatu, dan nama board Pinterest-mu otomatis jadi interest (maks. 150; interest yang kamu hapus nggak dipelajari lagi).
+- **Pinterest sync** (`noze/importers/pinterest.py`): OAuth resmi, sync incremental tiap 6 jam — berhenti di halaman pertama yang semua pin-nya sudah ada.
 - Setelah kamu menyimpan sesuatu, worker menjalankan job `expand`: ambil *related* dari sumbernya + cari lagi pakai tag-tagnya.
 
 ## 5. Komponen kode
@@ -91,9 +93,10 @@ Tetangga dari vektor selera + tetangga dari 8 simpanan terakhir + tag favorit + 
 | `noze/search.py`, `noze/ranking.py` | ranking hybrid, related, feed, RRF, MMR |
 | `noze/db.py` | skema SQLite + FTS5, board, interaksi, cache, graf, job |
 | `noze/storage.py` | penyimpanan content-addressed: lokal atau S3-compatible |
-| `noze/importers/` | folder lokal, Pinterest (API resmi), web/bookmarklet/upload |
+| `noze/importers/` | folder lokal, Pinterest (OAuth + sync otomatis), web/bookmarklet/upload |
+| `noze/autopilot.py` | seed bank baru, belajar interest dari pencarian/save/board, simpan API key dari UI |
 | `noze/api.py`, `noze/web/` | API FastAPI + UI vanilla JS (tanpa build step) |
-| `noze/worker.py` | job (download, harvest, interest, expand, generate) + enrichment |
+| `noze/worker.py` | job (download, harvest, interest, expand, pinterest_sync, generate) + enrichment |
 
 ## 6. Keamanan
 
@@ -101,3 +104,5 @@ Tetangga dari vektor selera + tetangga dari 8 simpanan terakhir + tag favorit + 
 - Request tulis lintas-situs ditolak (cek `Origin`), jadi situs lain nggak bisa diam-diam nambah ke bank-mu.
 - URL yang kamu simpan dari web dicek dulu (bukan alamat privat/lokal) di setiap redirect — mencegah SSRF.
 - Semua URL yang tersimpan hanya boleh `http(s)` (nggak ada `javascript:`), dan UI tidak pernah memasukkan teks dari sumber sebagai HTML.
+- API key yang ditempel di web disimpan di `NOZE_DATA_DIR/.env` (izin file `600`) dan nggak pernah dikirim balik ke browser — UI cuma tahu "sudah diisi / belum".
+- Login Pinterest pakai parameter `state` sekali pakai, jadi callback palsu ditolak; NOZE cuma minta izin baca.

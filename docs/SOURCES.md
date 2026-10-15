@@ -1,6 +1,6 @@
 # Sumber aset
 
-Semua sumber pakai **API resmi** masing-masing. Cek status & key yang kurang: `noze sources` atau halaman **Bank** di web.
+Semua sumber pakai **API resmi** masing-masing. Cek status & key yang kurang: `noze sources` atau halaman **Bank** di web — key bisa langsung ditempel di sana (disimpan ke `NOZE_DATA_DIR/.env`, langsung aktif tanpa restart).
 
 Label pemakaian: **Free** = komersial OK tanpa kredit · **Credit** = komersial OK, wajib kredit · **Non-comm.** · **Ref only** = cuma referensi · **Check** = cek dulu di halaman sumber · **Mine** = punyamu.
 
@@ -45,15 +45,21 @@ Label pemakaian: **Free** = komersial OK tanpa kredit · **Credit** = komersial 
 
 ## Pinterest
 
-Pinterest **tidak punya API pencarian publik** (API resminya cuma bisa baca pin & board milik akun kamu sendiri), dan ToS-nya melarang scraping — jadi NOZE nggak nge-crawl hasil pencarian Pinterest. Yang bisa, dan ternyata cukup enak:
+Pinterest **tidak punya API pencarian publik** (API resminya cuma bisa baca pin & board milik akun kamu sendiri), dan ToS-nya melarang scraping — jadi NOZE nggak nge-crawl hasil pencarian Pinterest. Yang bisa, dan jalan sendiri:
 
-1. **Bookmarklet "Save to NOZE" mode Pinterest** (halaman Bank → seret tombolnya ke bookmarks bar).
+1. **Connect Pinterest (otomatis)** — halaman **Bank** → panel *Pinterest → your bank*:
+   1. buka [developers.pinterest.com/apps](https://developers.pinterest.com/apps/) → **Connect app** (gratis);
+   2. di setting app-nya tambahkan *Redirect URI* yang ditampilkan NOZE (mis. `http://localhost:8787/api/pinterest/callback` — harus persis sama, termasuk `localhost` vs `127.0.0.1`);
+   3. tempel **App ID** + **App secret** di NOZE → **Save** → **Connect Pinterest** → login & *Allow*.
+
+   Setelah itu semuanya otomatis: worker nge-sync tiap 6 jam (`NOZE_PINTEREST_SYNC_HOURS`), cuma ngambil pin baru, token diperpanjang sendiri (akses 30 hari, refresh token 60 hari yang terus diperbarui). Tiap board jadi board NOZE `Pinterest · <nama>`, dan **nama board jadi interest** — jadi NOZE juga nyari vibe yang sama di 29 sumber lain. Izin yang diminta cuma baca: `boards:read`, `pins:read`, `user_accounts:read`.
+   Jalan pintas: tempel *access token* langsung (`PINTEREST_ACCESS_TOKEN`) — tapi itu mati setelah 30 hari.
+2. **Bookmarklet "Save to NOZE" mode Pinterest** (halaman Bank → seret tombolnya ke bookmarks bar) — buat pin orang lain yang belum kamu save di Pinterest.
    Buka Pinterest seperti biasa — cari, atau buka satu pin dan scroll ke *More like this* (itu mesin related-nya Pinterest sendiri). Klik bookmarklet → **Select all** → semua pin yang sedang kamu lihat masuk bank sekaligus:
    - gambar diambil versi **736px** (bukan thumbnail 236px), judul dari caption pin, link ke pin aslinya untuk kredit;
    - urutan feed Pinterest dipertahankan;
    - pin yang disimpan dari halaman yang sama otomatis **saling terhubung**, jadi "More like this" di NOZE ikut mewarisi kurasi Pinterest;
    - label sumber **Pinterest**, pemakaian **Ref only** (hak tetap di kreator aslinya).
-2. **Board Pinterest milikmu**: `noze import-pinterest` dengan `PINTEREST_ACCESS_TOKEN` (buat app di developers.pinterest.com, scope `boards:read` + `pins:read`). Tiap board jadi board NOZE.
 3. **Sumber yang rasanya mirip Pinterest** (kurasi visual dari orang-orang): Are.na & Wallhaven (tanpa key), Tumblr, Flickr, DeviantArt (key gratis).
 
 Bookmarklet yang sama berlaku untuk Behance, Dribbble, X, Cosmos, Savee, galeri AI (Dreamina/Higgsfield/Kling), dll.

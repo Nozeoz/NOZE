@@ -34,6 +34,8 @@ KEY_NAMES = (
     "YOUTUBE_API_KEY",
     "WIKIMEDIA_TOKEN",
     "PINTEREST_ACCESS_TOKEN",
+    "PINTEREST_APP_ID",
+    "PINTEREST_APP_SECRET",
     "REPLICATE_API_TOKEN",
 )
 
@@ -103,6 +105,8 @@ class Settings:
     video_max_width: int = 1920
     safe_search: bool = True
     worker: bool = True
+    autopilot: bool = True
+    pinterest_sync_hours: float = 6.0
     allow_private_fetch: bool = False
     disabled_sources: set[str] = field(default_factory=set)
     only_sources: set[str] = field(default_factory=set)
@@ -154,6 +158,8 @@ class Settings:
             video_max_width=int(get("NOZE_VIDEO_MAX_WIDTH", "1920") or 1920),
             safe_search=_bool(get("NOZE_SAFE_SEARCH"), True),
             worker=_bool(get("NOZE_WORKER"), True),
+            autopilot=_bool(get("NOZE_AUTOPILOT"), True),
+            pinterest_sync_hours=float(get("NOZE_PINTEREST_SYNC_HOURS", "6") or 6),
             allow_private_fetch=_bool(get("NOZE_ALLOW_PRIVATE_FETCH"), False),
             disabled_sources=_csv(get("NOZE_DISABLED_SOURCES")),
             only_sources=_csv(get("NOZE_SOURCES")),

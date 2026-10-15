@@ -20,12 +20,14 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from .config import Settings
+from . import autopilot
+from .config import KEY_NAMES, Settings
 from .context import Context
 from .enrich import Enricher
 from .exporter import export_board
 from .harvest import Harvester
 from .http import Http, SourceError
+from .importers import pinterest
 from .importers.web import ingest_file, ingest_url
 from .lexicon import STARTER_TOPICS, parse_query
 from .search import ACTION_WEIGHTS, Ranker, SearchRequest, describe_query, page_slice
@@ -56,12 +58,14 @@ class BoardPatch(BaseModel):
 class BoardItemIn(BaseModel):
     asset_id: str
     note: str = ""
+    query: str = ""
 
 
 class SaveIn(BaseModel):
     asset_id: str
     board: str | None = None
     note: str = ""
+    query: str = ""
 
 
 class InteractionIn(BaseModel):
@@ -210,6 +214,8 @@ def create_app(settings: Settings | None = None, start_worker: bool | None = Non
         else:
             ids = await run_in_threadpool(st.ranker.browse, filters, int(time.time() // 86400))
         page_ids = page_slice(ids, page, per_page)
+        if settings.autopilot and page == 1 and q.strip():
+            autopilot.learn_from_search(st.ctx.db, q)
         has_more = len(ids) > page * per_page or bool(report and not report.exhausted)
         return {"items": items_json(page_ids), "total": len(ids), "page": page, "has_more": has_more,
                 "query": describe_query(pq, applied), "live": report.as_dict() if report else None}
@@ -324,13 +330,18 @@ def create_app(settings: Settings | None = None, start_worker: bool | None = Non
     async def interaction(body: InteractionIn) -> dict[str, Any]:
         if body.action not in ACTION_WEIGHTS:
             raise HTTPException(400, f"action must be one of {sorted(ACTION_WEIGHTS)}")
-        S().ctx.db.log_interaction(body.asset_id, body.action, ACTION_WEIGHTS[body.action], body.query)
+        db = S().ctx.db
+        db.log_interaction(body.asset_id, body.action, ACTION_WEIGHTS[body.action], body.query)
+        if settings.autopilot and body.query and body.action in ("save", "download"):
+            autopilot.learn_from_save(db, body.query)
         return {"ok": True}
 
     # -- boards ------------------------------------------------------------------------------------
-    def _save_side_effects(asset_id: str) -> None:
+    def _save_side_effects(asset_id: str, query: str = "") -> None:
         db = S().ctx.db
-        db.log_interaction(asset_id, "save", ACTION_WEIGHTS["save"])
+        db.log_interaction(asset_id, "save", ACTION_WEIGHTS["save"], query)
+        if settings.autopilot and query:
+            autopilot.learn_from_save(db, query)
         if settings.auto_download_on_save:
             db.enqueue_job("download", {"asset_id": asset_id})
         db.enqueue_job("expand", {"asset_id": asset_id})
@@ -377,7 +388,7 @@ def create_app(settings: Settings | None = None, start_worker: bool | None = Non
             raise HTTPException(404, "board not found")
         asset_or_404(body.asset_id)
         db.add_to_board(board_id, body.asset_id, body.note)
-        _save_side_effects(body.asset_id)
+        _save_side_effects(body.asset_id, body.query)
         return {"ok": True}
 
     @app.delete("/api/boards/{board_id}/items/{asset_id:path}")
@@ -393,7 +404,7 @@ def create_app(settings: Settings | None = None, start_worker: bool | None = Non
         asset_or_404(body.asset_id)
         bid = db.create_board(body.board or "Saved")
         db.add_to_board(bid, body.asset_id, body.note)
-        _save_side_effects(body.asset_id)
+        _save_side_effects(body.asset_id, body.query)
         return {"ok": True, "board_id": bid}
 
     @app.get("/api/boards/{board_id}/export")
@@ -455,8 +466,65 @@ def create_app(settings: Settings | None = None, start_worker: bool | None = Non
 
     @app.delete("/api/interests/{interest_id}")
     async def delete_interest(interest_id: int) -> dict[str, Any]:
-        S().ctx.db.delete_interest(interest_id)
+        db = S().ctx.db
+        gone = next((i for i in db.list_interests() if i["id"] == interest_id), None)
+        if gone:
+            autopilot.forget(db, gone["query"])
+        db.delete_interest(interest_id)
         return {"ok": True}
+
+    # -- autopilot: Pinterest connection + API keys from the UI ------------------------------------
+    @app.get("/api/pinterest")
+    async def pinterest_status(request: Request) -> dict[str, Any]:
+        st = pinterest.status(S().ctx)
+        st["redirect_uri"] = _pinterest_redirect(request)
+        return st
+
+    @app.get("/api/pinterest/connect", include_in_schema=False)
+    async def pinterest_connect(request: Request):
+        ctx = S().ctx
+        if not pinterest.can_oauth(ctx):
+            raise HTTPException(400, "add PINTEREST_APP_ID and PINTEREST_APP_SECRET first")
+        return RedirectResponse(pinterest.authorize_url(ctx, _pinterest_redirect(request)))
+
+    @app.get("/api/pinterest/callback", include_in_schema=False)
+    async def pinterest_callback(code: str = "", state: str = "", error: str = ""):
+        st = S()
+        if error or not code:
+            st.ctx.db.set_meta("pinterest.last_error", "Pinterest login was cancelled")
+            return RedirectResponse("/#/bank")
+        try:
+            await pinterest.finish_oauth(st.ctx, st.http, code, state)
+        except SourceError as exc:
+            st.ctx.db.set_meta("pinterest.last_error", str(exc)[:300])
+            return RedirectResponse("/#/bank")
+        st.ctx.db.enqueue_job("pinterest_sync", {})
+        return RedirectResponse("/#/bank")
+
+    @app.post("/api/pinterest/sync")
+    async def pinterest_sync() -> dict[str, Any]:
+        ctx = S().ctx
+        if not pinterest.status(ctx)["connected"]:
+            raise HTTPException(400, "Pinterest is not connected")
+        return {"job_id": ctx.db.enqueue_job("pinterest_sync", {})}
+
+    @app.post("/api/pinterest/disconnect")
+    async def pinterest_disconnect() -> dict[str, Any]:
+        pinterest.disconnect(S().ctx)
+        return {"ok": True}
+
+    @app.get("/api/settings/keys")
+    async def get_keys() -> dict[str, Any]:
+        # never send the values back, only whether each one is set
+        return {"keys": {k: bool(settings.key(k)) for k in KEY_NAMES}, "file": str(settings.data_dir / ".env")}
+
+    @app.post("/api/settings/keys")
+    async def set_keys(body: dict[str, str]) -> dict[str, Any]:
+        try:
+            configured = autopilot.save_keys(settings, {str(k): str(v) for k, v in body.items()})
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        return {"configured": configured}
 
     @app.post("/api/harvest")
     async def harvest(body: HarvestIn) -> dict[str, Any]:
@@ -531,6 +599,11 @@ def create_app(settings: Settings | None = None, start_worker: bool | None = Non
         return data
 
     return app
+
+
+def _pinterest_redirect(request: Request) -> str:
+    # must match, character for character, a redirect URI registered on the Pinterest app
+    return f"{request.url.scheme}://{request.headers.get('host') or request.url.netloc}/api/pinterest/callback"
 
 
 def disk_free(path: Path) -> int:

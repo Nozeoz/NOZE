@@ -395,8 +395,9 @@
   }
 
   async function saveTo(it, board) {
-    if (board.id) await api.post(`/api/boards/${board.id}/items`, { asset_id: it.id });
-    else await api.post("/api/save", { asset_id: it.id, board: board.name });
+    const query = ($("#q").value || "").trim();  // lets autopilot learn what you were looking for
+    if (board.id) await api.post(`/api/boards/${board.id}/items`, { asset_id: it.id, query });
+    else await api.post("/api/save", { asset_id: it.id, board: board.name, query });
     store.set("lastBoard", board.name);
     boardsCache = null;
     toast(`Saved to “${board.name}” · downloading to your bank`);
@@ -463,10 +464,8 @@
     view.append(info);
     const empty = h("div", { class: "empty" },
       h("h3", { text: "Your bank is empty — let's fill it" }),
-      h("p", { text: "Search any vibe above (sources are searched live and everything found is kept), or add the starter pack of ~50 motion & design topics that keeps growing on its own." }),
-      h("button", { class: "btn primary", text: "Add starter pack", onclick: async () => {
-        await api.post("/api/interests/starter"); toast("Crawling ~50 topics in the background — refresh in a minute");
-      } }));
+      h("p", { text: "Autopilot is already filling it: ~50 motion & design starter topics are being crawled in the background — refresh in a minute. Meanwhile search any vibe above, or connect Pinterest on the Bank page." }),
+      h("button", { class: "btn primary", text: "Refresh", onclick: () => renderHome() }));
     currentFeed = new Feed(view, (page) => api.get("/api/feed", { ...filterParams(), page }), {
       empty,
       onPage: (res, page) => {
@@ -707,9 +706,10 @@
     setNav("bank");
     view.append(h("h1", { class: "page-title", text: "Bank" }),
       h("p", { class: "page-sub", text: "What's in your bank, where it lives, which sources feed it, and what it crawls on its own." }));
-    const [stats, sources, interests, jobs, health] = await Promise.all([
+    const [stats, sources, interests, jobs, health, pin] = await Promise.all([
       api.get("/api/stats").catch(() => ({})), api.get("/api/sources").catch(() => []),
       api.get("/api/interests").catch(() => []), api.get("/api/jobs").catch(() => []), api.get("/api/health").catch(() => ({})),
+      api.get("/api/pinterest").catch(() => null),
     ]);
     sourceList = sources;
     const stat = (v, l) => h("div", { class: "stat" }, h("b", { text: v }), h("span", { text: l }));
@@ -721,6 +721,50 @@
         stat(fmtBytes(stats.db_bytes), "index database"), stat((stats.embedded || 0).toLocaleString(), `vibe vectors · ${stats.embedder || ""}`)),
       !stats.semantic ? h("p", { class: "muted", style: { marginTop: "12px" } }, "Vibe search is in lightweight mode (keywords + colors). For real visual search install CLIP: ",
         h("code", { text: "pip install 'noze[clip]'" }), " then restart — see docs/ARCHITECTURE.md.", health.embedder_error ? ` (last error: ${health.embedder_error})` : "") : null));
+
+    // autopilot: Pinterest sync
+    if (pin) {
+      const ago = (t) => { const m = Math.round((Date.now() / 1000 - t) / 60); return m < 60 ? `${m} min ago` : m < 2880 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`; };
+      const body = h("div");
+      if (pin.connected) {
+        body.append(h("p", null, h("b", { text: "✓ Pinterest connected" }), pin.user ? ` as @${pin.user}` : "",
+          ` · ${(pin.pins || 0).toLocaleString()} pins from ${pin.boards || 0} boards · ${pin.last_sync ? "last sync " + ago(pin.last_sync) : "first sync running…"} · syncs by itself every ${pin.every_hours} h`),
+          h("p", { class: "muted", text: "Just keep saving pins on Pinterest (phone or browser) — they show up here on the next sync. Every board becomes a NOZE board, and its name becomes an interest, so NOZE also crawls the other sources for that vibe." }),
+          pin.via === "token" ? h("p", { class: "muted", text: "Using a pasted access token — it stops working after 30 days. Add an App ID + secret below and click Connect so it renews itself." }) : null,
+          h("div", { class: "row-form" },
+            h("button", { class: "btn primary", text: "Sync now", onclick: async () => { await api.post("/api/pinterest/sync"); toast("Syncing your Pinterest boards in the background"); } }),
+            h("button", { class: "btn", text: "Disconnect", onclick: async () => { if (confirm("Disconnect Pinterest? Pins already in your bank stay.")) { await api.post("/api/pinterest/disconnect"); renderBank(); } } })));
+      }
+      if (!pin.connected || pin.via === "token") {
+        const appId = h("input", { placeholder: "App ID", autocomplete: "off" });
+        const secret = h("input", { placeholder: "App secret", type: "password", autocomplete: "off" });
+        const token = h("input", { placeholder: "…or paste an access token (pina_…)", type: "password", autocomplete: "off" });
+        const redirect = h("code", { text: pin.redirect_uri });
+        body.append(
+          pin.can_oauth
+            ? h("div", { class: "row-form" }, h("a", { class: "btn primary", href: "/api/pinterest/connect", text: "Connect Pinterest" }),
+                h("span", { class: "muted", text: "Log in on Pinterest, click Allow — after that everything runs by itself." }))
+            : h("ol", { class: "steps" },
+                h("li", null, "Open ", h("a", { href: "https://developers.pinterest.com/apps/", target: "_blank", rel: "noopener noreferrer", text: "developers.pinterest.com/apps" }), " and click ", h("b", { text: "Connect app" }), " (free, takes a minute)."),
+                h("li", null, "In the app's settings add this ", h("b", { text: "Redirect URI" }), ": ", redirect, " ",
+                  h("button", { class: "btn small", text: "Copy", onclick: async () => { try { await navigator.clipboard.writeText(pin.redirect_uri); toast("Copied"); } catch (e) { toast("Select it and copy", true); } } })),
+                h("li", null, "Paste the app's ", h("b", { text: "App ID" }), " and ", h("b", { text: "App secret" }), " here, then click Save and Connect:"),
+                h("div", { class: "row-form" }, appId, secret, h("button", { class: "btn primary", text: "Save", onclick: async () => {
+                  if (!appId.value.trim() || !secret.value.trim()) return toast("Fill in both", true);
+                  try { await api.post("/api/settings/keys", { PINTEREST_APP_ID: appId.value.trim(), PINTEREST_APP_SECRET: secret.value.trim() }); renderBank(); }
+                  catch (e) { toast(e.message, true); }
+                } }))),
+          !pin.connected ? h("div", { class: "row-form", style: { marginTop: "10px" } }, token, h("button", { class: "btn", text: "Use token", onclick: async () => {
+            if (!token.value.trim()) return;
+            try { await api.post("/api/settings/keys", { PINTEREST_ACCESS_TOKEN: token.value.trim() }); await api.post("/api/pinterest/sync"); toast("Connected — syncing"); renderBank(); }
+            catch (e) { toast(e.message, true); }
+          } })) : null);
+      }
+      if (pin.last_error) body.append(h("p", { class: "err-line", text: "Last sync problem: " + pin.last_error }));
+      view.append(h("section", { class: "panel" }, h("h2", { text: "Pinterest → your bank, automatically" }),
+        h("p", { text: "Connects your own Pinterest account through Pinterest's official API (read-only). Pinterest doesn't let anyone search all of Pinterest from outside, but everything you save there flows in here by itself." }),
+        body));
+    }
 
     // interests (auto-crawl)
     const iq = h("input", { placeholder: "e.g. liquid chrome, film burn transition, batik pattern", maxlength: "200" });
@@ -734,7 +778,7 @@
     };
     drawInterests(interests);
     view.append(h("section", { class: "panel" }, h("h2", { text: "Grow the bank automatically" }),
-      h("p", { text: "Interests are crawled in the background every day, a few pages deeper each time — like Pinterest learning your taste, but you own the result." }),
+      h("p", { text: "Autopilot is on: anything you search twice, or save from a search, becomes an interest by itself, and so does every Pinterest board name. Interests are crawled in the background, a few pages deeper each time — like Pinterest learning your taste, but you own the result. Remove one and it won't be learned back." }),
       h("div", { class: "row-form" }, iq, ik,
         h("button", { class: "btn primary", text: "Add interest", onclick: async () => {
           if (!iq.value.trim()) return;
@@ -757,8 +801,7 @@
     view.append(h("section", { class: "panel" }, h("h2", { text: "Save from anywhere (Pinterest, Behance, Dribbble, X, AI galleries…)" }),
       h("p", { text: "Drag this button to your bookmarks bar. While browsing any site, click it, pick the images/videos you want and they're saved into your bank with the page link for credit — marked reference-only, because the rights stay with whoever made them. On Pinterest: open a pin (its \"More like this\" is Pinterest's own related engine), scroll a bit, click the button, \"Select all\" — every pin you're looking at lands in your bank in one go." }),
       link,
-      h("p", { class: "muted", style: { marginTop: "12px" } }, "Import your own Pinterest boards via the official API: ", h("code", { text: "noze import-pinterest" }),
-        " · index an existing asset folder: ", h("code", { text: "noze import-folder ~/Assets --board \"Old packs\"" }))));
+      h("p", { class: "muted", style: { marginTop: "12px" } }, "Index an existing asset folder: ", h("code", { text: "noze import-folder ~/Assets --board \"Old packs\"" }))));
 
     // AI generation
     if (stats.generate) {
@@ -790,8 +833,22 @@
         h("td", { text: (s.items || 0).toLocaleString() }),
         h("td", null, status)));
     }
+    // free keys: paste them here instead of editing files
+    const keyInputs = [];
+    const keyRows = sources.filter((s) => s.missing_keys.length).map((s) => h("div", { class: "row-form key-row" },
+      h("span", { class: "key-label" }, h("b", { text: s.label }), " ", h("a", { href: s.signup_url, target: "_blank", rel: "noopener noreferrer", text: "get free key ↗" })),
+      ...s.missing_keys.map((k) => { const i = h("input", { placeholder: k, type: "password", autocomplete: "off" }); i.dataset.key = k; keyInputs.push(i); return i; })));
+    const keyForm = keyRows.length ? h("div", { class: "keys" }, ...keyRows,
+      h("button", { class: "btn primary", style: { marginTop: "10px", justifySelf: "start" }, text: "Save keys", onclick: async () => {
+        const body = {};
+        for (const i of keyInputs) if (i.value.trim()) body[i.dataset.key] = i.value.trim();
+        if (!Object.keys(body).length) return toast("Paste at least one key", true);
+        try { await api.post("/api/settings/keys", body); toast("Saved — those sources are on now"); renderBank(); }
+        catch (e) { toast(e.message, true); }
+      } })) : null;
     view.append(h("section", { class: "panel" }, h("h2", { text: "Sources" }),
-      h("p", { text: "Keys go in a .env file next to where you run NOZE (see .env.example). Everything else works without any key." }), table));
+      h("p", { text: "Everything without a key already runs. Paste a free key below to switch a source on — it's saved in your bank folder (.env) and works immediately, no restart." }),
+      keyForm, table));
 
     // jobs + theme
     const jl = h("div", { class: "jobs" }, ...jobs.slice(0, 25).map((j) => h("div", { text:
