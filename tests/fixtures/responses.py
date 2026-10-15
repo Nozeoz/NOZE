@@ -317,3 +317,62 @@ REDDIT_SEARCH = {"kind": "Listing", "data": {"after": "t3_next", "children": [
                             "preview": {"images": [{"source": {"url": "https://preview.redd.it/poster.png?s=2", "width": 1000, "height": 1400},
                                                     "resolutions": [{"url": "https://preview.redd.it/poster-320.png", "width": 320, "height": 448}]}]}}},
 ]}}
+
+WALLHAVEN = {"meta": {"current_page": 1, "last_page": 38, "per_page": 24, "total": 906, "query": "neon city"}, "data": [
+    {"id": "rdj2q7", "url": "https://wallhaven.cc/w/rdj2q7", "views": 10571, "favorites": 39, "source": "", "purity": "sfw",
+     "category": "anime", "dimension_x": 1920, "dimension_y": 1080, "colors": ["#663399", "#333399"],
+     "path": "https://w.wallhaven.cc/full/rd/wallhaven-rdj2q7.jpg", "created_at": "2021-08-25 19:00:11",
+     "thumbs": {"large": "https://th.wallhaven.cc/lg/rd/rdj2q7.jpg", "original": "https://th.wallhaven.cc/orig/rd/rdj2q7.jpg",
+                "small": "https://th.wallhaven.cc/small/rd/rdj2q7.jpg"}},
+    {"id": "nsfw01", "purity": "sketchy", "path": "https://x", "thumbs": {}},
+]}
+
+TUMBLR = {"meta": {"status": 200, "msg": "OK"}, "response": [
+    {"id_string": "7001", "blog_name": "vaporwavedreams", "post_url": "https://www.tumblr.com/vaporwavedreams/7001",
+     "timestamp": 1760000000, "tags": ["vaporwave", "aesthetic"], "summary": "late night drive", "note_count": 1200,
+     "content": [{"type": "image", "alt_text": "pink sunset grid", "media": [
+         {"url": "https://64.media.tumblr.com/a/s1280x1920/x.jpg", "type": "image/jpeg", "width": 1280, "height": 960},
+         {"url": "https://64.media.tumblr.com/a/s500x750/x.jpg", "type": "image/jpeg", "width": 500, "height": 375}]},
+         {"type": "text", "text": "hi"}]},
+    {"id_string": "7002", "blog_name": "loops", "post_url": "https://www.tumblr.com/loops/7002", "timestamp": 1759990000,
+     "tags": ["gif"], "summary": "", "content": [],
+     "trail": [{"content": [{"type": "video", "media": {"url": "https://va.media.tumblr.com/tumblr_x.mp4", "type": "video/mp4"},
+                             "poster": [{"url": "https://64.media.tumblr.com/p.jpg", "width": 540, "height": 960}]}]}]},
+]}
+
+FLICKR = {"stat": "ok", "photos": {"page": 1, "pages": 9, "perpage": 2, "total": 18, "photo": [
+    {"id": "531", "owner": "12@N01", "title": "Neon alley", "ownername": "Kai", "tags": "neon alley tokyo", "license": "4",
+     "views": "900", "description": {"_content": "rain <b>night</b>"}, "url_q": "https://live.staticflickr.com/q.jpg",
+     "url_z": "https://live.staticflickr.com/z.jpg", "width_z": 640, "height_z": 427, "url_l": "https://live.staticflickr.com/l.jpg",
+     "width_l": 1024, "height_l": 683, "url_o": "https://live.staticflickr.com/o.jpg"},
+    {"id": "532", "owner": "13@N01", "title": "Mine", "license": "0", "url_z": "https://live.staticflickr.com/z2.jpg",
+     "url_o": "https://live.staticflickr.com/o2.jpg"},
+]}}
+
+DEVIANTART_TOKEN = {"access_token": "da-tok", "expires_in": 3600, "status": "success"}
+DEVIANTART_HOME = {"has_more": True, "next_offset": 24, "results": [
+    {"deviationid": "ABC-1", "url": "https://www.deviantart.com/artist/art/Neon-City-1", "title": "Neon City",
+     "category": "Digital Art", "is_mature": False, "author": {"username": "artist"}, "stats": {"favourites": 512},
+     "preview": {"src": "https://images-wixmp/preview.jpg", "width": 1000, "height": 563},
+     "content": {"src": "https://images-wixmp/full.jpg", "width": 1920, "height": 1080},
+     "thumbs": [{"src": "https://images-wixmp/150.jpg", "width": 150, "height": 84},
+                {"src": "https://images-wixmp/300.jpg", "width": 300, "height": 169}]},
+    {"deviationid": "ABC-2", "title": "nope", "is_mature": True, "thumbs": [{"src": "https://x", "width": 300}]},
+]}
+
+VIMEO = {"total": 2, "page": 1, "per_page": 25, "paging": {"next": "/videos?page=2"}, "data": [
+    {"uri": "/videos/1084537", "name": "Liquid Chrome — motion reel", "description": "Made in C4D", "link": "https://vimeo.com/1084537",
+     "duration": 64, "width": 1920, "height": 1080, "license": None, "content_rating": ["safe"],
+     "pictures": {"sizes": [{"width": 295, "height": 166, "link": "https://i.vimeocdn.com/video/1_295.jpg"},
+                            {"width": 640, "height": 360, "link": "https://i.vimeocdn.com/video/1_640.jpg"}]},
+     "user": {"name": "Studio X", "link": "https://vimeo.com/studiox"}, "tags": [{"name": "motion design"}], "stats": {"plays": 5000}},
+    {"uri": "/videos/2", "name": "cc one", "content_rating": ["safe"], "license": "by",
+     "pictures": {"sizes": [{"width": 640, "link": "https://i.vimeocdn.com/video/2.jpg"}]}, "user": {}},
+]}
+
+YOUTUBE = {"nextPageToken": "CBkQAA", "items": [
+    {"id": {"kind": "youtube#video", "videoId": "dQw4w9WgXcQ"}, "snippet": {
+        "title": "Kinetic typography breakdown &amp; tips", "description": "AE tutorial", "channelTitle": "MotionLab",
+        "channelId": "UC123", "publishedAt": "2025-01-02T00:00:00Z",
+        "thumbnails": {"high": {"url": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg", "width": 480, "height": 360}}}},
+]}

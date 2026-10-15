@@ -20,6 +20,7 @@ class PolyHaven(Source):
     label = "Poly Haven"
     homepage = "https://polyhaven.com"
     description = "High-quality CC0 HDRIs, PBR textures and 3D models."
+    trust_match = True
     kinds = (Kind.HDRI, Kind.TEXTURE, Kind.MODEL3D)
     credit = "Powered by Poly Haven"
 

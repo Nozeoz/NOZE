@@ -132,3 +132,20 @@ def test_sources_interests_and_pages(tmp_path):
         assert c.post("/api/generate", json={"prompt": "neon rain"}).status_code == 400  # no Replicate token
         stats = c.get("/api/stats").json()
         assert stats["embedder"] == "hash-v1" and "thumbs_bytes" in stats
+
+
+def test_pinterest_saves_are_tagged_and_linked(tmp_path):
+    with client(tmp_path, NOZE_ALLOW_PRIVATE_FETCH="1") as c, respx.mock(assert_all_called=False) as m:
+        for n in (1, 2):
+            m.get(f"https://i.pinimg.com/736x/aa/bb/{n}.jpg").respond(content=png_bytes((40 * n, 20, 200)),
+                                                                      headers={"content-type": "image/jpeg"})
+        feed = "https://www.pinterest.com/pin/111/"
+        ids = []
+        for n in (1, 2):
+            r = c.post("/api/ingest/url", json={"url": f"https://i.pinimg.com/736x/aa/bb/{n}.jpg",
+                                                "page_url": f"https://www.pinterest.com/pin/{n}00/", "title": f"neon {n}",
+                                                "board": "From Pinterest", "context": feed}).json()
+            assert r["source"] == "pinterest" and r["usage"] == "reference" and r["stored"]
+            ids.append(r["id"])
+        related = c.get(f"/api/assets/{ids[1]}/related", params={"live": 0}).json()
+        assert ids[0] in [i["id"] for i in related["items"]]  # saved from the same Pinterest feed → related

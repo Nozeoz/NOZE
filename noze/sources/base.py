@@ -76,6 +76,7 @@ class Source:
     credit = ""  # visible credit some APIs ask for ("Powered by …")
     hotlink = False  # show thumbnails from the source's URLs (Unsplash requires this)
     supports_related = False
+    trust_match = False  # True when the source matches on tags/vibes that our copy of the text won't show
     min_interval = 0.0  # seconds between calls
     budget_per_hour: int | None = None
     default_enabled = True

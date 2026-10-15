@@ -8,6 +8,7 @@ Label pemakaian: **Free** = komersial OK tanpa kredit · **Credit** = komersial 
 
 | Sumber | Bagus buat | Jenis | Lisensi umumnya | Catatan |
 |---|---|---|---|---|
+| [Wallhaven](https://wallhaven.cc) | wallpaper & art aesthetic (anime, cyberpunk, minimal, nature…) — paling mirip feed Pinterest di antara yang tanpa key | image | **Ref only** | pencarian berbasis tag; hanya SFW |
 | [Openverse](https://openverse.org) | foto/ilustrasi/audio apa aja (Flickr, Wikimedia, museum, Jamendo…) | image, audio | CC0 · CC BY/SA · sebagian NC → dilabel per item | tanpa key dibatasi ketat; daftar OAuth gratis biar longgar (`OPENVERSE_CLIENT_ID/SECRET`) |
 | [Wikimedia Commons](https://commons.wikimedia.org) | foto, SVG, video, suara, file 3D | image, gif, video, audio, 3d | CC BY-SA/BY/CC0/PD | pakai HTTP/2 + User-Agent sopan; `WIKIMEDIA_TOKEN` opsional |
 | [Poly Haven](https://polyhaven.com) | HDRI studio/outdoor, tekstur PBR, model 3D | hdri, texture, 3d | **CC0** | NOZE menampilkan "Powered by Poly Haven" sesuai ToS API mereka; download HDRI 2K / set tekstur 2K (zip) / glTF |
@@ -33,16 +34,29 @@ Label pemakaian: **Free** = komersial OK tanpa kredit · **Credit** = komersial 
 | [Pexels](https://www.pexels.com) | foto & **stock footage 4K** (B-roll) | [pexels.com/api](https://www.pexels.com/api/new/) | `PEXELS_API_KEY` | Free; video yang disimpan dibatasi `NOZE_VIDEO_MAX_WIDTH` |
 | [Pixabay](https://pixabay.com) | foto, vektor, **motion background** | [pixabay.com/api/docs](https://pixabay.com/api/docs/) | `PIXABAY_API_KEY` | Free; Pixabay minta gambar disimpan (bukan hotlink permanen) — NOZE meng-cache |
 | [Unsplash](https://unsplash.com) | foto berkualitas | [unsplash.com/oauth/applications](https://unsplash.com/oauth/applications) | `UNSPLASH_ACCESS_KEY` | Free; thumbnail ditampilkan langsung dari Unsplash & download dilaporkan ke mereka (aturan API) |
+| [Tumblr](https://www.tumblr.com) | budaya aesthetic/moodboard — banyak konten Pinterest asalnya dari sini | [tumblr.com/oauth/apps](https://www.tumblr.com/oauth/apps) | `TUMBLR_API_KEY` | **Ref only**; dicari per tag (mis. *vaporwave*, *y2k aesthetic*) |
+| [Flickr](https://www.flickr.com) | miliaran foto orang biasa | [flickr.com/services/apps](https://www.flickr.com/services/apps/create/apply/) | `FLICKR_API_KEY` | lisensi per foto: CC/PD bisa dipakai, sisanya **Ref only** |
+| [DeviantArt](https://www.deviantart.com) | ilustrasi, concept art, photomanip | [deviantart.com/developers](https://www.deviantart.com/developers/apps) | `DEVIANTART_CLIENT_ID` + `_SECRET` | **Ref only**; punya "more like this" sendiri (dipakai buat related) |
+| [Vimeo](https://vimeo.com) | **reel motion design**, title sequence | [developer.vimeo.com/apps](https://developer.vimeo.com/apps) | `VIMEO_ACCESS_TOKEN` | diputar lewat player Vimeo (embed), file tidak diunduh |
+| [YouTube](https://www.youtube.com) | referensi & breakdown motion | [Google Cloud Console](https://console.cloud.google.com/apis/library/youtube.googleapis.com) | `YOUTUBE_API_KEY` | embed saja; kuota ±100 pencarian/hari |
 | [Freesound](https://freesound.org) | **SFX**: whoosh, impact, ambience | [freesound.org/apiv2/apply](https://freesound.org/apiv2/apply/) | `FREESOUND_API_KEY` | CC0/BY/NC per suara; yang disimpan = preview MP3 HQ (file asli butuh login OAuth) |
 | [GIPHY](https://giphy.com) | GIF & stiker transparan | [developers.giphy.com](https://developers.giphy.com/dashboard/) | `GIPHY_API_KEY` | **Ref only** |
 | [Reddit](https://www.reddit.com) | r/motiondesign, r/AfterEffects, r/Cinema4D, r/generative… | [reddit.com/prefs/apps](https://www.reddit.com/prefs/apps) (tipe *script*) | `REDDIT_CLIENT_ID` + `REDDIT_CLIENT_SECRET` | **Ref only**; subreddit bisa diganti via `NOZE_REDDIT_SUBS` |
 
-## Pinterest, Behance, Dribbble, galeri AI (Dreamina, Higgsfield, Kling…)
+## Pinterest
 
-Situs-situs ini tidak menyediakan API pencarian publik dan/atau melarang scraping, dan kontennya milik kreator masing-masing. Cara NOZE:
+Pinterest **tidak punya API pencarian publik** (API resminya cuma bisa baca pin & board milik akun kamu sendiri), dan ToS-nya melarang scraping — jadi NOZE nggak nge-crawl hasil pencarian Pinterest. Yang bisa, dan ternyata cukup enak:
 
-- **Bookmarklet "Save to NOZE"** (halaman Bank → seret tombolnya ke bookmarks bar). Lagi browsing → klik → pilih gambar/video yang mau disimpan → masuk bank dengan link halaman untuk kredit, label **Ref only**. Bisa juga tempel link di tombol **Add**.
-- **Board Pinterest milikmu**: `noze import-pinterest` dengan `PINTEREST_ACCESS_TOKEN` (buat app di developers.pinterest.com, scope `boards:read` + `pins:read`). Tiap board jadi board NOZE.
+1. **Bookmarklet "Save to NOZE" mode Pinterest** (halaman Bank → seret tombolnya ke bookmarks bar).
+   Buka Pinterest seperti biasa — cari, atau buka satu pin dan scroll ke *More like this* (itu mesin related-nya Pinterest sendiri). Klik bookmarklet → **Select all** → semua pin yang sedang kamu lihat masuk bank sekaligus:
+   - gambar diambil versi **736px** (bukan thumbnail 236px), judul dari caption pin, link ke pin aslinya untuk kredit;
+   - urutan feed Pinterest dipertahankan;
+   - pin yang disimpan dari halaman yang sama otomatis **saling terhubung**, jadi "More like this" di NOZE ikut mewarisi kurasi Pinterest;
+   - label sumber **Pinterest**, pemakaian **Ref only** (hak tetap di kreator aslinya).
+2. **Board Pinterest milikmu**: `noze import-pinterest` dengan `PINTEREST_ACCESS_TOKEN` (buat app di developers.pinterest.com, scope `boards:read` + `pins:read`). Tiap board jadi board NOZE.
+3. **Sumber yang rasanya mirip Pinterest** (kurasi visual dari orang-orang): Are.na & Wallhaven (tanpa key), Tumblr, Flickr, DeviantArt (key gratis).
+
+Bookmarklet yang sama berlaku untuk Behance, Dribbble, X, Cosmos, Savee, galeri AI (Dreamina/Higgsfield/Kling), dll.
 
 ## Seedance & AI
 

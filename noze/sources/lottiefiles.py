@@ -26,6 +26,7 @@ class LottieFiles(Source):
     label = "LottieFiles"
     homepage = "https://lottiefiles.com/free-animations"
     description = "Free Lottie animations (UI, icons, loaders, characters) — Lottie Simple License."
+    trust_match = True
     kinds = (Kind.MOTION,)
     min_interval = 0.3
 

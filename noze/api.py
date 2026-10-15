@@ -91,6 +91,7 @@ class IngestUrlIn(BaseModel):
     note: str = ""
     tags: list[str] = []
     board: str | None = None
+    context: str = ""  # page the bookmarklet was used on — items saved together get linked
 
 
 class GenerateIn(BaseModel):
@@ -189,13 +190,14 @@ def create_app(settings: Settings | None = None, start_worker: bool | None = Non
 
     @app.get("/api/search")
     async def search(q: str = "", kinds: str = "", usage: str = "", sources: str = "", color: str = "",
-                     page: int = 1, per_page: int = 40, live: bool = True, auto: bool = True) -> dict[str, Any]:
+                     page: int = 1, per_page: int = 40, live: bool = True, auto: bool = True,
+                     mode: str = "") -> dict[str, Any]:
         st = S()
         page, per_page = max(1, page), max(1, min(per_page, 100))
         color = color if re.fullmatch(r"#?[0-9a-fA-F]{6}", color or "") else ""
         color = ("#" + color.lstrip("#")) if color else None
         req = SearchRequest(q=q, kinds=_csv(kinds), usages=_csv(usage), sources=_csv(sources), color=color,
-                            page=page, per_page=per_page, live=live, auto_filters=auto)
+                            page=page, per_page=per_page, live=live, auto_filters=auto, mode=mode)
         pq = parse_query(q)
         filters, applied = st.ranker.resolve_filters(req, pq)
         report = None
@@ -214,9 +216,9 @@ def create_app(settings: Settings | None = None, start_worker: bool | None = Non
 
     @app.get("/api/feed")
     async def feed(kinds: str = "", usage: str = "", sources: str = "", page: int = 1, per_page: int = 40,
-                   seed: int = 0) -> dict[str, Any]:
+                   seed: int = 0, mode: str = "") -> dict[str, Any]:
         st = S()
-        req = SearchRequest(kinds=_csv(kinds), usages=_csv(usage), sources=_csv(sources))
+        req = SearchRequest(kinds=_csv(kinds), usages=_csv(usage), sources=_csv(sources), mode=mode)
         filters, _ = st.ranker.resolve_filters(req, parse_query(""))
         ids = await run_in_threadpool(st.ranker.feed, filters, seed or int(time.time() // 86400))
         page_ids = page_slice(ids, page, per_page)
@@ -477,7 +479,8 @@ def create_app(settings: Settings | None = None, start_worker: bool | None = Non
     async def ingest(body: IngestUrlIn) -> dict[str, Any]:
         st = S()
         try:
-            a = await ingest_url(st.ctx, st.http, body.url, body.page_url, body.title, body.note, body.tags, body.board)
+            a = await ingest_url(st.ctx, st.http, body.url, body.page_url, body.title, body.note, body.tags, body.board,
+                                 body.context[:500])
         except (SourceError, ValueError) as exc:
             raise HTTPException(400, str(exc))
         st.ctx.db.log_interaction(a["id"], "save", ACTION_WEIGHTS["save"])

@@ -28,6 +28,7 @@ class AmbientCG(Source):
     label = "ambientCG"
     homepage = "https://ambientcg.com"
     description = "CC0 PBR materials (wood, metal, concrete, fabric…), HDRIs, decals and 3D models."
+    trust_match = True
     kinds = (Kind.TEXTURE, Kind.HDRI, Kind.MODEL3D)
 
     async def search(self, query, kinds, page, limit, cursor=None) -> SearchResult:

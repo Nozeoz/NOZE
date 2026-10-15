@@ -281,6 +281,30 @@ class VectorIndex:
                     break
             return out
 
+    def zscores(self, q: np.ndarray, ids: list[str]) -> dict[str, float]:
+        """How unusually similar each item is to q, compared with the whole index (per modality).
+        Robust across models: raw CLIP cosines live in a narrow band, z-scores don't."""
+        with self._lock:
+            self._flush()
+            if not self._ids or q is None:
+                return {}
+            q = np.asarray(q, dtype=np.float32).reshape(-1)
+            if q.shape[0] != self.dim:
+                return {}
+            scores = self._mat @ q
+            mods = np.array(self._mods)
+            stats = {}
+            for m in set(self._mods):
+                sm = scores[mods == m]
+                stats[m] = (float(sm.mean()), float(sm.std()) or 1.0)
+            out = {}
+            for aid in ids:
+                pos = self._pos.get(aid)
+                if pos is not None:
+                    mean, sd = stats[self._mods[pos]]
+                    out[aid] = (float(scores[pos]) - mean) / sd
+            return out
+
     def similarity_matrix(self, ids: list[str]) -> tuple[np.ndarray, list[bool]]:
         """Pairwise cosine for MMR diversification; rows for ids without vectors are zero."""
         with self._lock:

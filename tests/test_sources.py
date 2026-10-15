@@ -342,3 +342,62 @@ def test_reddit(tmp_path):
     assert image.kind == Kind.IMAGE and image.thumb_url.endswith("poster-320.png")
     assert res.cursor == "t3_next"
     assert route.calls[0].request.headers["authorization"] == "Bearer tok"
+
+
+@respx.mock
+def test_wallhaven(tmp_path):
+    route = respx.get(url__startswith="https://wallhaven.cc/api/v1/search").respond(json=R.WALLHAVEN)
+    res = search(tmp_path, "wallhaven", "neon city")
+    assert [a.source_id for a in res.assets] == ["rdj2q7"]  # non-SFW dropped
+    a = res.assets[0]
+    assert a.usage == Usage.REFERENCE and a.width == 1920 and a.colors[0][0] == "#663399"
+    assert {"neon", "city", "wallpaper"} <= set(a.tags) and not res.exhausted
+    assert route.calls[0].request.url.params["purity"] == "100"
+
+
+@respx.mock
+def test_tumblr_npf_images_and_reblogged_video(tmp_path):
+    route = respx.get(url__startswith="https://api.tumblr.com/v2/tagged").respond(json=R.TUMBLR)
+    res = search(tmp_path, "tumblr", "vaporwave", TUMBLR_API_KEY="k")
+    img = next(a for a in res.assets if a.kind == Kind.IMAGE)
+    vid = next(a for a in res.assets if a.kind == Kind.VIDEO)
+    assert img.title == "pink sunset grid" and img.preview_url.endswith("s1280x1920/x.jpg") and img.thumb_url.endswith("s500x750/x.jpg")
+    assert img.usage == Usage.REFERENCE and img.author == "vaporwavedreams" and "aesthetic" in img.tags
+    assert vid.preview_url.endswith(".mp4") and vid.thumb_url.endswith("p.jpg")
+    assert res.cursor == "1759990000"
+    assert route.calls[0].request.url.params["npf"] == "true"
+
+
+@respx.mock
+def test_flickr_licenses_per_photo(tmp_path):
+    respx.get(url__startswith="https://api.flickr.com/services/rest/").respond(json=R.FLICKR)
+    res = search(tmp_path, "flickr", "neon", FLICKR_API_KEY="k")
+    cc, arr = res.assets
+    assert cc.usage == Usage.CREDIT and cc.license == "cc-by-2.0" and cc.download_url.endswith("o.jpg")
+    assert cc.description == "rain night" and cc.page_url == "https://www.flickr.com/photos/12@N01/531"
+    assert arr.usage == Usage.REFERENCE and not arr.download_url.endswith("o2.jpg")
+
+
+@respx.mock
+def test_deviantart(tmp_path):
+    respx.post("https://www.deviantart.com/oauth2/token").respond(json=R.DEVIANTART_TOKEN)
+    route = respx.get(url__startswith="https://www.deviantart.com/api/v1/oauth2/browse/home").respond(json=R.DEVIANTART_HOME)
+    res = search(tmp_path, "deviantart", "neon city", DEVIANTART_CLIENT_ID="i", DEVIANTART_CLIENT_SECRET="s")
+    assert [a.source_id for a in res.assets] == ["ABC-1"]  # mature dropped
+    a = res.assets[0]
+    assert a.thumb_url.endswith("300.jpg") and a.download_url.endswith("full.jpg") and a.usage == Usage.REFERENCE
+    assert route.calls[0].request.headers["authorization"] == "Bearer da-tok"
+    assert route.calls[0].request.url.params["q"] == "neon city"
+
+
+@respx.mock
+def test_vimeo_and_youtube_are_embed_only(tmp_path):
+    respx.get(url__startswith="https://api.vimeo.com/videos").respond(json=R.VIMEO)
+    respx.get(url__startswith="https://www.googleapis.com/youtube/v3/search").respond(json=R.YOUTUBE)
+    reel, cc = search(tmp_path, "vimeo", "liquid chrome", VIMEO_ACCESS_TOKEN="t").assets
+    assert reel.extra["embed"] == "https://player.vimeo.com/video/1084537" and reel.download_url == ""
+    assert reel.thumb_url.endswith("1_640.jpg") and reel.usage == Usage.REFERENCE and cc.usage == Usage.CREDIT
+    yt = search(tmp_path, "youtube", "kinetic typography", YOUTUBE_API_KEY="k")
+    v = yt.assets[0]
+    assert v.title == "Kinetic typography breakdown & tips" and v.extra["embed"].endswith("/embed/dQw4w9WgXcQ")
+    assert yt.cursor == "CBkQAA" and v.download_url == ""

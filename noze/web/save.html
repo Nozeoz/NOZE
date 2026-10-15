@@ -33,6 +33,8 @@
   </div>
   <div class="row" style="margin-top:10px">
     <button class="btn primary" id="save">Save selected</button>
+    <button class="btn" id="all">Select all</button>
+    <button class="btn" id="none">None</button>
     <button class="btn" id="save-page">Save page as link</button>
     <button class="btn ghost" onclick="window.close()">Close</button>
   </div>
@@ -51,7 +53,7 @@
     const seen = new Set();
     const items = [];
     for (const v of data.videos || []) if (safe(v.src) && !seen.has(v.src)) { seen.add(v.src); items.push({ url: v.src, video: true, poster: safe(v.poster) }); }
-    for (const i of data.images || []) if (safe(i.src) && !seen.has(i.src)) { seen.add(i.src); items.push({ url: i.src, w: i.w, h: i.h }); }
+    for (const i of data.images || []) if (safe(i.src) && !seen.has(i.src)) { seen.add(i.src); items.push({ url: i.src, w: i.w, h: i.h, title: i.t || "", page: safe(i.p) }); }
     const picks = $("#picks");
     items.forEach((it, idx) => {
       const b = document.createElement("button");
@@ -69,9 +71,10 @@
       picks.append(b);
     });
     if (!items.length) $("#hint").textContent = "No images found on that page — you can still save the page as a link.";
-    async function post(url) {
+    async function post(url, it) {
+      const title = (it && it.title) || (items.length > 1 ? "" : data.title);
       const res = await fetch("/api/ingest/url", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, page_url: safe(data.page), title: items.length > 1 ? "" : data.title, note: $("#note").value, board: $("#board").value.trim() || null, tags: [] }) });
+        body: JSON.stringify({ url, page_url: (it && it.page) || safe(data.page), title, note: $("#note").value, board: $("#board").value.trim() || null, tags: [], context: safe(data.page) }) });
       if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.detail || res.statusText); }
       return res.json();
     }
@@ -84,11 +87,22 @@
       const chosen = items.filter((i) => i.el.classList.contains("on"));
       if (!chosen.length) return toast("Pick at least one", true);
       $("#save").disabled = true;
-      let ok = 0;
-      for (const it of chosen) { try { await post(it.url); ok++; } catch (e) { toast(e.message, true); } }
+      let ok = 0, failed = 0, next = 0;
+      const worker = async () => {
+        while (next < chosen.length) {
+          const it = chosen[next++];
+          try { await post(it.url, it); ok++; it.el.style.opacity = ".35"; } catch (e) { failed++; }
+          $("#save").textContent = `Saving ${ok + failed}/${chosen.length}…`;
+        }
+      };
+      await Promise.all([worker(), worker(), worker(), worker()]);
       $("#save").disabled = false;
+      $("#save").textContent = "Save selected";
+      if (failed) toast(`${failed} couldn't be saved`, true);
       if (ok) done(ok);
     };
+    $("#all").onclick = () => items.forEach((i) => i.el.classList.add("on"));
+    $("#none").onclick = () => items.forEach((i) => i.el.classList.remove("on"));
     $("#save-page").onclick = async () => {
       if (!safe(data.page)) return toast("No page URL", true);
       try { await post(data.page); done(1); } catch (e) { toast(e.message, true); }

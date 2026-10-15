@@ -23,6 +23,7 @@ Satu hal penting: Pinterest **tidak** "nge-crawl seluruh internet" buat isinya �
 | embedding visual | **CLIP / SigLIP2** (ONNX via `fastembed`, tanpa PyTorch): teks dan gambar satu ruang vektor, jadi kalimat bisa nyari gambar. Tanpa CLIP: vektor ringan dari hash kata + histogram warna |
 | anotasi teks | SQLite **FTS5/BM25** atas judul, tag, deskripsi, kreator + **terjemahan Indonesia→Inggris** + kamus vibe (`noze/lexicon.py`) |
 | guided search | chip ✦ vibe (mis. *cyberpunk* → neon city, hologram, rainy street neon…) |
+| feed Pinterest itu sendiri | bookmarklet: pin yang kamu simpan dari satu halaman Pinterest (mis. *More like this* sebuah pin) disambung jadi edge `context` — kurasi Pinterest ikut masuk ke grafmu |
 | sinyal personal | tabel `interactions` (open, save, download, copy credit, hide) → **vektor selera** dengan peluruhan 30 hari + tag favorit |
 | caching | cache query per (query, sumber, halaman) 7 hari, cache thumbnail lokal, dan **semua yang pernah ditemukan tetap tersimpan** |
 | diversifikasi feed | **MMR** + penalti per sumber/jenis supaya satu gaya/sumber nggak menguasai grid |
@@ -62,7 +63,7 @@ skor(a) = Σ  w_daftar / (60 + peringkat_a_di_daftar)
           daftar ∈ { urutan hasil sumber (1.0), BM25 (1.0), vektor (1.3 CLIP / 0.5 ringan) }
 ```
 
-lalu dinormalisasi dan ditambah: `+0.6 × kecocokan warna` (kalau pilih warna / ada kata warna), `+0.12 × kemiripan dengan vektor selera`, `+0.04 × log(popularitas)`. Terakhir **MMR**: item yang terlalu mirip dengan yang sudah ditampilkan, atau dari sumber/jenis yang sudah banyak, turun sedikit.
+lalu **disaring relevansinya**: tiap kandidat diberi skor 0–1 dari (a) berapa banyak kata query yang ada di judul/tag (deskripsi dihitung lebih lemah; cocok separuh kata dihukum), (b) seberapa jauh di atas rata-rata kemiripan CLIP-nya terhadap query (z-score), (c) sedikit bonus kalau mesin pencari sumbernya sendiri memilihnya (sumber berbasis tag/vibe seperti Wallhaven, Fontsource, Poly Haven dipercaya penuh). Yang di bawah 0,5 dibuang — ini yang memotong "ekor" hasil nyasar. Skor akhir = 0,45 × RRF + 0,55 × relevansi, ditambah: `+0.6 × kecocokan warna` (kalau pilih warna / ada kata warna), `+0.12 × kemiripan dengan vektor selera`, `+0.04 × log(popularitas)`. Terakhir **MMR**: item yang terlalu mirip dengan yang sudah ditampilkan, atau dari sumber/jenis yang sudah banyak, turun sedikit.
 
 ### "More like this"
 

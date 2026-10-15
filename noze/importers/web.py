@@ -67,15 +67,32 @@ def kind_for_mime(mime: str, name: str = "") -> str | None:
     return None
 
 
-def _finish(ctx: Context, asset: Asset, board: str | None, note: str) -> dict[str, Any]:
+def _origin(*urls: str) -> str:
+    """'pinterest' for anything saved from Pinterest (pin pages or i.pinimg.com files), else 'web'."""
+    for u in urls:
+        host = (urlparse(u or "").hostname or "").lower()
+        if "pinterest." in host or host.endswith("pinimg.com"):
+            return "pinterest"
+    return "web"
+
+
+def _finish(ctx: Context, asset: Asset, board: str | None, note: str, context: str = "") -> dict[str, Any]:
+    if context:
+        asset.extra["context"] = context
     ctx.db.upsert_assets([asset])
     if board:
         ctx.db.add_to_board(ctx.db.create_board(board), asset.id, note)
+    if context:
+        # things you saved from the same page (e.g. one Pinterest "More like this" feed) belong together
+        rows = ctx.db.query(
+            "SELECT id FROM assets WHERE json_extract(extra, '$.context') = ? AND id != ? "
+            "ORDER BY fetched_at DESC LIMIT 24", (context, asset.id))
+        ctx.db.add_edges([(asset.id, r[0], "context", 0.8) for r in rows])
     return ctx.db.get_asset(asset.id)
 
 
 async def ingest_url(ctx: Context, http: Http, url: str, page_url: str = "", title: str = "", note: str = "",
-                     tags: list[str] | None = None, board: str | None = None) -> dict[str, Any]:
+                     tags: list[str] | None = None, board: str | None = None, context: str = "") -> dict[str, Any]:
     url = (url or "").strip()
     if not url:
         raise SourceError("no URL")
@@ -94,14 +111,14 @@ async def ingest_url(ctx: Context, http: Http, url: str, page_url: str = "", tit
         finally:
             d.path.unlink(missing_ok=True)
         asset = Asset(
-            source="web", source_id=d.sha256[:24], kind=kind,
+            source=_origin(page_url, final), source_id=d.sha256[:24], kind=kind,
             title=title or Path(urlparse(final).path).stem.replace("-", " ").replace("_", " ") or site,
             description=note, tags=tags, author=site, page_url=page_url or final, thumb_url="",
             preview_url=final, download_url=final, license=lic.code, license_label=lic.label, usage=lic.usage,
             attribution=f"Saved from {page_url or final} — rights belong to the original creator",
             extra={"saved_from": page_url or final, "media_url": final},
         )
-        _finish(ctx, asset, board, note)
+        _finish(ctx, asset, board, note, context)
         ctx.db.update_asset(asset.id, blob_key=key, blob_size=d.size, blob_mime=d.mime.split(";")[0], thumb_state=0,
                             preview_url=f"/api/assets/{asset.id}/file")
         return ctx.db.get_asset(asset.id)
@@ -118,7 +135,7 @@ async def ingest_url(ctx: Context, http: Http, url: str, page_url: str = "", tit
         Kind.IMAGE if image else Kind.LINK)
     name = title or m.get("og:title") or m.get("twitter:title") or parser.title.strip() or site
     asset = Asset(
-        source="web", source_id=hashlib.sha1(final.encode()).hexdigest()[:24], kind=kind, title=name,
+        source=_origin(page_url, final), source_id=hashlib.sha1(final.encode()).hexdigest()[:24], kind=kind, title=name,
         description=note or m.get("og:description") or m.get("description") or "", tags=tags,
         author=m.get("author") or m.get("article:author") or m.get("og:site_name") or site,
         page_url=page_url or final, thumb_url=image, preview_url=video or image, download_url=video or image,
@@ -126,7 +143,7 @@ async def ingest_url(ctx: Context, http: Http, url: str, page_url: str = "", tit
         attribution=f"Saved from {page_url or final} — rights belong to the original creator",
         extra={"saved_from": page_url or final, "site": m.get("og:site_name") or site},
     )
-    return _finish(ctx, asset, board, note)
+    return _finish(ctx, asset, board, note, context)
 
 
 def ingest_file(ctx: Context, path: Path, filename: str, mime: str, tags: list[str] | None = None,

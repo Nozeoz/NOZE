@@ -7,7 +7,7 @@
 
   // Only http(s) links and our own paths may end up in href/src (no javascript:/data: URLs from saved content).
   const safeUrl = (u) => (typeof u === "string" && /^(https?:\/\/|\/(?!\/)|#\/)/i.test(u.trim()) ? u.trim() : "");
-  const URL_ATTRS = new Set(["href", "src", "poster"]);
+  const URL_ATTRS = new Set(["href", "src", "poster"]);  // iframes only get allow-listed player URLs (see mediaFor)
 
   function h(tag, props, ...children) {
     const el = document.createElement(tag);
@@ -129,13 +129,15 @@
   applyTheme();
 
   // ------------------------------------------------------------------ filters
+  // "@inspiration" = visual mood-board mode (images, video, GIFs, links, textures); the query can still
+  // ask for fonts/icons/sfx/lottie by name ("font retro", "whoosh sfx").
   const KIND_CHIPS = [
-    ["", "All"], ["video,gif,motion", "Motion"], ["video", "Video"], ["motion", "Lottie"], ["gif", "GIF"],
+    ["@inspiration", "Inspiration"], ["", "Everything"], ["video,gif,motion", "Motion"], ["video", "Video"], ["motion", "Lottie"], ["gif", "GIF"],
     ["image", "Image"], ["icon", "Icon"], ["font", "Font"], ["texture", "Texture"], ["hdri", "HDRI"],
     ["3d", "3D"], ["audio", "Audio / SFX"], ["code,template", "Code & templates"],
   ];
   const filters = {
-    kinds: "",
+    kinds: "@inspiration",
     usage: store.get("usage", ""),
     sources: store.get("sources", ""),
     color: "",
@@ -178,7 +180,9 @@
     bar.append(h("label", { class: "toggle", title: "Also ask the live sources (otherwise only your bank)" }, live, "Live sources"));
   }
 
-  const filterParams = () => ({ kinds: filters.kinds, usage: filters.usage, sources: filters.sources });
+  const filterParams = () => (filters.kinds === "@inspiration"
+    ? { mode: "inspiration", usage: filters.usage, sources: filters.sources }
+    : { kinds: filters.kinds, usage: filters.usage, sources: filters.sources });
 
   // ------------------------------------------------------------------ masonry grid + infinite feed
   class Masonry {
@@ -566,7 +570,11 @@
     const box = h("div", { class: "detail-media" });
     const file = a.file_url && a.blob_mime ? a.file_url : "";
     const k = a.kind;
-    if (k === "video" || (k === "gif" && (a.video || /\.mp4/i.test(a.preview_url)))) {
+    const embed = a.extra && a.extra.embed;
+    if (embed && /^https:\/\/(player\.vimeo\.com|www\.youtube-nocookie\.com)\//.test(embed)) {
+      box.append(h("iframe", { src: embed, allow: "autoplay; fullscreen; picture-in-picture", allowfullscreen: true,
+        style: { width: "100%", aspectRatio: "16 / 9", border: "0" }, title: a.title || "video" }));
+    } else if (k === "video" || (k === "gif" && (a.video || /\.mp4/i.test(a.preview_url)))) {
       const src = (file && /^video\//.test(a.blob_mime)) ? file : (k === "gif" ? (a.video || a.preview_url) : a.preview_url);
       box.append(h("video", { src, poster: a.thumb || "", controls: true, autoplay: true, muted: true, loop: true, playsinline: true }));
     } else if (k === "audio") {
@@ -730,7 +738,8 @@
       h("div", { class: "row-form" }, iq, ik,
         h("button", { class: "btn primary", text: "Add interest", onclick: async () => {
           if (!iq.value.trim()) return;
-          await api.post("/api/interests", { query: iq.value.trim(), kinds: ik.value ? ik.value.split(",") : [] });
+          const kv = ik.value === "@inspiration" ? "image,gif,video,link,texture" : ik.value;
+          await api.post("/api/interests", { query: iq.value.trim(), kinds: kv ? kv.split(",") : [] });
           iq.value = ""; drawInterests(await api.get("/api/interests")); toast("Crawling in the background");
         } }),
         h("button", { class: "btn", text: "+ Starter pack (50 topics)", onclick: async () => {
@@ -740,11 +749,13 @@
 
     // save from anywhere
     const origin = location.origin;
-    const bm = `javascript:(()=>{const I=[...document.images].filter(i=>i.naturalWidth>=140&&i.naturalHeight>=140).sort((a,b)=>b.naturalWidth*b.naturalHeight-a.naturalWidth*a.naturalHeight).slice(0,36).map(i=>({src:i.currentSrc||i.src,w:i.naturalWidth,h:i.naturalHeight}));const o=document.querySelector('meta[property="og:image"]');if(o&&o.content)I.unshift({src:o.content,w:0,h:0});const V=[...document.querySelectorAll('video')].map(v=>({src:v.currentSrc||v.src,poster:v.poster})).filter(v=>v.src&&!v.src.startsWith('blob:'));const d={page:location.href,title:document.title,images:I,videos:V,sel:String(getSelection()).slice(0,500)};window.open('${origin}/save#'+encodeURIComponent(JSON.stringify(d)),'noze','width=760,height=780');})()`;
+    // Runs on the page you're looking at when you click it. On Pinterest it keeps feed order (that's
+    // Pinterest's own relevance), upgrades thumbnails to the 736px version and remembers each pin's link.
+    const bm = `javascript:(()=>{const P=/(^|\\.)pinterest\\./.test(location.hostname);const U=s=>P?s.replace(/\\/(\\d+x\\d*)\\//,'/736x/'):s;const S=new Set();let I=[];for(const i of document.images){if(i.naturalWidth<140||i.naturalHeight<140)continue;const s=U(i.currentSrc||i.src);if(!s||s.startsWith('data:')||S.has(s))continue;S.add(s);const a=i.closest('a[href*="/pin/"]');I.push({src:s,w:i.naturalWidth,h:i.naturalHeight,t:(i.alt||'').slice(0,160),p:a?a.href.split('?')[0]:''})}if(!P)I.sort((a,b)=>b.w*b.h-a.w*a.h);I=I.slice(0,P?150:40);const o=document.querySelector('meta[property="og:image"]');if(o&&o.content&&!S.has(o.content))I.unshift({src:o.content,w:0,h:0,t:'',p:''});const V=[...document.querySelectorAll('video')].map(v=>({src:v.currentSrc||v.src,poster:v.poster})).filter(v=>v.src&&!v.src.startsWith('blob:'));const d={page:location.href,title:document.title,images:I,videos:V,sel:String(getSelection()).slice(0,500)};window.open('${origin}/save#'+encodeURIComponent(JSON.stringify(d)),'noze','width=900,height=820');})()`;
     const link = h("a", { class: "bookmarklet", title: "Drag me to your bookmarks bar", onclick: (e) => { e.preventDefault(); toast("Drag this button to your bookmarks bar"); } }, icon("spark"), "Save to NOZE");
     link.setAttribute("href", bm);
     view.append(h("section", { class: "panel" }, h("h2", { text: "Save from anywhere (Pinterest, Behance, Dribbble, X, AI galleries…)" }),
-      h("p", { text: "Drag this button to your bookmarks bar. While browsing any site, click it, pick the images/videos you want and they're saved into your bank with the page link for credit — marked reference-only, because the rights stay with whoever made them." }),
+      h("p", { text: "Drag this button to your bookmarks bar. While browsing any site, click it, pick the images/videos you want and they're saved into your bank with the page link for credit — marked reference-only, because the rights stay with whoever made them. On Pinterest: open a pin (its \"More like this\" is Pinterest's own related engine), scroll a bit, click the button, \"Select all\" — every pin you're looking at lands in your bank in one go." }),
       link,
       h("p", { class: "muted", style: { marginTop: "12px" } }, "Import your own Pinterest boards via the official API: ", h("code", { text: "noze import-pinterest" }),
         " · index an existing asset folder: ", h("code", { text: "noze import-folder ~/Assets --board \"Old packs\"" }))));

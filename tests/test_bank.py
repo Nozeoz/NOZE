@@ -177,3 +177,22 @@ def test_deleted_thumbnails_are_rebuilt(ctx):
     assert ctx.db.reset_missing_thumbs(ctx.settings.thumbs_dir) == 1
     a = ctx.db.get_asset("testsrc:20")
     assert a["thumb_state"] == 0 and a["thumb_path"] is None
+
+
+def test_relevance_gate_cuts_partial_matches_and_inspiration_mode(ctx):
+    ctx.db.upsert_assets([
+        asset(30, "Y2K chrome render", ["y2k", "chrome", "3d"]),
+        asset(31, "Topps Chrome trading cards", ["cards"]),
+        asset(32, "The Y2K bug explained", ["news"]),
+        asset(33, "chrome", ["browser", "y2k"], kind=Kind.ICON),
+    ])
+    Enricher_embed(ctx)
+    r = Ranker(ctx)
+    pq = parse_query("y2k chrome")
+    f, _ = r.resolve_filters(SearchRequest(q="y2k chrome", mode="inspiration"), pq)
+    assert r.rank_query(pq, f) == ["testsrc:30"]  # half matches and icons are out
+    f_all, _ = r.resolve_filters(SearchRequest(q="y2k chrome"), pq)
+    assert set(r.rank_query(pq, f_all)) == {"testsrc:30", "testsrc:33"}
+    pq_icon = parse_query("chrome icon")
+    f_icon, applied = r.resolve_filters(SearchRequest(q="chrome icon", mode="inspiration"), pq_icon)
+    assert applied["kinds"] == [Kind.ICON] and r.rank_query(pq_icon, f_icon) == ["testsrc:33"]

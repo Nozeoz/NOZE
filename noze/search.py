@@ -14,6 +14,7 @@ How a search is ranked (roughly what Pinterest does, at personal scale):
 from __future__ import annotations
 
 import math
+import re
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -32,6 +33,8 @@ from .ranking import mmr, normalize, rrf
 VISUAL_BOOST = {"image": 0.12, "video": 0.12, "gif": 0.1, "motion": 0.08, "texture": 0.08, "hdri": 0.06,
                 "3d": 0.06, "link": 0.04}
 
+MIN_RELEVANCE = 0.5
+
 ACTION_WEIGHTS = {"view": 0.3, "open": 1.0, "copy": 1.0, "save": 3.0, "download": 3.5, "unsave": -1.0, "hide": -4.0}
 
 
@@ -46,6 +49,46 @@ class SearchRequest:
     per_page: int = 40
     live: bool = True
     auto_filters: bool = True
+    mode: str = ""  # "inspiration" = visual kinds unless the query asks for something else
+
+
+# Default "Inspiration" mode: what a mood board is made of. Icons, fonts, Lottie, audio,
+# code and 3D only join when you ask for them (chip or words like "font", "sfx", "lottie").
+INSPIRATION_KINDS = {"image", "gif", "video", "link", "texture"}
+
+_WORD = re.compile(r"[a-z0-9]+")
+
+
+def _stem(w: str) -> str:
+    for suf in ("ing", "es", "s"):
+        if len(w) > len(suf) + 3 and w.endswith(suf):
+            return w[: -len(suf)]
+    return w
+
+
+def _tokens(text: str) -> set[str]:
+    return {_stem(t) for t in _WORD.findall((text or "").lower())}
+
+
+def lexical_coverage(words: list[str], a: dict[str, Any]) -> tuple[float, float]:
+    """(share of query words in title/tags, overall share where a description hit counts 0.6)."""
+    if not words:
+        return 0.0, 0.0
+    strong = _tokens((a.get("title") or "") + " " + " ".join(a.get("tags") or []))
+    weak = _tokens((a.get("description") or "")[:600])
+    hard = soft = 0.0
+    for w in words:
+        sw = _stem(w)
+        if sw in strong or (len(sw) >= 5 and any(t.startswith(sw) for t in strong)):
+            hard += 1.0
+            soft += 1.0
+        elif sw in weak:
+            soft += 0.6
+    return hard / len(words), soft / len(words)
+
+
+def _sigmoid(x: float) -> float:
+    return 1.0 / (1.0 + math.exp(-x))
 
 
 class Ranker:
@@ -61,6 +104,8 @@ class Ranker:
         if not kinds and req.auto_filters and pq.kinds:
             kinds = set(pq.kinds)
             applied["kinds"] = sorted(kinds)
+        if not kinds and req.mode == "inspiration":
+            kinds = set(INSPIRATION_KINDS)
         usages = expand_usages(req.usages or [])
         if not usages and req.auto_filters and pq.usage:
             usages = expand_usages([pq.usage])
@@ -106,7 +151,7 @@ class Ranker:
     def _finish(self, fused: dict[str, float], filters: Filters, color: str | None = None,
                 taste_weight: float = 0.12, extra_boost: dict[str, float] | None = None,
                 exclude: set[str] | None = None, candidates: int = 900, saved_penalty: float = 0.0,
-                kind_boost: dict[str, float] | None = None) -> list[str]:
+                kind_boost: dict[str, float] | None = None, relevance: dict[str, float] | None = None) -> list[str]:
         if exclude:
             fused = {k: v for k, v in fused.items() if k not in exclude}
         ordered = sorted(fused, key=lambda k: -fused[k])[:candidates]
@@ -120,6 +165,8 @@ class Ranker:
         for k in ordered:
             r = rows.get(k) or {}
             s = scores[k]
+            if relevance is not None:
+                s = 0.45 * s + 0.55 * relevance.get(k, 0.0)
             s += 0.04 * math.log1p(max(0.0, r.get("popularity") or 0.0)) / max_pop
             if color:
                 s += 0.6 * color_match(r.get("colors"), color)
@@ -161,7 +208,44 @@ class Ranker:
             lists.append(([aid for aid, _ in vec_hits], 1.3 if self.ctx.semantic else 0.5))
         fused = rrf(lists)
         target = color or (pq.colors[0] if pq.colors else None)
-        return self._finish(fused, filters, color=target)
+        relevance = self.relevance(pq, list(fused), qv, hit_ids={h[0] for h in hits})
+        fused = {k: v for k, v in fused.items() if relevance.get(k, 0.0) >= MIN_RELEVANCE}
+        return self._finish(fused, filters, color=target, relevance=relevance)
+
+    def relevance(self, pq: ParsedQuery, ids: list[str], qv: np.ndarray | None,
+                  hit_ids: set[str] | None = None) -> dict[str, float]:
+        """0..1: does this asset actually match the query? Words in its title/tags, or (with
+        CLIP) a picture that is unusually close to the query. Cuts the long irrelevant tail."""
+        words = [w for w in (pq.text or pq.raw).lower().split() if w]
+        originals = [w for w in pq.terms if w not in words]
+        rows = self.db.get_assets(ids)
+        z = self.ctx.index.zscores(qv, ids) if qv is not None else {}
+        trusted = {name for name, cls in self.ctx.source_classes.items() if getattr(cls, "trust_match", False)}
+        out: dict[str, float] = {}
+        for k in ids:
+            a = rows.get(k)
+            if not a:
+                continue
+            strong, lex = lexical_coverage(words, a)
+            if originals:
+                o_strong, o_lex = lexical_coverage(originals, a)
+                strong, lex = max(strong, o_strong), max(lex, o_lex)
+            zk = z.get(k)
+            if zk is None:
+                sem = 0.0
+            elif self.ctx.semantic:
+                sem = _sigmoid(1.8 * (zk - 1.6))  # z≈1.6 → 0.5, z≈2.6 → 0.86
+            else:
+                sem = 0.5 * _sigmoid(1.5 * (zk - 2.0))  # hash vectors are just words + colors
+            lex = lex ** 1.4  # half the words isn't half relevant: "y2k" alone ≠ "y2k chrome"
+            rel = max(lex, sem, 0.7 * lex + 0.5 * sem)
+            if hit_ids and k in hit_ids:
+                if a["source"] in trusted:
+                    rel = max(rel, 0.6)  # sources that match on tags/vibes the text doesn't show
+                elif strong > 0 or sem > 0.3:
+                    rel += 0.1  # the source's own search engine picked it for this query
+            out[k] = min(1.0, rel)
+        return out
 
     def browse(self, filters: Filters, seed: int) -> list[str]:
         lists = [

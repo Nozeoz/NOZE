@@ -6,13 +6,14 @@ Satu tempat buat nyari **referensi & aset** (motion, video, Lottie, GIF, gambar,
 
 ## Yang bisa dilakukan
 
-- **Sekali cari, 23 sumber** (17 langsung jalan tanpa API key): Openverse (800 jt+ media CC), Wikimedia Commons, Poly Haven, ambientCG, NASA, The Met, Art Institute of Chicago, Cleveland Museum, Smithsonian, Europeana, Internet Archive, Iconify, Fontsource, GitHub, Are.na, LottieFiles, Civitai (hasil AI publik) — plus Pexels, Pixabay, Unsplash, Freesound, GIPHY, Reddit kalau kamu isi API key gratisnya. Daftar lengkap: [docs/SOURCES.md](docs/SOURCES.md).
+- **Sekali cari, 29 sumber** (18 langsung jalan tanpa API key): Openverse (800 jt+ media CC), Wallhaven, Wikimedia Commons, Poly Haven, ambientCG, NASA, The Met, Art Institute of Chicago, Cleveland Museum, Smithsonian, Europeana, Internet Archive, Iconify, Fontsource, GitHub, Are.na, LottieFiles, Civitai (hasil AI publik) — plus Pexels, Pixabay, Unsplash, Tumblr, Flickr, DeviantArt, Vimeo, YouTube, Freesound, GIPHY, Reddit kalau kamu isi API key gratisnya. Daftar lengkap: [docs/SOURCES.md](docs/SOURCES.md).
 - **Ngerti vibe, bukan cuma kata kunci.** Dengan CLIP, "old scratched metal surface" nemu tekstur karat & logam baret walau judulnya nggak nyebut itu. Ketik pakai **bahasa Indonesia** juga bisa: "hujan malam kota neon video gratis" → dicari sebagai *rain night city neon*, otomatis filter video & lisensi aman.
 - **"More like this" ala Pinterest**: gabungan kemiripan visual, board yang sering barengan (punyamu + channel Are.na), tag, palet warna, dan kreator yang sama.
 - **Feed "For you"** yang belajar dari yang kamu buka, simpan, download, dan "Not my vibe".
 - **Label lisensi di setiap aset** — jawaban "bisa dipake nggak?": `Free` (komersial OK tanpa kredit) · `Credit` (wajib kredit) · `Non-comm.` · `Ref only` (cuma referensi) · `Check` (cek dulu) · `Mine`. Filter "Usable commercially" tinggal klik.
 - **Board + bank**: tekan *Save* → file aslinya otomatis di-download ke bank (dedup pakai SHA-256). *Export pack* → zip berisi semua file + `CREDITS.txt` yang sudah dikelompokkan per lisensi.
-- **Save dari mana aja** (Pinterest, Behance, Dribbble, X, galeri AI kayak Dreamina/Higgsfield/Kling): bookmarklet "Save to NOZE" → pilih gambar/video → masuk bank dengan link sumber untuk kredit.
+- **Mode Inspiration** (default): hasil pencarian fokus ke visual (gambar, video, GIF, link, tekstur). Ikon/font/Lottie/SFX/kode cuma muncul kalau kamu minta ("font retro", "whoosh sfx") atau pilih chip-nya. Hasil yang cuma nyerempet satu kata dibuang.
+- **Pinterest lewat bookmarklet**: buka Pinterest seperti biasa → klik "Save to NOZE" → *Select all* → semua pin yang kamu lihat (versi 736px + link pin) masuk bank sekaligus, dan saling terhubung untuk "More like this". Berlaku juga buat Behance, Dribbble, X, galeri AI (Dreamina/Higgsfield/Kling). Detail: [docs/SOURCES.md](docs/SOURCES.md#pinterest).
 - **Import** folder aset lama (`noze import-folder`) dan board Pinterest **milikmu sendiri** lewat API resmi (`noze import-pinterest`).
 - **Bank tumbuh sendiri**: tambah "interest" (mis. *liquid chrome*, *film burn transition*) atau *starter pack* 50 topik motion/design → di-crawl di background tiap hari, makin dalam tiap putaran.
 - **Generate yang nggak ketemu** (opsional): Seedance (video) / FLUX (gambar) via Replicate, hasilnya masuk bank sebagai asetmu.
@@ -42,6 +43,8 @@ Isi API key (opsional) di `.env` — lihat [.env.example](.env.example). Mau dib
 ## Soal Pinterest & "free"
 
 Konten Pinterest **bukan** otomatis bebas pakai: kebanyakan pin adalah repost karya orang lain, hak ciptanya tetap milik kreator aslinya, dan ToS Pinterest melarang scraping. Jadi NOZE sengaja:
+
+Pinterest juga nggak punya API pencarian publik — API resminya cuma bisa baca board milikmu sendiri.
 
 1. narik dari sumber yang **lisensinya jelas** (CC0, public domain, Pexels/Unsplash/Pixabay License, CC BY, OFL, MIT, Lottie Simple License…), dengan label per aset;
 2. nyimpen **referensi dari situs mana pun** lewat bookmarklet — kamu yang milih, kayak nekan "Save" — ditandai `Ref only`;

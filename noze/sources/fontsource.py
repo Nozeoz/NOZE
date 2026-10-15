@@ -34,6 +34,7 @@ class Fontsource(Source):
     homepage = "https://fontsource.org"
     description = "Open-source fonts (all Google Fonts + more): searchable by name and vibe."
     kinds = (Kind.FONT,)
+    trust_match = True
 
     def __init__(self, settings, http):
         super().__init__(settings, http)
@@ -90,7 +91,8 @@ class Fontsource(Source):
         weight = 400 if 400 in weights else weights[0]
         styles = f.get("styles") or ["normal"]
         style = "normal" if "normal" in styles else styles[0]
-        tags = [f.get("category"), f.get("type")] + (["variable"] if f.get("variable") else []) + list(f.get("subsets") or [])[:4]
+        vibes = [v for v, cats in FONT_VIBES.items() if f.get("category") in cats]
+        tags = [f.get("category"), f.get("type")] + (["variable"] if f.get("variable") else []) + vibes
         return self.make(
             source_id=fid,
             kind=Kind.FONT,

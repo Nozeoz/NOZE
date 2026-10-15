@@ -16,6 +16,7 @@ class Iconify(Source):
     label = "Iconify"
     homepage = "https://icon-sets.iconify.design"
     description = "200k+ open-source SVG icons from 150+ icon sets, each with its own license."
+    trust_match = True
     kinds = (Kind.ICON,)
 
     async def search(self, query, kinds, page, limit, cursor=None) -> SearchResult:
