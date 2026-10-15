@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Save to NOZE</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <style>
+    body { padding: 18px; }
+    .picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin: 14px 0; }
+    .pick { position: relative; border-radius: 12px; overflow: hidden; background: var(--bg-3); border: 3px solid transparent; cursor: pointer; aspect-ratio: 1; padding: 0; }
+    .pick img, .pick video { width: 100%; height: 100%; object-fit: cover; }
+    .pick.on { border-color: var(--accent); }
+    .pick .tick { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: #fff; display: none; place-items: center; font-weight: 800; }
+    .pick.on .tick { display: grid; }
+    .pick .size { position: absolute; left: 6px; bottom: 6px; }
+    header { display: flex; align-items: center; gap: 10px; }
+    header .page { color: var(--text-3); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .row input { flex: 1; min-width: 160px; height: 38px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg-3); padding: 0 12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="logo"><span class="dot"></span>NOZE</span>
+    <div style="min-width:0"><b>Save to your bank</b><div class="page" id="page"></div></div>
+  </header>
+  <p class="muted" id="hint">Pick what to keep. It's saved with this page's link for credit and marked reference-only (the rights stay with the creator).</p>
+  <div class="picks" id="picks"></div>
+  <div class="row">
+    <input id="board" placeholder="Board (e.g. Moodboard – client X)">
+    <input id="note" placeholder="Note (optional)">
+  </div>
+  <div class="row" style="margin-top:10px">
+    <button class="btn primary" id="save">Save selected</button>
+    <button class="btn" id="all">Select all</button>
+    <button class="btn" id="none">None</button>
+    <button class="btn" id="save-page">Save page as link</button>
+    <button class="btn ghost" onclick="window.close()">Close</button>
+  </div>
+  <div class="toasts" id="toasts"></div>
+  <script>
+  (() => {
+    const $ = (s) => document.querySelector(s);
+    const safe = (u) => (typeof u === "string" && /^https?:\/\//i.test(u) ? u : "");
+    let data = { page: "", title: "", images: [], videos: [], sel: "" };
+    try { data = Object.assign(data, JSON.parse(decodeURIComponent(location.hash.slice(1)))); } catch (e) { /* opened directly */ }
+    history.replaceState(null, "", location.pathname);
+    const toast = (m, err) => { const t = document.createElement("div"); t.className = "toast" + (err ? " err" : ""); t.textContent = m; $("#toasts").append(t); setTimeout(() => t.remove(), 3500); };
+    try { $("#board").value = JSON.parse(localStorage.getItem("noze.lastBoard") || '""'); } catch (e) { /* ignore */ }
+    $("#page").textContent = data.title ? `${data.title} — ${data.page}` : data.page;
+    if (data.sel) $("#note").value = data.sel.slice(0, 300);
+    const seen = new Set();
+    const items = [];
+    for (const v of data.videos || []) if (safe(v.src) && !seen.has(v.src)) { seen.add(v.src); items.push({ url: v.src, video: true, poster: safe(v.poster) }); }
+    for (const i of data.images || []) if (safe(i.src) && !seen.has(i.src)) { seen.add(i.src); items.push({ url: i.src, w: i.w, h: i.h, title: i.t || "", page: safe(i.p) }); }
+    const picks = $("#picks");
+    items.forEach((it, idx) => {
+      const b = document.createElement("button");
+      b.className = "pick" + (idx === 0 ? " on" : "");
+      b.type = "button";
+      const m = document.createElement(it.video ? "video" : "img");
+      m.src = it.video ? (it.poster || it.url) : it.url;
+      if (it.video) { m.muted = true; m.src = it.url; if (it.poster) m.poster = it.poster; }
+      m.referrerPolicy = "no-referrer";
+      const tick = document.createElement("span"); tick.className = "tick"; tick.textContent = "✓";
+      const size = document.createElement("span"); size.className = "badge size"; size.textContent = it.video ? "video" : (it.w ? `${it.w}×${it.h}` : "cover");
+      b.append(m, tick, size);
+      b.onclick = () => b.classList.toggle("on");
+      it.el = b;
+      picks.append(b);
+    });
+    if (!items.length) $("#hint").textContent = "No images found on that page — you can still save the page as a link.";
+    async function post(url, it) {
+      const title = (it && it.title) || (items.length > 1 ? "" : data.title);
+      const res = await fetch("/api/ingest/url", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, page_url: (it && it.page) || safe(data.page), title, note: $("#note").value, board: $("#board").value.trim() || null, tags: [], context: safe(data.page) }) });
+      if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.detail || res.statusText); }
+      return res.json();
+    }
+    async function done(n) {
+      try { localStorage.setItem("noze.lastBoard", JSON.stringify($("#board").value.trim())); } catch (e) { /* ignore */ }
+      toast(`Saved ${n} item${n === 1 ? "" : "s"} ✓`);
+      setTimeout(() => window.close(), 1200);
+    }
+    $("#save").onclick = async () => {
+      const chosen = items.filter((i) => i.el.classList.contains("on"));
+      if (!chosen.length) return toast("Pick at least one", true);
+      $("#save").disabled = true;
+      let ok = 0, failed = 0, next = 0;
+      const worker = async () => {
+        while (next < chosen.length) {
+          const it = chosen[next++];
+          try { await post(it.url, it); ok++; it.el.style.opacity = ".35"; } catch (e) { failed++; }
+          $("#save").textContent = `Saving ${ok + failed}/${chosen.length}…`;
+        }
+      };
+      await Promise.all([worker(), worker(), worker(), worker()]);
+      $("#save").disabled = false;
+      $("#save").textContent = "Save selected";
+      if (failed) toast(`${failed} couldn't be saved`, true);
+      if (ok) done(ok);
+    };
+    $("#all").onclick = () => items.forEach((i) => i.el.classList.add("on"));
+    $("#none").onclick = () => items.forEach((i) => i.el.classList.remove("on"));
+    $("#save-page").onclick = async () => {
+      if (!safe(data.page)) return toast("No page URL", true);
+      try { await post(data.page); done(1); } catch (e) { toast(e.message, true); }
+    };
+  })();
+  </script>
+</body>
+</html>
