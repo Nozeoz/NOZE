@@ -93,7 +93,7 @@ def parse_subtitles(text: str) -> list[dict[str, Any]]:
             continue
         segments.append({"start": round(start, 3), "end": round(end, 3), "text": clean,
                          "words": words or spread_words(clean, start, end)})
-    return _dedupe_rolling(segments)
+    return _dedupe_rolling(segments) if youtube_style else segments
 
 
 def _dedupe_rolling(segments: list[dict[str, Any]]) -> list[dict[str, Any]]:

@@ -85,6 +85,10 @@ class AgencyWeb:
         if self._runner:
             self._runner[1].set()
 
+    @property
+    def running(self) -> bool:
+        return self._runner is not None and self._runner[0].is_alive()
+
 
 def _job_json(ax, j: dict[str, Any]) -> dict[str, Any]:
     camp = ax.store.get_campaign(j["campaign_id"]) if j.get("campaign_id") else None
@@ -116,7 +120,7 @@ def mount(app: FastAPI, web: AgencyWeb) -> None:
             return {"jobs": [_job_json(a, j) for j in jobs], "counts": a.store.state_counts("clip"),
                     "alerts": Manager(a).monitor(), "spend_24h": round(a.store.spend(since=time.time() - 86400), 3),
                     "llm": {"available": a.llm.available, "reason": a.llm.reason, "model": a.cfg.model},
-                    "auto_approve": a.cfg.auto_approve, "runner": web._runner is not None}
+                    "auto_approve": a.cfg.auto_approve, "runner": web.running}
         return await run_in_threadpool(work)
 
     @app.get("/api/agency/jobs/{job_id}")

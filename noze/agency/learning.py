@@ -226,10 +226,13 @@ class Learner:
             reflection = self.reflect(traj)
             changes = self.curate(reflection, traj)
         self.store.merge_job_data(job["id"], {"learned": True, "learning": changes})
-        self.store.add_metric(job["id"], "first_pass", 1.0 if traj["first_pass"] else 0.0)
-        self.store.add_metric(job["id"], "rounds", float(traj["rounds"]))
-        self.store.add_metric(job["id"], "escalated", 1.0 if traj["escalated"] else 0.0)
-        self.store.add_metric(job["id"], "approved", 1.0 if job["state"] == "delivered" else 0.0)
+        if any(r["by"] == "reviewer" for r in traj["reviews"]):
+            # quality metrics only for clips that were actually reviewed — a missing file or a
+            # full disk says nothing about the team's craft (and must not trip the guard)
+            self.store.add_metric(job["id"], "first_pass", 1.0 if traj["first_pass"] else 0.0)
+            self.store.add_metric(job["id"], "rounds", float(traj["rounds"]))
+            self.store.add_metric(job["id"], "escalated", 1.0 if traj["escalated"] else 0.0)
+            self.store.add_metric(job["id"], "approved", 1.0 if job["state"] == "delivered" else 0.0)
         promo = self.promote_and_prune()
         mined = self.mine_recurring()
         guard = self.regression_guard()
@@ -362,14 +365,17 @@ class Learner:
 
     def mine_recurring(self, window: int = 20, min_clips: int = 3, share: float = 0.3) -> list[str]:
         """Issues that keep failing first-round review become preventive editor rules."""
-        clips = [j for j in self.store.list_jobs(kind="clip", limit=window * 3) if j["state"] in TERMINAL][:window]
+        firsts = []
+        for j in self.store.list_jobs(kind="clip", limit=window * 3):
+            first = next((r for r in self.store.reviews(j["id"]) if r["reviewer"] == "reviewer"), None)
+            if j["state"] in TERMINAL and first:
+                firsts.append(first)
+        clips = firsts[:window]
         if len(clips) < min_clips:
             return []
         counts: Counter = Counter()
-        for j in clips:
-            first = next((r for r in self.store.reviews(j["id"]) if r["reviewer"] == "reviewer"), None)
-            if first:
-                counts.update({i.get("id") for i in first.get("issues") or [] if i.get("id") in PREVENTIVE})
+        for first in clips:
+            counts.update({i.get("id") for i in first.get("issues") or [] if i.get("id") in PREVENTIVE})
         added = []
         for issue_id, n in counts.items():
             if n >= min_clips and n / len(clips) >= share:
@@ -387,7 +393,8 @@ class Learner:
     def regression_guard(self) -> dict[str, Any]:
         """Quarantine lessons that went live right before quality dropped."""
         finished = [j for j in self.store.list_jobs(kind="clip", limit=500)
-                    if j["state"] in TERMINAL and j.get("finished_at")]
+                    if j["state"] in TERMINAL and j.get("finished_at")
+                    and "first_pass" in self.store.job_metrics(j["id"])]  # reviewed clips only
         finished.sort(key=lambda j: j["finished_at"])
         last_rb = float(self.store.get_meta("guard_last_rollback", "0") or 0)
         finished_after_rb = [j for j in finished if j["finished_at"] > last_rb]

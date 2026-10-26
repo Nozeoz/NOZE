@@ -19,7 +19,6 @@ What the research found (Oct 2026) and therefore what this module does:
 
 from __future__ import annotations
 
-import asyncio
 import html
 import logging
 import re
@@ -31,9 +30,9 @@ from urllib.parse import urlparse
 
 import httpx
 
-from ..http import check_public_url
 from .config import DEFAULT_SUBREDDITS
 from .context import AgencyContext
+from .media.fetch import safe_stream
 from .roles import Manager
 
 log = logging.getLogger("noze.agency.leads")
@@ -80,13 +79,18 @@ def fetch_page_text(url: str, allow_private: bool = False) -> str:
     if automation_forbidden(url):
         raise PermissionError(f"{urlparse(url).hostname} doesn't allow automated access — copy the campaign "
                               "terms from the page and pass them with --terms / --terms-file")
-    asyncio.run(check_public_url(url, allow_private))
-    with httpx.Client(follow_redirects=True, timeout=20.0, headers={"User-Agent": UA}) as client:
-        r = client.get(url)
-        r.raise_for_status()
-        for hop in r.history:
-            asyncio.run(check_public_url(str(hop.headers.get("location") or hop.url), allow_private))
-        return html_to_text(r.text)[:30000] if "html" in r.headers.get("content-type", "") else r.text[:30000]
+    with httpx.Client(timeout=20.0, headers={"User-Agent": UA}) as client:
+        with safe_stream(client, url, allow_private) as resp:
+            raw = b""
+            for chunk in resp.iter_bytes(1 << 16):
+                raw += chunk
+                if len(raw) > 3 * 1024 * 1024:
+                    break
+            text = raw.decode(resp.encoding or "utf-8", errors="replace")
+            if automation_forbidden(str(resp.url)):  # a redirect landed on a no-automation site
+                raise PermissionError(f"{urlparse(str(resp.url)).hostname} doesn't allow automated access — "
+                                      "paste the campaign terms instead")
+            return html_to_text(text)[:30000] if "html" in resp.headers.get("content-type", "") else text[:30000]
 
 
 class LeadFinder:

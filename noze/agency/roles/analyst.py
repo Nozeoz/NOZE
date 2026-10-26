@@ -73,6 +73,9 @@ def sentences(words: list[dict[str, Any]], max_gap: float = 0.6) -> list[dict[st
             for s in out if s]
 
 
+JUMP_CUT_SLACK = 1.15
+
+
 def snap_moment(m: dict[str, Any], words: list[dict[str, Any]], min_s: float, max_s: float) -> dict[str, Any] | None:
     """Move a moment's edges to word/sentence boundaries; enforce the length window."""
     if not words:
@@ -87,23 +90,21 @@ def snap_moment(m: dict[str, Any], words: list[dict[str, Any]], min_s: float, ma
     if not ends:
         return None
 
-    def fits(s: dict[str, Any]) -> bool:
-        return min_s <= s["end"] - start_sent["start"] <= max_s
+    def span(s: dict[str, Any]) -> float:
+        return s["end"] - start_sent["start"]
 
-    good = [s for s in ends if fits(s)]
-    end_sent = (min(good, key=lambda s: abs(s["end"] - target_end)) if good
-                else min(ends, key=lambda s: abs(s["end"] - target_end)))
-    if end_sent["end"] - start_sent["start"] > max_s:  # too long even at the nearest boundary: cut at the last fit
-        inside = [s for s in ends if s["end"] - start_sent["start"] <= max_s]
-        if not inside:
-            return None
-        end_sent = inside[-1]
+    # Jump cuts take pauses out, so aim ~15% above the minimum when the talk allows it.
+    good = ([s for s in ends if min_s * JUMP_CUT_SLACK <= span(s) <= max_s]
+            or [s for s in ends if min_s <= span(s) <= max_s])
+    if not good:
+        return None  # this stretch can't make a clip of the required length
+    end_sent = min(good, key=lambda s: abs(s["end"] - target_end))
     prev_end = sents[i0 - 1]["end"] + 0.02 if i0 > 0 else 0.0
     j = sents.index(end_sent)
     next_start = sents[j + 1]["start"] if j + 1 < len(sents) else end_sent["end"] + 1.0
     start = max(prev_end, start_sent["start"] - 0.12)
     end = min(next_start - 0.02, end_sent["end"] + 0.25)
-    if end - start < max(3.0, 0.75 * min_s):  # can't reach the brief's minimum length here
+    if end - start < max(3.0, min_s):
         return None
     return {**m, "start_s": round(start, 3), "end_s": round(end, 3)}
 

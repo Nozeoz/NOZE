@@ -161,7 +161,7 @@ class Manager(Role):
         picked: list[dict[str, Any]] = []
         for m in sorted(moments, key=overall, reverse=True):
             d = m["end_s"] - m["start_s"]
-            if d < max(3.0, min_s * 0.6) or d > max_s * 1.4:
+            if d < max(3.0, min_s) or d > max_s * 1.4:
                 continue
             if any(not (m["end_s"] <= p["start_s"] or m["start_s"] >= p["end_s"]) for p in picked):
                 continue

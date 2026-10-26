@@ -13,6 +13,8 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
+import re
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -21,7 +23,7 @@ from typing import Any
 from ..standards import DELIVERY
 from .analyze import loudness, loudnorm_measure
 from .captions import AssDoc, add_flash, build_captions, build_overlays, caption_styles, overlay_styles, pick_font
-from .ffmpeg import MediaError, esc_filter_value, probe, run
+from .ffmpeg import MediaError, probe, run
 from .timeline import Timeline
 
 log = logging.getLogger("noze.agency.render")
@@ -116,6 +118,22 @@ class Renderer:
     def __init__(self, spec: RenderSpec, fonts_dir: Path | None = None):
         self.spec = spec
         self.fonts_dir = fonts_dir
+
+    def _fonts_arg(self, work_dir: Path) -> str:
+        """fontsdir for the ass filter, as a path free of filtergraph metacharacters: a path
+        relative to ffmpeg's cwd when that's clean, else a private copy of the fonts."""
+        try:
+            rel = os.path.relpath(self.fonts_dir, work_dir).replace(os.sep, "/")
+        except ValueError:  # different drive on Windows
+            rel = ""
+        if rel and not re.search(r"[':,;\[\]\\]", rel):
+            return rel
+        local = work_dir / "fonts"
+        local.mkdir(exist_ok=True)
+        for f in self.fonts_dir.iterdir():
+            if f.is_file() and not (local / f.name).exists():
+                shutil.copyfile(f, local / f.name)
+        return "fonts"
 
     def _render_segment(self, source: Path, seg: dict[str, Any], speed: float, dur: float, trans: str, nxt: str,
                         src_w: int, src_h: int, has_audio: bool, dest: Path) -> None:
@@ -247,8 +265,8 @@ class Renderer:
         color = COLOR_FILTERS.get(plan.get("color") or "none", "")
         if color:
             vf.append(color)
-        fonts = f":fontsdir='{esc_filter_value(str(self.fonts_dir))}'" if self.fonts_dir and self.fonts_dir.exists() else ""
-        vf.append(f"ass=filename='{esc_filter_value(ass_path.name)}'{fonts}")
+        fonts = f":fontsdir='{self._fonts_arg(work_dir)}'" if self.fonts_dir and self.fonts_dir.exists() else ""
+        vf.append(f"ass=filename='{ass_path.name}'{fonts}")
         g.append(f"[vcat]{','.join(vf)}[vass]")
         vout = "[vass]"
         if bar_idx is not None:

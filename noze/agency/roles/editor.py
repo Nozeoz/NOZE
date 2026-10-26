@@ -21,6 +21,11 @@ log = logging.getLogger("noze.agency.editor")
 
 SFX_SPACING = {"none": 0.0, "low": 6.0, "medium": 3.5, "high": 2.0}
 
+# Fixes that are safe to re-apply on top of a model's revision: idempotent and not tied to
+# the old render's timecodes (those would cut/shift the *new* timeline in the wrong place).
+SAFE_AFTER_MODEL = {"hook:silent_open", "hook:slow_open", "captions:missing", "visual:black_frames",
+                    "audio:loudness", "audio:true_peak", "compliance:too_long"}
+
 
 def short_hook(text: str, max_words: int = 7) -> str:
     words = re.sub(r"\s+", " ", text or "").strip().split()
@@ -47,6 +52,10 @@ def comply_post(post: dict[str, Any], brief: dict[str, Any], fallback_caption: s
     disclosure = (req.get("disclosure") or "").strip()
     if disclosure and disclosure.lower() not in caption.lower():
         caption = f"{disclosure} {caption}".strip()
+    for b in (x.strip() for x in req.get("banned") or []):
+        if b:
+            caption = re.sub(r"\s{2,}", " ", re.sub(re.escape(b), "", caption, flags=re.I)).strip()
+            post["hashtags"] = [t for t in post["hashtags"] if b.lower() not in t.lower()]
     post["caption"] = caption
     return post
 
@@ -246,9 +255,9 @@ class Editor(Role):
         if out is None:
             out = self.apply_fixes(plan, issues, prep, blueprint, brief)
         else:
-            # deterministic fixes still run for measurable QC problems the model may have missed
-            out = self.apply_fixes(out, [i for i in issues if i.get("source") == "qc"], prep, blueprint, brief,
-                                   keep_fixes=True)
+            # idempotent deterministic fixes still run for measurable problems the model may have missed
+            out = self.apply_fixes(out, [i for i in issues if i.get("id") in SAFE_AFTER_MODEL], prep, blueprint,
+                                   brief, keep_fixes=True)
         return self.finalize(out, moment, brief, blueprint, prep)
 
     def apply_fixes(self, plan: dict[str, Any], issues: list[dict[str, Any]], prep: dict[str, Any],
@@ -263,6 +272,17 @@ class Editor(Role):
         def note(iid: str, change: str) -> None:
             fixes.append({"issue_id": iid, "change": change})
 
+        def shift_cues(a: float, b: float) -> None:
+            """Output time [a, b] was removed: later SFX/text move earlier with the picture."""
+            cut = b - a
+            for cue in p["sfx"]:
+                t = float(cue["at"])
+                cue["at"] = round(t - cut if t >= b else (a if t > a else t), 3)
+            for o in p["overlays"]:
+                for key in ("start", "end"):
+                    t = float(o[key])
+                    o[key] = round(t - cut if t >= b else (a if t > a else t), 3)
+
         # Timecoded fixes run latest-first: cutting late material never shifts earlier timecodes.
         ordered = sorted(issues, key=lambda i: -(i.get("timecode_s") if i.get("timecode_s") is not None else -1))
         for iss in ordered:
@@ -274,12 +294,18 @@ class Editor(Role):
                 b = float(ev.get("end", float(tc) + 1.0)) - 0.12
                 if b - a > 0.1:
                     p["segments"] = segs = remove_output_range(segs, a, b)
+                    shift_cues(a, b)
                     tl = Timeline(sanitize_segments(segs, 1e9))
                     note(iid, f"cut the measured pause {a:.2f}-{b:.2f}s (output)")
             elif iid == "hook:silent_open" and segs:
                 first_word = next((w for w in prep["words"] if w["start"] >= segs[0]["src_start"] - 0.05), None)
                 if first_word and first_word["start"] - 0.1 > segs[0]["src_start"]:
+                    trimmed = (first_word["start"] - 0.1 - segs[0]["src_start"]) / float(segs[0].get("speed") or 1.0)
                     segs[0]["src_start"] = round(first_word["start"] - 0.1, 3)
+                    shift_cues(0.0, trimmed)
+                    for o in p["overlays"]:  # text that opened the clip still opens it
+                        o["end"] = max(o["end"], o["start"] + 0.5)
+                    tl = Timeline(sanitize_segments(segs, 1e9))
                     note(iid, f"first segment now starts on the first word ({first_word['word']})")
             elif iid == "hook:slow_open":
                 if not any(o["kind"] == "hook_title" for o in p["overlays"]):

@@ -101,8 +101,3 @@ def probe(path: str | Path) -> dict[str, Any]:
         })
     return out
 
-
-def esc_filter_value(text: str) -> str:
-    """Escape a value (usually a path) for use inside a filtergraph option."""
-    return (text.replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
-            .replace(",", "\\,").replace("[", "\\[").replace("]", "\\]").replace(";", "\\;"))

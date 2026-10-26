@@ -350,21 +350,41 @@ class Store:
             self._update("jobs", "id", job_id, {"data": data})
             return data
 
-    def claim_jobs(self, states: Iterable[str], limit: int = 1, lease_s: float = 1800.0) -> list[dict[str, Any]]:
-        """Lease due jobs in the given states so two runners never work on the same job.
+    def claim_jobs(self, states: Iterable[str], limit: int = 1, lease_s: float = 7200.0) -> list[dict[str, Any]]:
+        """Lease due jobs in the given states so two runners (threads *or* processes) never
+        work on the same job: select + lease happen in one IMMEDIATE transaction.
         A crashed runner's lease simply expires and the job is picked up again."""
         states = list(states)
         t = now()
         with self._lock:
-            rows = self.conn().execute(
-                f"SELECT id FROM jobs WHERE state IN ({','.join('?' * len(states))}) AND next_run <= ? "
-                "AND locked_until <= ? ORDER BY priority DESC, id LIMIT ?",
-                (*states, t, t, limit),
-            ).fetchall()
-            ids = [r[0] for r in rows]
-            for jid in ids:
-                self.conn().execute("UPDATE jobs SET locked_until = ? WHERE id = ?", (t + lease_s, jid))
+            c = self.conn()
+            c.execute("BEGIN IMMEDIATE")
+            try:
+                rows = c.execute(
+                    f"SELECT id FROM jobs WHERE state IN ({','.join('?' * len(states))}) AND next_run <= ? "
+                    "AND locked_until <= ? ORDER BY priority DESC, id LIMIT ?",
+                    (*states, t, t, limit),
+                ).fetchall()
+                ids = [r[0] for r in rows]
+                for jid in ids:
+                    c.execute("UPDATE jobs SET locked_until = ? WHERE id = ?", (t + lease_s, jid))
+                c.execute("COMMIT")
+            except BaseException:
+                c.execute("ROLLBACK")
+                raise
         return [self.get_job(j) for j in ids]
+
+    def transition(self, job_id: int, from_state: str, **fields: Any) -> bool:
+        """Compare-and-set: apply ``fields`` only if the job is still in ``from_state``
+        (so a human decision and the runner can't overwrite each other)."""
+        cols, params = [], []
+        for k, v in fields.items():
+            cols.append(f"{k} = ?")
+            params.append(dumps(v) if k in JSON_COLS["jobs"] else v)
+        cols.append("updated_at = ?")
+        params.append(now())
+        cur = self.w(f"UPDATE jobs SET {', '.join(cols)} WHERE id = ? AND state = ?", (*params, job_id, from_state))
+        return cur.rowcount == 1
 
     def release_job(self, job_id: int) -> None:
         self.w("UPDATE jobs SET locked_until = 0 WHERE id = ?", (job_id,))

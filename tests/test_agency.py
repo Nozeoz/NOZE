@@ -322,3 +322,43 @@ def test_manager_routines_write_the_team_report_on_schedule(ax):
     assert ag.routines() == ["team_report"]
     assert list((ax.cfg.reports_dir / "team").glob("team_*.md"))
     assert ag.routines() == []  # not again until the interval passes
+
+
+def test_model_revision_is_not_recut_with_stale_timecodes(ax, monkeypatch):
+    """The model already cut the pause; the old render's dead-air timecode must not cut speech now."""
+    words = [{"start": round(10 + 0.4 * i, 2), "end": round(10 + 0.4 * i + 0.35, 2), "word": f"a{i}"} for i in range(10)]
+    words += [{"start": round(15 + 0.4 * i, 2), "end": round(15 + 0.4 * i + 0.35, 2), "word": f"b{i}"} for i in range(12)]
+    model_plan = conform({"segments": [seg(10.0, 14.0), seg(15.0, 20.0)], "captions": {"words_per_caption": 3},
+                          "fixes": [{"issue_id": "pacing:dead_air", "change": "cut the pause"}]}, EDIT_PLAN)
+    ed = Editor(ax)
+    monkeypatch.setattr(ed, "ask", lambda *a, **k: model_plan)
+    issue = {"id": "pacing:dead_air", "source": "qc", "severity": "major", "timecode_s": 4.0,
+             "evidence": {"start": 4.0, "end": 5.0}, "description": "", "fix": ""}
+    prep = {"words": words, "moment_words": words, "sheets": [], "ranges": [], "source_info": {"duration": 60}}
+    out = ed.revise({"id": 1, "campaign_id": None}, model_plan, [issue], {"start_s": 10.0, "end_s": 20.0},
+                    conform({}, BRIEF), {}, prep, [])
+    kept = {w["word"] for w in Timeline(out["segments"]).map_words(words)}
+    assert kept == {w["word"] for w in words}
+
+
+def test_too_short_clip_gets_a_longer_moment(ax):
+    from noze.agency.pipeline import Agency
+
+    words, t = [], 0.0
+    while t < 60:
+        for k in range(5):
+            words.append({"start": round(t + 0.35 * k, 2), "end": round(t + 0.35 * k + 0.3, 2),
+                          "word": "w." if k == 4 else "w"})
+        t += 2.0
+    moment = {"start_s": 10.0, "end_s": 20.0}
+    brief = conform({"clip_length": {"min_s": 15, "max_s": 30}}, BRIEF)
+    jid = ax.store.create_job("clip", "revising", title="short", input={"moment": moment})
+    ax.store.put_artifact(jid, "render", {"duration": 8.9})
+    new = Agency(ax)._extend_moment(ax.store.get_job(jid), {"moment": moment, "brief": brief, "words": words})
+    assert new["end_s"] >= 26.0 and ax.store.get_job(jid)["input"]["moment"]["end_s"] == new["end_s"]
+    ed = Editor(ax)
+    plan = conform({"segments": [seg(10.0, 13.5), seg(14.0, 17.5), seg(18.0, 19.9)]}, EDIT_PLAN)
+    prep = {"words": words, "moment_words": words, "ranges": [], "source_info": {"duration": 60}}
+    fixed = ed.apply_fixes(plan, [{"id": "compliance:too_short", "timecode_s": None}], prep, {}, brief)
+    final = ed.finalize(fixed, new, brief, {}, prep)
+    assert Timeline(final["segments"]).duration >= 15.0

@@ -164,7 +164,7 @@
     const d = await api("/api/agency/leads");
     $("#leads").replaceChildren(el("tr", {}, ...["#", "lead", "decision", "score", ""].map((h) => el("th", { text: h }))),
       ...d.leads.map((l) => el("tr", {}, el("td", { text: l.id }),
-        el("td", {}, el("a", { href: l.url, target: "_blank", rel: "noopener noreferrer", text: l.title || l.url }), el("div", { class: "muted", text: (l.reasons || []).join(" · ") })),
+        el("td", {}, /^https?:\/\//i.test(l.url) ? el("a", { href: l.url, target: "_blank", rel: "noopener noreferrer", text: l.title || l.url }) : el("span", { text: l.title || l.url }), el("div", { class: "muted", text: (l.reasons || []).join(" · ") })),
         el("td", { text: `${l.decision || "—"} (${l.status})` }), el("td", { text: l.score == null ? "—" : Math.round(l.score) }),
         el("td", {}, l.status === "qualified" ? el("button", { class: "st-btn", text: "Accept", onclick: async () => {
           try { await post(`/api/agency/leads/${l.id}/accept`); } catch (e) { alert(e.message); } loadWork();

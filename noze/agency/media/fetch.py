@@ -9,8 +9,10 @@ import logging
 import shutil
 import subprocess
 import sys
+from contextlib import contextmanager
 from pathlib import Path
-from urllib.parse import urlparse
+from typing import Iterator
+from urllib.parse import urljoin, urlparse
 
 import httpx
 
@@ -81,21 +83,15 @@ def fetch_source(ref: str, dest_dir: Path, *, allow_download: bool = False, allo
             raise MediaError("yt-dlp finished but no video file was written")
         return video
     # direct file URL (Dropbox ?dl=1, a CDN link, your own server …)
-    asyncio.run(check_public_url(ref, allow_private))
     suffix = Path(urlparse(ref).path).suffix.lower()
     dest = dest_dir / f"src_{key}{suffix if suffix in VIDEO_EXT else '.mp4'}"
     if dest.exists() and dest.stat().st_size > 0:
         return dest
     tmp = dest.with_suffix(dest.suffix + ".part")
     limit = max_mb * 1024 * 1024
-    with httpx.Client(follow_redirects=True, timeout=httpx.Timeout(60.0, connect=15.0)) as client:
-        with client.stream("GET", ref) as resp:
-            if resp.status_code >= 400:
-                raise MediaError(f"download failed: HTTP {resp.status_code}")
-            for hop in resp.history:
-                asyncio.run(check_public_url(str(hop.headers.get("location") or hop.url), allow_private))
-            ctype = resp.headers.get("content-type", "")
-            if ctype.startswith("text/html"):
+    with httpx.Client(timeout=httpx.Timeout(60.0, connect=15.0)) as client:
+        with safe_stream(client, ref, allow_private) as resp:
+            if resp.headers.get("content-type", "").startswith("text/html"):
                 raise MediaError("that link is a web page, not a video file — use the direct download link")
             size = 0
             with tmp.open("wb") as fh:
@@ -106,3 +102,22 @@ def fetch_source(ref: str, dest_dir: Path, *, allow_download: bool = False, allo
                     fh.write(chunk)
     tmp.replace(dest)
     return dest
+
+
+@contextmanager
+def safe_stream(client: httpx.Client, url: str, allow_private: bool = False, headers: dict[str, str] | None = None,
+                max_hops: int = 6) -> Iterator[httpx.Response]:
+    """GET with the SSRF check on every hop *before* it is requested (redirects are
+    followed by hand, relative Locations resolved), streaming the final response."""
+    current = url
+    for _ in range(max_hops):
+        asyncio.run(check_public_url(current, allow_private))
+        with client.stream("GET", current, headers=headers, follow_redirects=False) as resp:
+            if resp.is_redirect:
+                current = urljoin(current, resp.headers.get("location", ""))
+                continue
+            if resp.status_code >= 400:
+                raise MediaError(f"download failed: HTTP {resp.status_code}")
+            yield resp
+            return
+    raise MediaError("too many redirects")
