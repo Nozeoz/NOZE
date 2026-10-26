@@ -219,7 +219,8 @@ def caption_styles(doc: AssDoc, font: str, spec: dict[str, Any]) -> None:
 def build_captions(doc: AssDoc, words: list[dict[str, Any]], spec: dict[str, Any], platform: str,
                    duration: float, y_at: Callable[[float], int | None] | None = None) -> int:
     """Add caption events for re-timed words. Returns how many caption chunks were placed.
-    ``y_at(t)`` may override the anchor's height per moment (e.g. the seam of a stacked layout)."""
+    ``y_at(t)`` may pin a chunk to a horizontal line instead (the seam of a stacked layout): one line
+    straddles it and longer chunks grow upwards, away from whatever sits below the seam."""
     if not spec.get("enabled", True) or not words:
         return 0
     anc = anchors(doc.width, doc.height, platform)
@@ -234,7 +235,8 @@ def build_captions(doc: AssDoc, words: list[dict[str, Any]], spec: dict[str, Any
     chunks = group_words(words, n_words, max_chars)
     for i, chunk in enumerate(chunks):
         start = chunk[0]["start"]
-        pos = f"\\an5\\pos({x},{(y_at(start) if y_at else None) or y})"
+        seam = y_at(start) if y_at else None
+        pos = f"\\an2\\pos({x},{seam + int(size * 0.55)})" if seam else f"\\an5\\pos({x},{y})"
         nxt = chunks[i + 1][0]["start"] if i + 1 < len(chunks) else duration
         end = max(chunk[-1]["end"] + 0.12, start + 0.35)
         if nxt - end < 0.3:

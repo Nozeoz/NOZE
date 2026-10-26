@@ -373,7 +373,8 @@ def cmd_frames(args) -> None:
             sys.exit("no render for that clip yet")
     dur = probe(path)["duration"]
     times = sample_times(dur, [], n=args.n)
-    out = ax.cfg.root / "cache" / "frames" / path.stem
+    st = path.stat()  # re-renders reuse file names: key the cache by content too, or old frames come back
+    out = ax.cfg.root / "cache" / "frames" / f"{path.stem}_{int(st.st_mtime)}_{st.st_size}"
     frames = extract_frames(path, times, out, width=360)
     for p in contact_sheets(frames, times, out / "sheet"):
         print(p)

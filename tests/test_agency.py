@@ -458,4 +458,6 @@ def test_captions_follow_the_stack_seam():
     build_captions(doc, words, {"enabled": True, "style": "bold_pop", "words_per_caption": 3, "position": "upper"},
                    "tiktok", 4.0, y_at=lambda t: 572 if t < 2.0 else None)
     text = doc.text()
-    assert "\\pos(510,572)" in text and "\\pos(510,464)" in text  # seam while stacked, anchor afterwards
+    size = doc.styles["Caption"].size
+    assert f"\\an2\\pos(510,{572 + int(size * 0.55)})" in text  # pinned to the seam while stacked
+    assert "\\an5\\pos(510,464)" in text  # the plan's anchor afterwards
