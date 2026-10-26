@@ -27,10 +27,26 @@ SAFE_AFTER_MODEL = {"hook:silent_open", "hook:slow_open", "captions:missing", "v
                     "audio:loudness", "audio:true_peak", "compliance:too_long"}
 
 
+_LIMP_TAIL = {"the", "a", "an", "to", "of", "and", "but", "or", "because", "so", "it", "it's", "is", "my", "your",
+              "with", "for", "in", "on", "at", "that", "this", "yang", "dan", "di", "ke", "itu"}
+
+
 def short_hook(text: str, max_words: int = 7) -> str:
     words = re.sub(r"\s+", " ", text or "").strip().split()
-    out = " ".join(words[:max_words]).rstrip(",;:")
-    return (out + "…") if len(words) > max_words else out
+    if len(words) <= max_words:
+        return " ".join(words).rstrip(",;:")
+    head = words[:max_words]
+    clause = max((i for i, w in enumerate(head) if w[-1:] in ",.!?;:"), default=-1)
+    if clause >= 2:  # end on a clause boundary when there is one
+        return " ".join(head[:clause + 1]).rstrip(",;:")
+    while len(head) > 3 and head[-1].lower().strip(",.") in _LIMP_TAIL:  # never end on "to"/"the"…
+        head.pop()
+    return " ".join(head).rstrip(",;:") + "…"
+
+
+def requires_facecam(brief: dict[str, Any]) -> bool:
+    other = " ".join(((brief or {}).get("requirements") or {}).get("other") or []).lower()
+    return "facecam" in other or "face cam" in other or "webcam" in other
 
 
 def comply_post(post: dict[str, Any], brief: dict[str, Any], fallback_caption: str = "") -> dict[str, Any]:
@@ -93,15 +109,16 @@ class Editor(Role):
         ranges = split_long(ranges, words, float(pacing.get("target_shot_s") or 2.8))
         times = [round(a + (b - a) * (i + 0.5) / 8, 2) for i in range(8)]
         sheets: list[str] = []
-        sx = None
+        sx = cam = None
         try:
-            frames = extract_frames(source, times, work / "moment_frames", width=480)
+            frames = extract_frames(source, times, work / "moment_frames", width=1280)  # big enough for facecams
             sheets = [str(p) for p in contact_sheets(frames, times, work / "moment_sheet")]
             sx = faces.subject_x(frames)
+            cam = faces.facecam_box(frames)
         except Exception as exc:  # frames are a nice-to-have for framing decisions
             log.info("moment frames unavailable: %s", exc)
         return {"words": words, "moment_words": words_between(transcript, a, b), "ranges": ranges,
-                "sheets": sheets, "subject_x": sx, "source_info": source_info}
+                "sheets": sheets, "subject_x": sx, "facecam": cam, "source_info": source_info}
 
     # -- planning -----------------------------------------------------------------------------------------
     def plan(self, job: dict[str, Any], moment: dict[str, Any], brief: dict[str, Any], blueprint: dict[str, Any],
@@ -132,8 +149,13 @@ class Editor(Role):
         vertical = info.get("width") and info.get("height") and info["width"] / info["height"] < 0.75
         mode = (blueprint.get("framing") or {}).get("mode") or "auto"
         x = prep.get("subject_x")
-        if mode == "auto":
-            mode = "fill" if vertical else ("fixed" if x is not None else "center")
+        cam = prep.get("facecam")
+        if requires_facecam(brief) and not vertical:
+            mode = "stack" if cam else "fit_blur"  # the facecam must stay visible
+        elif mode == "auto":
+            mode = "fill" if vertical else ("stack" if cam else ("fixed" if x is not None else "center"))
+        if mode == "stack":
+            x = 0.5  # x is the gameplay centre in stack mode
         motion = blueprint.get("motion") or {}
         punch = float(motion.get("punch_scale") or 1.12)
         trans_pool = [t for t in (motion.get("transitions") or []) if t != "cut"]
@@ -144,7 +166,8 @@ class Editor(Role):
             trans = "cut"
             if i > 0 and gap > 2.0 and trans_pool:
                 trans = trans_pool[0]
-            segs.append({"src_start": a, "src_end": b, "speed": 1.0, "reframe": {"mode": mode, "x": x or 0.5},
+            segs.append({"src_start": a, "src_end": b, "speed": 1.0,
+                         "reframe": {"mode": mode, "x": x or 0.5, "cam": cam if mode == "stack" else None},
                          "zoom": {"type": "punch" if i % 2 == 1 else "none", "scale": punch},
                          "shake": False, "transition_in": trans, "note": ""})
             prev_end = b
@@ -166,7 +189,8 @@ class Editor(Role):
             hook = short_hook(moment.get("hook_line") or moment.get("title") or "")
             if hook:
                 plan["overlays"].append({"kind": "hook_title", "text": hook.upper(), "start": 0.0, "end": 2.6,
-                                         "position": "top",
+                                         # stacked: the top band is the facecam and captions ride the seam
+                                         "position": "center" if mode == "stack" else "top",
                                          "style": (blueprint.get("text_overlays") or {}).get("style") or "pop"})
         else:
             plan["segments"][0]["zoom"] = {"type": "punch", "scale": punch}
@@ -220,7 +244,28 @@ class Editor(Role):
         if not cap.get("enabled") and prep["moment_words"] and self._captions_required(brief):
             cap["enabled"] = True
         self.enforce_compliance(plan, brief, D)
+        self._declutter(plan, D)
         return plan
+
+    @staticmethod
+    def _declutter(plan: dict[str, Any], duration: float) -> None:
+        """Text layers must not stack on one strip: a persistent bottom label (watermark) lifts
+        lower captions to the centre, and titles/beats never share the captions' strip. On stacked
+        segments the renderer puts captions on the cam/gameplay seam (≈ the `upper` strip)."""
+        cap = plan["captions"]
+        if not cap.get("enabled"):
+            return
+        if cap.get("position") == "lower" and any(
+                o["kind"] == "label" and o.get("position") == "bottom" and o["end"] - o["start"] >= duration * 0.5
+                for o in plan["overlays"]):
+            cap["position"] = "center"
+        modes = {(s.get("reframe") or {}).get("mode") for s in plan["segments"]}
+        taken = ({cap.get("position")} if modes - {"stack"} else set()) | ({"upper"} if "stack" in modes else set())
+        prefs = ("center", "top", "lower") if "stack" in modes else ("upper", "top", "center")  # top = face on stack
+        for o in plan["overlays"]:
+            where = o.get("position") or ("top" if o["kind"] == "hook_title" else "center")  # renderer defaults
+            if o["kind"] != "label" and where in taken:
+                o["position"] = next(p for p in prefs if p not in taken)
 
     def enforce_compliance(self, plan: dict[str, Any], brief: dict[str, Any], duration: float) -> None:
         req = (brief or {}).get("requirements") or {}
@@ -230,6 +275,11 @@ class Editor(Role):
                                   for o in plan["overlays"]):
             plan["overlays"].append({"kind": "label", "text": disclosure, "start": 0.0,
                                      "end": min(3.0, duration), "position": "bottom", "style": "fade"})
+        mark = (req.get("watermark") or "").strip()
+        if mark and not any(mark.lower() in (o.get("text") or "").lower() and o["start"] <= 0.1
+                            and o["end"] >= duration - 0.1 for o in plan["overlays"]):
+            plan["overlays"].append({"kind": "label", "text": mark, "start": 0.0, "end": duration,
+                                     "position": "bottom", "style": "fade"})
         cta = (req.get("cta") or "").strip()
         if cta and not any(cta.lower() in (o.get("text") or "").lower() for o in plan["overlays"]):
             plan["overlays"].append({"kind": "cta", "text": cta, "start": max(0.0, duration - 3.0),

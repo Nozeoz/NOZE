@@ -62,6 +62,17 @@ AGENCY_AUTORUN=1 noze serve   # jalan di background web app
 
 Dari terminal: `noze agency status`, `noze agency show <id>`, `noze agency report`.
 
+**Turun tangan sendiri (opsional).** Kamu bisa jadi manager atau editor kapan saja:
+
+```bash
+noze agency clip add 1 937.4-1015.2 --title "He asked chat for a harder game"   # tugaskan momen pilihanmu
+noze agency plan 2 > plan.json                                                   # lihat EDL editor
+noze agency plan 2 --set plan.json --moment 34.9-99.2                            # pakai EDL-mu (+ potong ulang momen), lalu render
+noze agency frames 2                                                             # contact sheet hasil render
+```
+
+Plan yang kamu set tetap lewat poka-yoke (watermark, disclosure, CTA, layout teks yang tidak bertumpuk) dan review yang sama.
+
 Hasil akhir ada di `noze-data/agency/deliveries/<campaign>/<tanggal>/`: video `.mp4`, file `.txt` berisi caption, hashtag, dan link submit, plus laporan per clip.
 
 ## Siapa mengerjakan apa
@@ -105,7 +116,8 @@ Renderer ([`media/render.py`](../noze/agency/media/render.py)) berbasis ffmpeg +
 
 | Bagian | Pilihan |
 |---|---|
-| Reframe 16:9 → 9:16 | `center`, `fixed` (x subjek 0–1: dari Claude vision, atau OpenCV kalau terpasang), `fit_blur` (video utuh di atas background blur), `fill` |
+| Reframe 16:9 → 9:16 | `center`, `fixed` (x subjek 0–1: dari Claude vision, atau OpenCV kalau terpasang), `fit_blur` (video utuh di atas background blur), `fill`, `stack` (layout streamer: facecam di band atas, gameplay di bawah; kotak `cam` dari Claude vision atau perkiraan OpenCV) |
+| Layout `stack` | hanya band gameplay yang di-punch/push, jadi facecam tetap utuh (syarat campaign streamer); caption otomatis duduk di garis sambungan cam–gameplay, judul/teks pindah ke tengah supaya tidak menutupi wajah |
 | Zoom | `punch` (cepat 0.15 s, ganti framing tiap jump cut), `push` / `pull` (Ken Burns halus lewat zoompan di upscale 2×) |
 | Gerak & transisi | `shake` (decay 0.35 s), `cut`, `flash` (putih), `fade` (dip), `whip` (motion blur horizontal), `zoom` (masuk 25% lalu settle) |
 | Caption | `bold_pop` (kata aktif di-highlight + pop), `karaoke` (fill `\kf`), `minimal`, `boxed`, `outline`. Ukuran tiap caption 1–6 kata, posisi `upper`/`center`/`lower`, selalu di dalam safe zone platform |

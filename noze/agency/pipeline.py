@@ -34,7 +34,7 @@ from .learning import TERMINAL
 from .media.analyze import contact_sheets, extract_frames, loudness, measure, sample_times
 from .media.ffmpeg import MediaError, probe
 from .media.fetch import fetch_source
-from .media.transcribe import all_words, speech_rate, transcribe
+from .media.transcribe import all_words, speech_rate, text_between, transcribe
 from .publish import Publisher
 from .reports import clip_report, source_report
 from .roles import Analyst, Editor, Manager, Reviewer, Scout
@@ -96,6 +96,29 @@ class Agency:
                                          lead_id=lead_id)
         self.store.log(None, "manager", "campaign", f"campaign '{name}' created "
                        f"(permission {'granted' if permission.get('granted') else 'NOT recorded'})", {"id": cid})
+        return cid
+
+    def add_clip(self, source_id: int, start_s: float, end_s: float, title: str = "") -> int:
+        """The manager assigns one more clip from a source at a moment they picked themselves."""
+        src = self.store.get_job(source_id)
+        if not src or src["kind"] != "source" or not (src.get("data") or {}).get("transcript_path"):
+            raise ValueError(f"job {source_id} is not a researched source")
+        if not 0 <= start_s < end_s <= float(src["data"].get("duration") or 1e9):
+            raise ValueError(f"{start_s}-{end_s}s is not a range inside the source")
+        tr = json.loads(Path(src["data"]["transcript_path"]).read_text(encoding="utf-8"))
+        text = text_between(tr, start_s, end_s)
+        first = next((s["text"] for s in tr.get("segments") or [] if s["end"] > start_s), "")
+        m = {"start_s": round(start_s, 3), "end_s": round(end_s, 3), "title": title or first[:70] or "clip",
+             "hook_line": first[:120], "hook_type": "other", "summary": text[:200],
+             "rationale": "picked by the manager", "keywords": [], "overall": None,
+             "scores": {"hook": 0, "flow": 0, "value": 0, "trend": 0, "emotion": 0}}
+        cid = self.store.create_job("clip", "planning", campaign_id=src.get("campaign_id"), parent_id=source_id,
+                                    title=m["title"], input={"moment": m}, canary=False,
+                                    playbook_version=self.store.current_version())
+        self.store.log(cid, "manager", "assigned", f"editor assigned by hand: '{m['title']}' "
+                       f"({start_s:.1f}-{end_s:.1f}s)")
+        if src["state"] == "done":  # the source report waits for the new clip too
+            self._move(src, "producing", "manager", "done → producing: extra clip assigned")
         return cid
 
     def retry(self, job_id: int) -> str:
@@ -318,8 +341,10 @@ class Agency:
         info = probe(path)
         if not info.get("has_video"):
             raise MediaError("source has no video stream")
+        names = [brief.get("creator") or ""] + [h.rsplit("/", 1)[-1] for h in brief.get("creator_handles") or []]
+        hint = ", ".join(dict.fromkeys(n.lstrip("@") for n in names if n))  # spell the creator's name right
         tr = transcribe(path, self.cfg.transcriber, self.cfg.whisper_model, language=brief.get("language") or None,
-                        cache=d / "transcript.json")
+                        cache=d / "transcript.json", hint=f"{hint}." if hint else "")
         dur = float(info.get("duration") or 0)
         facts: dict[str, Any] = measure(path) if dur <= 20 * 60 else {"probe": info, "loudness": loudness(path)}
         facts["speech_wpm"] = speech_rate(tr)

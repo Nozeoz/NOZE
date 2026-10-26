@@ -27,7 +27,7 @@ agency = ["anthropic>=2.3"]
 # Word-level transcripts for moment picking and captions (CPU is fine).
 transcribe = ["faster-whisper>=1.1"]
 # Optional speaker locator for 16:9 → 9:16 reframing.
-faces = ["opencv-python-headless>=4.9"]
+faces = ["opencv-python-headless>=4.9,<5"]  # 5.x dropped the Haar face detector
 dev = ["pytest>=8", "respx>=0.21", "anthropic>=2.3"]
 all = ["fastembed>=0.4", "boto3>=1.28", "anthropic>=2.3"]
 

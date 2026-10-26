@@ -230,3 +230,37 @@ def test_dashboard_api(tmp_path):
         bad_origin = client.post("/api/agency/tick", headers={"Origin": "https://evil.example"})
         assert bad_origin.status_code == 403
         assert json.loads(client.get("/api/agency/report?days=1").text)["throughput"]["clips"] == 0
+
+
+def test_stacked_streamer_layout_renders(tmp_path, source):
+    from noze.agency.media.ffmpeg import probe
+    from noze.agency.media.render import Renderer, RenderSpec
+
+    plan = conform({"segments": [{"src_start": 1.0, "src_end": 4.0, "speed": 1.0,
+                                  "reframe": {"mode": "stack", "x": 0.4, "cam": {"x": 0.7, "y": 0.0, "w": 0.3, "h": 0.3}},
+                                  "zoom": {"type": "punch", "scale": 1.1}, "transition_in": "cut"},
+                                 {"src_start": 5.0, "src_end": 7.0, "speed": 1.0,
+                                  "reframe": {"mode": "stack", "x": 0.5, "cam": None}, "transition_in": "flash"}],
+                    "captions": {"enabled": False}}, EDIT_PLAN)
+    res = Renderer(RenderSpec(width=360, height=640, fps=15)).render(plan, source, tmp_path / "o.mp4",
+                                                                     tmp_path / "w", [])
+    info = probe(res.path)
+    assert (info["width"], info["height"]) == (360, 640) and abs(info["duration"] - 5.0) < 0.2
+
+
+def test_manager_assigns_extra_clip(tmp_path, source):
+    ax = make_ax(tmp_path)
+    ag = Agency(ax)
+    sid = ag.submit(str(source), own_content=True)
+    drain(ag)
+    assert ax.store.get_job(sid)["state"] == "done"
+    with pytest.raises(ValueError):
+        ag.add_clip(sid, 25.0, 999.0)
+    cid = ag.add_clip(sid, 1.0, 12.0, "picked by hand")
+    assert ax.store.get_job(sid)["state"] == "producing"
+    clip = ax.store.get_job(cid)
+    assert clip["state"] == "planning" and clip["input"]["moment"]["start_s"] == 1.0
+    drain(ag)
+    assert ax.store.get_job(cid)["state"] in ("delivered", "awaiting_human", "escalated")
+    assert ax.store.get_job(sid)["state"] == "done"
+    ax.close()

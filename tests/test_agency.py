@@ -362,3 +362,100 @@ def test_too_short_clip_gets_a_longer_moment(ax):
     fixed = ed.apply_fixes(plan, [{"id": "compliance:too_short", "timecode_s": None}], prep, {}, brief)
     final = ed.finalize(fixed, new, brief, {}, prep)
     assert Timeline(final["segments"]).duration >= 15.0
+
+
+def test_streamer_rules_watermark_and_facecam(ax):
+    terms = ("Use only footage from SkiiMaskTimmy's Twitch streams. Keep Timmy's facecam visible in every clip. "
+             "Show twitch.tv/skiimasktimmy as on-screen text on every clip. Do not cover his voice with music.")
+    b = heuristic_brief(terms)
+    assert b["requirements"]["watermark"] == "twitch.tv/skiimasktimmy"
+    assert any("facecam" in o for o in b["requirements"]["other"])
+    plan = conform({"segments": [seg(0, 10)], "post": {"caption": "x"}}, EDIT_PLAN)
+    ids = {i["id"] for i in compliance_lint(plan, b, 10.0)}
+    assert {"compliance:watermark", "compliance:facecam"} <= ids
+    Editor(ax).enforce_compliance(plan, b, 10.0)
+    plan["segments"][0]["reframe"] = {"mode": "stack", "x": 0.5, "cam": {"x": 0.7, "y": 0.0, "w": 0.3, "h": 0.3}}
+    assert compliance_lint(plan, b, 10.0) == []
+    label = next(o for o in plan["overlays"] if o["text"] == "twitch.tv/skiimasktimmy")
+    assert label["start"] == 0.0 and label["end"] == 10.0
+
+
+def test_stack_layout_graph():
+    from noze.agency.media.render import _valid_cam, reframe_filters, stack_graph
+
+    assert reframe_filters("stack", 0.5, 1920, 1080, 1080, 1920) == ["STACK"]
+    assert reframe_filters("stack", 0.5, 1080, 1920, 1080, 1920) == ["scale=1080:1920:flags=lanczos"]  # vertical
+    assert not _valid_cam(None) and not _valid_cam({"x": 0.1}) and _valid_cam({"x": 0, "y": 0, "w": .3, "h": .3})
+    g = stack_graph({"x": 0.75, "y": 0.0, "w": 0.25, "h": 0.25}, 0.5, 1920, 1080, 1080, 1920)
+    assert "vstack=inputs=2" in g and "crop=480:270:1440:0" in g  # the cam rectangle in source pixels
+
+
+def test_brief_reads_streamer_campaign():
+    terms = ("Clipping campaign for streamer SkiiMaskTimmy (twitch.tv/skiimasktimmy). English only. Gaming niche. "
+             "Include twitch.tv/skiimasktimmy in the caption. Use #skiimasktimmy #gaming")
+    b = heuristic_brief(terms)
+    assert b["creator"] == "SkiiMaskTimmy" and b["creator_handles"] == ["twitch.tv/skiimasktimmy"]
+    assert b["language"] == "en" and b["niche"] == "gaming"
+    assert b["requirements"]["mentions"] == ["twitch.tv/skiimasktimmy"]
+    assert not any("captions" in o.lower() for o in b["requirements"]["other"])  # the post caption ≠ subtitles
+    assert any("captions" in o.lower() for o in heuristic_brief("Add captions to every clip.")["requirements"]["other"])
+
+
+def test_short_hook_ends_cleanly():
+    from noze.agency.roles.editor import short_hook
+
+    assert short_hook("Why is he on his own beat?") == "Why is he on his own beat?"
+    assert short_hook("Look at that, chat, this boss is really really easy") == "Look at that, chat"
+    assert short_hook("I want you to know that the game is easy") == "I want you to know…"  # not "…that the"
+
+
+def test_text_layers_never_share_a_strip(ax):
+    plan = conform({"segments": [seg(0, 10)], "captions": {"enabled": True, "position": "lower"},
+                    "overlays": [{"kind": "hook_title", "text": "HOOK", "start": 0, "end": 2, "position": "center"},
+                                 {"kind": "label", "text": "twitch.tv/x", "start": 0, "end": 10, "position": "bottom"}]},
+                   EDIT_PLAN)
+    Editor._declutter(plan, 10.0)
+    assert plan["captions"]["position"] == "center"  # lifted off the watermark strip
+    assert plan["overlays"][0]["position"] == "upper"  # and the title off the captions
+    assert plan["overlays"][1]["position"] == "bottom"
+    stacked = conform({"segments": [dict(seg(0, 10), reframe={"mode": "stack", "x": 0.5, "cam": None})],
+                       "captions": {"enabled": True, "position": "center"},
+                       "overlays": [{"kind": "text", "text": "BEAT", "start": 1, "end": 2, "position": "upper"}]},
+                      EDIT_PLAN)
+    Editor._declutter(stacked, 10.0)
+    assert stacked["overlays"][0]["position"] == "center"  # off the seam, and never over the facecam
+
+
+def test_stack_zooms_only_the_gameplay_band():
+    from noze.agency.media.render import stack_graph, stack_layout
+
+    cam = {"x": 0.0125, "y": 0.716, "w": 0.2167, "h": 0.2037}
+    top, bottom = stack_layout(cam, 1920, 1080, 1080, 1920)
+    assert top + bottom == 1920 and 0.26 * 1920 <= top <= 0.45 * 1920
+    g = stack_graph(cam, 0.56, 1920, 1080, 1080, 1920, game_post=["crop=1080:%d" % bottom])
+    cam_chain, game_chain = g.split(";")[0], g.split(";")[1]
+    assert "crop=1080:%d" % bottom in game_chain and "crop=1080:%d" % bottom not in cam_chain
+
+
+def test_heuristic_moments_cover_the_whole_source():
+    from noze.agency.roles.analyst import Analyst
+
+    words, t = [], 0.0
+    for start in (10.0, 900.0):  # two lively stretches far apart; the first is denser
+        t = start
+        for i in range(60 if start < 100 else 45):
+            words.append({"start": round(t, 2), "end": round(t + 0.3, 2),
+                          "word": "easy!" if i % 6 == 5 else ("why?" if i % 9 == 0 else "bro")})
+            t += 0.42
+    found = Analyst._heuristic_moments(None, words, {}, 2, 8, 30, "en")
+    assert any(m["start_s"] < 100 for m in found) and any(m["start_s"] >= 900 for m in found)
+
+
+def test_captions_follow_the_stack_seam():
+    words = spread_words("why is he on his own beat bro come on man", 0.0, 4.0)
+    doc = AssDoc(1080, 1920)
+    caption_styles(doc, "Arial", {"style": "bold_pop"})
+    build_captions(doc, words, {"enabled": True, "style": "bold_pop", "words_per_caption": 3, "position": "upper"},
+                   "tiktok", 4.0, y_at=lambda t: 572 if t < 2.0 else None)
+    text = doc.text()
+    assert "\\pos(510,572)" in text and "\\pos(510,464)" in text  # seam while stacked, anchor afterwards

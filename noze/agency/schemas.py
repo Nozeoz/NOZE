@@ -57,7 +57,7 @@ ISSUE_CATEGORIES = ["hook", "pacing", "captions", "framing", "audio", "text", "c
                     "visual", "other"]
 CAPTION_STYLES = ["bold_pop", "karaoke", "minimal", "boxed", "outline"]
 CAPTION_POSITIONS = ["upper", "center", "lower"]
-REFRAME_MODES = ["auto", "center", "fixed", "fit_blur", "fill"]
+REFRAME_MODES = ["auto", "center", "fixed", "fit_blur", "fill", "stack"]
 ZOOM_TYPES = ["none", "punch", "push", "pull"]
 TRANSITIONS = ["cut", "flash", "fade", "whip", "zoom"]
 OVERLAY_STYLES = ["pop", "slide", "fade", "typewriter"]
@@ -199,7 +199,12 @@ SEGMENT = O({
     "src_start": N("seconds in the source video"),
     "src_end": N(),
     "speed": N("1.0 normal; 0.8-1.25 sensible"),
-    "reframe": O({"mode": E(REFRAME_MODES), "x": N("0-1 horizontal center of the subject (fixed mode)")}),
+    "reframe": O({
+        "mode": E(REFRAME_MODES, "stack = streamer facecam on top, gameplay below (needs cam)"),
+        "x": N("0-1 horizontal center of the subject (fixed mode) or of the gameplay (stack mode)"),
+        "cam": Null(O({"x": N("left edge 0-1"), "y": N("top edge 0-1"), "w": N("width 0-1"), "h": N("height 0-1")},
+                      "facecam rectangle in the source frame, as fractions")),
+    }),
     "zoom": O({"type": E(ZOOM_TYPES), "scale": N("1.0-1.35")}),
     "shake": B(),
     "transition_in": E(TRANSITIONS),
@@ -215,7 +220,7 @@ EDIT_PLAN = O({
     }),
     "overlays": A(O({
         "kind": E(OVERLAY_KINDS), "text": S(), "start": N("output seconds"), "end": N(),
-        "position": E(["top", "center", "bottom"]), "style": E(OVERLAY_STYLES),
+        "position": E(["top", "upper", "center", "lower", "bottom"]), "style": E(OVERLAY_STYLES),
     })),
     "sfx": A(O({"kind": E(SFX_KINDS), "at": N("output seconds"), "gain_db": N()})),
     "music": O({"enabled": B(), "mood": S(), "asset": S("NOZE asset id or file path; empty = pick by mood"),

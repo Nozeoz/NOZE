@@ -264,6 +264,12 @@ def cmd_decide(args) -> None:
     print(f"clip #{args.clip} → {state}" + ("" if state != "revising" else " (run `noze agency run` to revise)"))
 
 
+def cmd_clip_add(args) -> None:
+    a, _, b = args.range.partition("-")
+    cid = _agency(args).add_clip(int(args.source), float(a), float(b), args.title or "")
+    print(f"✓ clip job #{cid} assigned — run `noze agency run`")
+
+
 def cmd_retry(args) -> None:
     print(f"job #{args.job} → {_agency(args).retry(int(args.job))}")
 
@@ -389,6 +395,11 @@ def cmd_plan(args) -> None:
     ag = Agency(ax)
     c = ag.clip_ctx(job)
     plan = conform(json.loads(Path(args.set).read_text(encoding="utf-8")), EDIT_PLAN)
+    if args.moment:  # a human editor may re-cut the moment itself; plans are clamped to it
+        a, _, b = args.moment.partition("-")
+        moment = dict(c["moment"], start_s=float(a), end_s=float(b))
+        ax.store.update_job(job["id"], input=dict(job["input"], moment=moment))
+        c["moment"] = moment
     prep = ag.editor.prepare(job, c["source"], c["moment"], c["transcript"], c["blueprint"], c["source_info"])
     plan = ag.editor.finalize(plan, c["moment"], c["brief"], c["blueprint"], prep)
     v = ax.store.put_artifact(job["id"], "plan", plan, role="human")
@@ -466,6 +477,14 @@ def register(sub: argparse._SubParsersAction) -> None:
         p.add_argument("--note", action="append", help="what to change (repeatable)")
         p.set_defaults(func=cmd_decide, decision=decision)
 
+    p = s.add_parser("clip", help="manager: assign an extra clip at a hand-picked moment")
+    cs = p.add_subparsers(dest="clip_cmd", required=True)
+    q = cs.add_parser("add", help="clip add <source id> START-END [--title …]")
+    q.add_argument("source")
+    q.add_argument("range", help="source seconds, e.g. 952.3-1015")
+    q.add_argument("--title")
+    q.set_defaults(func=cmd_clip_add)
+
     p = s.add_parser("retry", help="resume a failed/blocked job from its last good step")
     p.add_argument("job")
     p.set_defaults(func=cmd_retry)
@@ -511,6 +530,7 @@ def register(sub: argparse._SubParsersAction) -> None:
     p = s.add_parser("plan", help="show a clip's edit plan, or --set a hand-edited one and re-render")
     p.add_argument("clip")
     p.add_argument("--set", help="path to an edited plan JSON")
+    p.add_argument("--moment", help="with --set: new source range START-END in seconds (e.g. 952.3-1015)")
     p.set_defaults(func=cmd_plan)
 
     p = s.add_parser("learn", help="run promotion/pruning, the issue miner and the regression guard now")

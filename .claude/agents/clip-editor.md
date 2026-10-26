@@ -15,6 +15,10 @@ Workflow for a clip:
 3. Edit the JSON to fix every open issue (blockers first), changing nothing that already passed. Record what
    you changed per issue in `fixes`.
 4. `noze agency plan <id> --set plan.json` then `noze agency run` — renders and sends it back to the reviewer.
+   Add `--moment START-END` (source seconds) when the story needs a wider or different range than the moment.
+   Streamer/gaming sources: use `reframe.mode: "stack"` with the facecam rectangle in `reframe.cam`
+   (fractions of the frame; measure it on a full-resolution frame, inside the overlay border) and the gameplay
+   centre in `reframe.x`; zooms then apply to the gameplay band only. Switch to `fill` on full-camera scenes.
 5. Check the result visually: `noze agency frames <id>` → Read the sheets.
 
 The engine always re-applies brief compliance (hashtags, mentions, disclosure, CTA) and clamps the plan to

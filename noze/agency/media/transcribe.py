@@ -134,7 +134,8 @@ def load_sidecar(path: Path) -> dict[str, Any]:
 
 
 def transcribe(video: Path, backend: str = "auto", model_size: str = "small", language: str | None = None,
-               cache: Path | None = None) -> dict[str, Any]:
+               cache: Path | None = None, hint: str = "") -> dict[str, Any]:
+    """``hint``: names Whisper can't guess (creator, handles, game) — fed as its initial prompt."""
     if cache and cache.exists():
         return json.loads(cache.read_text(encoding="utf-8"))
     result: dict[str, Any] | None = None
@@ -143,7 +144,7 @@ def transcribe(video: Path, backend: str = "auto", model_size: str = "small", la
         if side:
             result = load_sidecar(side)
     if result is None and backend in ("auto", "faster-whisper"):
-        result = _faster_whisper(video, model_size, language)
+        result = _faster_whisper(video, model_size, language, hint)
     if result is None:
         result = {"language": language or "", "source": "none", "segments": []}
     if cache:
@@ -152,14 +153,20 @@ def transcribe(video: Path, backend: str = "auto", model_size: str = "small", la
     return result
 
 
-def _faster_whisper(video: Path, model_size: str, language: str | None) -> dict[str, Any] | None:
+def _faster_whisper(video: Path, model_size: str, language: str | None, hint: str = "") -> dict[str, Any] | None:
     try:
         from faster_whisper import WhisperModel  # type: ignore
     except ImportError:
         log.info("faster-whisper not installed; no transcript (pip install faster-whisper)")
         return None
     model = WhisperModel(model_size, device="auto", compute_type="int8")
-    segments, info = model.transcribe(str(video), word_timestamps=True, vad_filter=True, language=language or None)
+    # decode with ffmpeg ourselves: faster-whisper's PyAV path breaks across PyAV releases
+    audio = _pcm16k(video)
+    if audio.size == 0:
+        return None
+    segments, info = model.transcribe(audio, word_timestamps=True, vad_filter=True, language=language or None,
+                                      vad_parameters={"min_silence_duration_ms": 500},
+                                      initial_prompt=hint or None)
     out = []
     for s in segments:
         words = [{"start": round(w.start, 3), "end": round(w.end, 3), "word": w.word.strip()}
@@ -168,6 +175,16 @@ def _faster_whisper(video: Path, model_size: str, language: str | None) -> dict[
                     "words": words or spread_words(s.text, s.start, s.end)})
     return {"language": getattr(info, "language", "") or (language or ""), "source": f"faster-whisper:{model_size}",
             "segments": out}
+
+
+def _pcm16k(video: Path):
+    import numpy as np
+
+    from .ffmpeg import run
+
+    proc = run(["-nostats", "-v", "error", "-i", str(video), "-vn", "-sn", "-ac", "1", "-ar", "16000",
+                "-f", "s16le", "-"], timeout=7200, check=False)
+    return np.frombuffer(proc.stdout or b"", dtype=np.int16).astype(np.float32) / 32768.0
 
 
 # -- helpers used across roles ------------------------------------------------------

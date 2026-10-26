@@ -76,7 +76,9 @@ def reframe_filters(mode: str, x_frac: float, src_w: int, src_h: int, w: int, h:
     """Filters that turn a source frame into a w×h frame (labels handled by caller)."""
     tgt = w / h
     src = src_w / src_h if src_h else tgt
-    if mode == "fit_blur" and abs(src - tgt) > 0.02:
+    if mode == "stack" and src > tgt:
+        return ["STACK"]  # facecam over gameplay; built by the caller
+    if mode in ("fit_blur", "stack") and abs(src - tgt) > 0.02:
         return ["FIT_BLUR"]  # needs a split graph; built by the caller
     if abs(src - tgt) <= 0.02:
         return [f"scale={w}:{h}:flags=lanczos"]
@@ -88,6 +90,41 @@ def reframe_filters(mode: str, x_frac: float, src_w: int, src_h: int, w: int, h:
     ch = _even(src_w / tgt)  # taller → crop height, biased up (faces live in the upper half)
     y = int(min(max(0.42 * src_h - ch / 2, 0), src_h - ch))
     return [f"crop={src_w}:{ch}:0:{y}", f"scale={w}:{h}:flags=lanczos"]
+
+
+def _valid_cam(cam: Any) -> bool:
+    if not isinstance(cam, dict):
+        return False
+    try:
+        x, y, w, h = (float(cam[k]) for k in ("x", "y", "w", "h"))
+    except (KeyError, TypeError, ValueError):
+        return False
+    return 0 <= x < 1 and 0 <= y < 1 and 0.05 <= w <= 1 and 0.05 <= h <= 1
+
+
+def stack_layout(cam: dict[str, Any], src_w: int, src_h: int, w: int, h: int) -> tuple[int, int]:
+    """(cam band height, gameplay band height) of the stacked streamer layout."""
+    cw = _even(min(float(cam["w"]) * src_w, src_w - int(float(cam["x"]) * src_w)))
+    ch = _even(min(float(cam["h"]) * src_h, src_h - int(float(cam["y"]) * src_h)))
+    top = _even(min(max(w * ch / max(cw, 1), h * 0.26), h * 0.45))  # cam band keeps the cam's shape
+    return top, h - top
+
+
+def stack_graph(cam: dict[str, Any], game_x: float, src_w: int, src_h: int, w: int, h: int,
+                game_post: list[str] | None = None) -> str:
+    """Graph body (inputs [c] and [g]) for the streamer layout: facecam band on top,
+    gameplay crop below (``game_post`` = zoom filters for the gameplay band only).
+    Ends without an output label so the caller can append filters."""
+    cx, cy = int(float(cam["x"]) * src_w), int(float(cam["y"]) * src_h)
+    cw = _even(min(float(cam["w"]) * src_w, src_w - cx))
+    ch = _even(min(float(cam["h"]) * src_h, src_h - cy))
+    top, bottom = stack_layout(cam, src_w, src_h, w, h)
+    gw = _even(min(src_h * w / bottom, src_w))
+    gx = int(min(max(game_x * src_w - gw / 2, 0), src_w - gw))
+    return (f"[c]crop={cw}:{ch}:{cx}:{cy},scale={w}:{top}:force_original_aspect_ratio=increase:flags=lanczos,"
+            f"crop={w}:{top}[top];"
+            f"[g]crop={gw}:{src_h}:{gx}:0,scale={w}:{bottom}:flags=lanczos{''.join(',' + f for f in game_post or [])}[bot];"
+            f"[top][bot]vstack=inputs=2")
 
 
 def zoom_filters(kind: str, scale: float, transition_in: str, dur: float, w: int, h: int, fps: int) -> list[str]:
@@ -146,9 +183,16 @@ class Renderer:
         if abs(speed - 1.0) > 1e-3:
             chain.append(f"setpts=PTS/{speed:.4f}")
         reframe = seg.get("reframe") or {}
-        rf = reframe_filters(reframe.get("mode") or "auto", float(reframe.get("x") or 0.5), src_w, src_h, W, H)
+        mode = reframe.get("mode") or "auto"
+        if mode == "stack" and not _valid_cam(reframe.get("cam")):
+            mode = "fit_blur"  # no facecam rectangle: keep the whole frame visible instead
+        rf = reframe_filters(mode, float(reframe.get("x") or 0.5), src_w, src_h, W, H)
         zoom = seg.get("zoom") or {}
-        post = zoom_filters(zoom.get("type") or "none", float(zoom.get("scale") or 1.0), trans, dur, W, H, FPS)
+        zkind, zscale = zoom.get("type") or "none", float(zoom.get("scale") or 1.0)
+        # on a stacked frame only the gameplay band zooms: the facecam must stay whole
+        game_post = (zoom_filters(zkind, zscale, trans, dur, W, stack_layout(reframe["cam"], src_w, src_h, W, H)[1],
+                                  FPS) if rf == ["STACK"] else [])
+        post = [] if rf == ["STACK"] else zoom_filters(zkind, zscale, trans, dur, W, H, FPS)
         if seg.get("shake"):
             post += shake_filter(W, H)
         if trans == "fade":
@@ -160,7 +204,11 @@ class Renderer:
         if nxt == "whip":
             post.append(f"avgblur=sizeX=48:sizeY=1:enable='gt(t,{max(0.0, dur - 0.08):.3f})'")
         post += [f"fps={FPS}", "format=yuv420p", "setsar=1"]
-        if rf == ["FIT_BLUR"]:
+        if rf == ["STACK"]:
+            graph = f"[0:v]{','.join(chain)},split=2[c][g];" + stack_graph(
+                reframe["cam"], float(reframe.get("x") or 0.5), src_w, src_h, W, H,
+                game_post) + f",{','.join(post)}[v]"
+        elif rf == ["FIT_BLUR"]:
             graph = (f"[0:v]{','.join(chain)},split=2[bg][fg];"
                      f"[bg]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
                      f"boxblur=26:2,eq=brightness=-0.07:saturation=0.85[b];"
@@ -209,7 +257,15 @@ class Renderer:
         caption_styles(doc, font, cap_spec)
         overlay_styles(doc, font)
         out_words = tl.map_words(words)
-        n_caps = build_captions(doc, out_words, cap_spec, sp.platform, D) if cap_spec.get("enabled", True) else 0
+        seams = [(p.out_start, p.out_end, stack_layout(segs[p.index]["reframe"]["cam"], src_w, src_h, W, H)[0])
+                 for p in tl.placed if (segs[p.index].get("reframe") or {}).get("mode") == "stack"
+                 and _valid_cam(segs[p.index]["reframe"].get("cam")) and src_w / max(src_h, 1) > W / H]
+
+        def seam_at(t: float) -> int | None:  # stacked layout: captions ride the cam/gameplay seam
+            return next((y for a, b, y in seams if a - 0.01 <= t < b), None)
+
+        n_caps = (build_captions(doc, out_words, cap_spec, sp.platform, D, seam_at if seams else None)
+                  if cap_spec.get("enabled", True) else 0)
         n_ovs = build_overlays(doc, plan.get("overlays") or [], sp.platform, D)
         for p in tl.placed[1:]:
             if (segs[p.index].get("transition_in") or "cut") == "flash":

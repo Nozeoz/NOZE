@@ -26,7 +26,9 @@ HOOK_WORDS = {
 VALUE_WORDS = ("because", "reason", "tip", "step", "how to", "the key", "lesson", "learned", "rule", "strategy",
                "%", "percent", "$", "karena", "caranya", "tips", "langkah", "kuncinya", "pelajaran", "strategi")
 EMOTION_WORDS = ("love", "hate", "scared", "afraid", "cried", "laugh", "shocked", "angry", "amazing", "terrible",
-                 "unbelievable", "insane", "crazy", "takut", "nangis", "ketawa", "kaget", "marah", "keren", "gila")
+                 "unbelievable", "insane", "crazy", "takut", "nangis", "ketawa", "kaget", "marah", "keren", "gila",
+                 # live-stream reactions: what makes a gaming/IRL moment clippable
+                 "what the", "no way", "let's go", "oh my god", "come on", "wtf", "fuck", "anjir", "astaga")
 WEAK_OPENERS = ("and", "so", "but", "um", "uh", "like", "yeah", "okay", "terus", "jadi", "tapi", "nah", "dan", "ya")
 
 DEFAULT_BLUEPRINT: dict[str, Any] = {
@@ -231,6 +233,7 @@ class Analyst(Role):
                 t += target
             return out
         sents = sentences(words)
+        onsets = sorted(float(t) for t in facts.get("onsets") or [])  # loud reactions, hits, shouts
         hooks = HOOK_WORDS["id"] + HOOK_WORDS["en"] if lang.startswith("id") else HOOK_WORDS["en"] + HOOK_WORDS["id"]
         cands = []
         for i, s0 in enumerate(sents):
@@ -249,7 +252,9 @@ class Analyst(Role):
                 text = " ".join(s["text"] for s in sents[i:j + 1]).lower()
                 nwords = sum(len(s["words"]) for s in sents[i:j + 1])
                 value = min(10.0, 3.0 + 1.2 * sum(text.count(v) for v in VALUE_WORDS))
-                emotion = min(10.0, 3.0 + 1.5 * sum(text.count(e) for e in EMOTION_WORDS) + text.count("!"))
+                hype = sum(1 for t in onsets if s0["start"] <= t <= sents[j]["end"])
+                emotion = min(10.0, 3.0 + 1.5 * sum(text.count(e) for e in EMOTION_WORDS) + text.count("!")
+                              + min(2.0, 0.25 * hype))
                 flow = 6.0 + 2.0 * bool(re.search(r"[.!?]$", sents[j]["text"])) - 2.0 * (
                     sents[j]["text"].lower().rstrip(".!?").split()[-1:] in (["and"], ["but"], ["so"], ["dan"]))
                 pace = nwords / max(1.0, d)
@@ -263,7 +268,16 @@ class Analyst(Role):
                     "keywords": [],
                 })
         cands.sort(key=_overall, reverse=True)
-        return cands[: limit * 4]
+        # spread over the whole source: the best windows all overlap one dense stretch, so
+        # suppress near-duplicates *before* cutting the list (or one hot minute fills it)
+        kept: list[dict[str, Any]] = []
+        for c in cands:
+            d = c["end_s"] - c["start_s"]
+            if all(min(c["end_s"], k["end_s"]) - max(c["start_s"], k["start_s"]) <= 0.5 * d for k in kept):
+                kept.append(c)
+            if len(kept) >= limit * 4:
+                break
+        return kept
 
 
 def _overall(m: dict[str, Any]) -> float:

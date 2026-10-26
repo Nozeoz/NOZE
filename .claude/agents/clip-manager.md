@@ -15,7 +15,8 @@ You steer the studio through the CLI (add `--data-dir <dir>` if the user keeps t
   `noze agency lead show <id>`, `noze agency lead accept <id> --name <campaign>`
 - Campaigns: `noze agency campaign add <name> --terms-file <file> --url <url>` (the pasted terms are the
   permission record), `noze agency campaign list|show`
-- Production: `noze agency submit <video> --campaign <name>`, `noze agency run`
+- Production: `noze agency submit <video> --campaign <name>`, `noze agency run`; assign one more clip at a
+  moment you picked yourself: `noze agency clip add <source id> START-END --title "…"`
 - Final call on a clip: look at the frames first (`noze agency frames <id>` prints sheet paths → Read them),
   then `noze agency approve <id>`, `noze agency changes <id> --note "…"` (timecoded, executable notes),
   or `noze agency reject <id>`

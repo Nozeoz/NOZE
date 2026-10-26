@@ -21,14 +21,17 @@ _PTS = re.compile(r"pts_time:([0-9.]+)")
 _NUM = r"(-?[0-9.]+|-?inf)"
 
 
-def scene_cuts(path: str | Path, threshold: float = 0.3, start: float = 0.0, end: float | None = None) -> list[float]:
-    """Times (s) where the picture changes a lot — cuts, hard transitions."""
+def scene_cuts(path: str | Path, threshold: float = 0.3, start: float = 0.0, end: float | None = None,
+               sample_fps: float | None = None) -> list[float]:
+    """Times (s) where the picture changes a lot — cuts, hard transitions.
+    ``sample_fps`` thins the frames first: on long 60 fps streams the scaler, not the decoder, is the cost."""
     args = []
     if start:
         args += ["-ss", f"{start:.3f}"]
     if end is not None:
         args += ["-to", f"{end:.3f}"]
-    args += ["-i", str(path), "-an", "-sn", "-vf", f"scale=320:-2,select='gt(scene,{threshold})',showinfo",
+    thin = f"fps={sample_fps:g}," if sample_fps else ""
+    args += ["-i", str(path), "-an", "-sn", "-vf", f"{thin}scale=320:-2,select='gt(scene,{threshold})',showinfo",
              "-f", "null", "-"]
     proc = run(["-nostats", *args], timeout=1800)
     return [round(float(m) + start, 3) for m in _PTS.findall(stderr_text(proc))]
@@ -143,7 +146,7 @@ def measure(path: str | Path, with_frames_dir: Path | None = None) -> dict[str, 
     dur = info.get("duration") or 0.0
     out: dict[str, Any] = {"probe": info}
     if info.get("has_video"):
-        cuts = scene_cuts(path)
+        cuts = scene_cuts(path, sample_fps=12 if dur > 180 else None)  # long sources: 12 fps is plenty for cuts
         out["cuts"] = cuts
         out["shots"] = shot_stats(cuts, dur)
     if info.get("has_audio"):

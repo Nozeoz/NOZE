@@ -81,8 +81,34 @@ def heuristic_brief(text: str, url: str = "", name: str = "") -> dict[str, Any]:
         b["requirements"]["other"].append("No networks: post from a single personal account")
     if "only" in low and ("provided footage" in low or "provided content" in low):
         b["requirements"]["other"].append("Use only the provided footage")
-    if "subtitle" in low or "caption" in low:
+    for m in re.finditer(r"include\s+(\S+)\s+in\s+(?:the|your|each)\s+(?:post\s+)?caption", t, re.I):
+        if m.group(1).rstrip(".,") not in b["requirements"]["mentions"]:  # "include twitch.tv/x in the caption"
+            b["requirements"]["mentions"].append(m.group(1).rstrip(".,"))
+    # "caption" alone usually means the post text, not burned-in subtitles
+    if re.search(r"subtitle|burn(?:ed)?[- ]in|on[- ]screen captions|(?:add|use|include) captions|captions? (?:are )?"
+                 r"(?:required|mandatory|must)", low):
         b["requirements"]["other"].append("Burned-in captions required")
+    m = re.search(r"\b(?:for|by)\s+(?:the\s+)?(?:streamer|creator|youtuber|podcaster)\s+@?([A-Za-z0-9_]{3,30})", t)
+    if m:
+        b["creator"] = m.group(1)
+    b["creator_handles"] = list(dict.fromkeys(h.rstrip(".") for h in re.findall(
+        r"(?:twitch\.tv|kick\.com|tiktok\.com|youtube\.com|instagram\.com)/@?[A-Za-z0-9_.]+", t)))[:5]
+    for lang, code in (("english", "en"), ("indonesian", "id"), ("bahasa", "id"), ("spanish", "es")):
+        if re.search(rf"\b{lang}\b(?: only| language)|only {lang}\b|in {lang}\b", low):
+            b["language"] = code
+            break
+    m = re.search(r"\b([a-z]+)\s+niche\b", low)
+    if m and m.group(1) not in ("the", "any", "a", "your", "same"):
+        b["niche"] = m.group(1)
+    if "facecam" in low or "face cam" in low:
+        b["requirements"]["other"].append("Keep the streamer's facecam visible in every clip")
+    m = re.search(r"((?:twitch\.tv|kick\.com|youtube\.com)/[A-Za-z0-9_@.]+)[^\n]{0,80}?(?:on[- ]screen|overlay|every clip)",
+                  t, re.I) or re.search(r"(?:on[- ]screen|overlay)[^\n]{0,80}?((?:twitch\.tv|kick\.com|youtube\.com)/"
+                                        r"[A-Za-z0-9_@.]+)", t, re.I)
+    if m:
+        b["requirements"]["watermark"] = m.group(1).rstrip(".,")
+    if re.search(r"(do not|don'?t|never) (cover|drown)[^\n]{0,30}(voice|audio)[^\n]{0,20}music|no music", low):
+        b["style"]["avoid"].append("music over the voice")
     b["deliverables"]["clips_per_source"] = 3
     return b
 

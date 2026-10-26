@@ -14,7 +14,7 @@ import shutil
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from ..standards import safe_zone
 
@@ -217,8 +217,9 @@ def caption_styles(doc: AssDoc, font: str, spec: dict[str, Any]) -> None:
 
 
 def build_captions(doc: AssDoc, words: list[dict[str, Any]], spec: dict[str, Any], platform: str,
-                   duration: float) -> int:
-    """Add caption events for re-timed words. Returns how many caption chunks were placed."""
+                   duration: float, y_at: Callable[[float], int | None] | None = None) -> int:
+    """Add caption events for re-timed words. Returns how many caption chunks were placed.
+    ``y_at(t)`` may override the anchor's height per moment (e.g. the seam of a stacked layout)."""
     if not spec.get("enabled", True) or not words:
         return 0
     anc = anchors(doc.width, doc.height, platform)
@@ -231,9 +232,9 @@ def build_captions(doc: AssDoc, words: list[dict[str, Any]], spec: dict[str, Any
     max_chars = max(8, int(anc["max_width"] / (size * (0.62 if upper else 0.52))))
     hi = ass_color(spec.get("highlight_color") or "#FFE600")
     chunks = group_words(words, n_words, max_chars)
-    pos = f"\\an5\\pos({x},{y})"
     for i, chunk in enumerate(chunks):
         start = chunk[0]["start"]
+        pos = f"\\an5\\pos({x},{(y_at(start) if y_at else None) or y})"
         nxt = chunks[i + 1][0]["start"] if i + 1 < len(chunks) else duration
         end = max(chunk[-1]["end"] + 0.12, start + 0.35)
         if nxt - end < 0.3:

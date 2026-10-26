@@ -168,6 +168,19 @@ def compliance_lint(plan: dict[str, Any], brief: dict[str, Any], duration: float
     if cta and cta.lower() not in on_screen and cta.lower() not in text:
         issues.append(issue("cta", "compliance", "major", f"Required CTA '{cta}' missing.",
                             f"Add a CTA overlay '{cta}' in the last 3s ({max(0.0, duration - 3):.1f}s→end)."))
+    mark = (req.get("watermark") or "").strip()
+    if mark and not any(mark.lower() in (o.get("text") or "").lower() and float(o.get("start") or 0) <= 0.5
+                        and float(o.get("end") or 0) >= duration - 0.5 for o in overlays):
+        issues.append(issue("watermark", "compliance", "blocker",
+                            f"'{mark}' must be on screen for the whole clip.",
+                            f"Add a label overlay '{mark}' from 0s to the end."))
+    other = " ".join(req.get("other") or []).lower()
+    if ("facecam" in other or "face cam" in other) and any(
+            ((s.get("reframe") or {}).get("mode") not in ("stack", "fit_blur", "fill"))
+            for s in plan.get("segments") or []):
+        issues.append(issue("facecam", "compliance", "blocker",
+                            "The brief requires the streamer's facecam in every clip, but a segment crops it out.",
+                            "Use the stack layout (facecam on top) or fit_blur on every segment."))
     banned = [b.strip().lower() for b in req.get("banned") or [] if b.strip()]
     for b in banned:
         if b in on_screen or b in text:
