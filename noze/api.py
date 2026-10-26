@@ -29,6 +29,8 @@ from .http import Http, SourceError
 from .importers.web import ingest_file, ingest_url
 from .lexicon import STARTER_TOPICS, parse_query
 from .search import ACTION_WEIGHTS, Ranker, SearchRequest, describe_query, page_slice
+from .agency.web import AgencyWeb
+from .agency.web import mount as mount_agency
 from .worker import Worker
 
 log = logging.getLogger("noze.api")
@@ -113,6 +115,7 @@ class State:
 def create_app(settings: Settings | None = None, start_worker: bool | None = None) -> FastAPI:
     settings = settings or Settings.load()
     state = State()
+    agency_web = AgencyWeb(settings)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -125,8 +128,10 @@ def create_app(settings: Settings | None = None, start_worker: bool | None = Non
         if run_worker:
             state.worker = Worker(state.ctx)
             state.worker.start()
+            agency_web.start()  # the clipping studio's runner, when AGENCY_AUTORUN=1
         app.state.noze = state
         yield
+        agency_web.stop()
         if state.worker:
             state.worker.stop()
         await state.http.aclose()
@@ -179,6 +184,7 @@ def create_app(settings: Settings | None = None, start_worker: bool | None = Non
         return FileResponse(WEB_DIR / "save.html")
 
     app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
+    mount_agency(app, agency_web)
 
     # -- search & discovery ---------------------------------------------------------------------
     @app.get("/api/health")

@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NOZE Studio</title>
+  <meta name="description" content="The automated clipping studio: manager, scout, analyst, editor and reviewer at work.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='7' y='3' width='18' height='26' rx='4' fill='%23ff5a36'/%3E%3Cpath d='M14 11v10l7-5z' fill='%23111'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/styles.css">
+  <style>
+    body { min-height: 100vh; }
+    .st-top { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
+    .st-bar { display: flex; align-items: center; gap: 12px; padding: 12px 16px; flex-wrap: wrap; }
+    .st-bar h1 { font-size: 17px; margin: 0; display: flex; align-items: center; gap: 8px; }
+    .st-bar h1 .dot { width: 12px; height: 12px; border-radius: 4px; background: var(--accent); display: inline-block; }
+    .st-tabs { display: flex; gap: 4px; margin-left: auto; flex-wrap: wrap; }
+    .st-tabs button, .st-btn { background: var(--bg-3); color: var(--text); border: 1px solid var(--line); border-radius: 10px;
+      padding: 7px 12px; font: inherit; cursor: pointer; }
+    .st-tabs button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+    .st-btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+    .st-btn.danger { color: #ff6b6b; }
+    .st-main { padding: 16px; max-width: 1400px; margin: 0 auto; }
+    .st-strip { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; color: var(--text-2); font-size: 13px; }
+    .st-pill { background: var(--bg-3); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; }
+    .st-alert { background: var(--accent-soft); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; margin-bottom: 6px; font-size: 13px; }
+    .st-board { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+    .st-col { background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px; min-height: 120px; }
+    .st-col h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); margin: 2px 4px 10px; display: flex; justify-content: space-between; }
+    .st-card { background: var(--bg-3); border: 1px solid var(--line); border-radius: 12px; padding: 9px 10px; margin-bottom: 8px; cursor: pointer; }
+    .st-card:hover { border-color: var(--accent); }
+    .st-card .t { font-weight: 600; font-size: 13px; overflow-wrap: anywhere; }
+    .st-card .m { color: var(--text-3); font-size: 12px; margin-top: 3px; }
+    .st-state { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--bg-4); color: var(--text-2); }
+    .st-panel { position: fixed; inset: 0 0 0 auto; width: min(720px, 100%); background: var(--bg-2); border-left: 1px solid var(--line);
+      box-shadow: var(--shadow); overflow-y: auto; padding: 18px; z-index: 10; display: none; }
+    .st-panel.open { display: block; }
+    .st-panel video { width: 100%; max-height: 62vh; background: #000; border-radius: 12px; }
+    .st-panel h3 { margin: 18px 0 8px; font-size: 14px; }
+    .st-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .st-issue { border-left: 3px solid var(--line); padding: 4px 10px; margin: 6px 0; font-size: 13px; }
+    .st-issue.blocker { border-color: #ff4d4d; } .st-issue.major { border-color: #f59e0b; } .st-issue.minor { border-color: var(--text-3); }
+    .st-issue .fix { color: var(--text-2); }
+    .st-ev { font-size: 12px; color: var(--text-2); padding: 3px 0; border-bottom: 1px dashed var(--line); }
+    .st-ev b { color: var(--text); font-weight: 600; }
+    textarea, input[type=text], select { width: 100%; background: var(--bg-3); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font: inherit; }
+    textarea { min-height: 70px; }
+    .st-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+    .st-kpi { background: var(--bg-2); border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+    .st-kpi .v { font-size: 24px; font-weight: 700; }
+    .st-kpi .l { color: var(--text-3); font-size: 12px; }
+    .st-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .st-table td, .st-table th { border-bottom: 1px solid var(--line); padding: 7px 6px; text-align: left; vertical-align: top; }
+    .st-form { background: var(--bg-2); border: 1px solid var(--line); border-radius: 14px; padding: 12px; margin-bottom: 14px; display: grid; gap: 8px; }
+    .muted { color: var(--text-3); }
+    .hidden { display: none !important; }
+    @media (max-width: 640px) { .st-tabs { margin-left: 0; width: 100%; } .st-tabs button { flex: 1; } }
+  </style>
+</head>
+<body>
+  <header class="st-top">
+    <div class="st-bar">
+      <h1><span class="dot"></span>NOZE Studio</h1>
+      <a class="muted" href="/" title="Back to the asset bank">← bank</a>
+      <nav class="st-tabs" id="tabs">
+        <button data-tab="board" class="on">Board</button>
+        <button data-tab="team">Team report</button>
+        <button data-tab="playbook">Playbook</button>
+        <button data-tab="work">Leads &amp; campaigns</button>
+      </nav>
+    </div>
+  </header>
+  <main class="st-main">
+    <section id="tab-board">
+      <div class="st-strip" id="strip"></div>
+      <div id="alerts"></div>
+      <div class="st-board" id="board"></div>
+    </section>
+    <section id="tab-team" class="hidden"><div class="st-kpis" id="kpis"></div><h3>Recurring problems</h3><div id="issues"></div></section>
+    <section id="tab-playbook" class="hidden">
+      <form class="st-form" id="lesson-form">
+        <b>Teach the team a lesson</b>
+        <div class="st-row"><select name="role" style="max-width:180px"><option>editor</option><option>reviewer</option><option>analyst</option><option>scout</option><option>manager</option></select>
+        <input type="text" name="section" placeholder="section (e.g. captions)" style="max-width:220px"></div>
+        <textarea name="text" placeholder="One concrete instruction, e.g. “Keep the creator's logo bug visible top-left on every clip.”"></textarea>
+        <div><button class="st-btn primary">Add lesson</button> <span class="muted">Your lessons are active right away and never auto-pruned.</span></div>
+      </form>
+      <div id="lessons"></div>
+    </section>
+    <section id="tab-work" class="hidden">
+      <form class="st-form" id="submit-form">
+        <b>Submit a source video</b>
+        <input type="text" name="source" placeholder="/path/to/episode.mp4 · direct video URL · noze:&lt;asset id&gt;">
+        <div class="st-row"><select name="campaign" id="campaign-select" style="max-width:280px"></select>
+        <input type="text" name="clips" placeholder="clips (default 3)" style="max-width:140px">
+        <label><input type="checkbox" name="own"> my own content</label>
+        <button class="st-btn primary">Queue</button></div>
+      </form>
+      <form class="st-form" id="lead-form">
+        <b>Add a clipping campaign you found</b>
+        <input type="text" name="url" placeholder="campaign / post URL">
+        <textarea name="terms" placeholder="Paste the campaign terms (rate, rules, hashtags, footage link…). Whop, Content Rewards and Vyro forbid automated access, so the studio reads what you paste."></textarea>
+        <div><button class="st-btn primary">Qualify</button></div>
+      </form>
+      <h3>Leads</h3><table class="st-table" id="leads"></table>
+      <h3>Campaigns</h3><table class="st-table" id="campaigns"></table>
+    </section>
+  </main>
+  <aside class="st-panel" id="panel" aria-live="polite"></aside>
+  <script src="/static/agency.js" defer></script>
+</body>
+</html>

@@ -320,6 +320,10 @@ def main(argv: list[str] | None = None) -> None:
     s = sub.add_parser("stats", help="what's in the bank and how much space it uses")
     s.set_defaults(func=cmd_stats)
 
+    from .agency.cli import register as register_agency
+
+    register_agency(sub)
+
     args = p.parse_args(argv)
     logging.basicConfig(level=logging.INFO if args.verbose else logging.WARNING,
                         format="%(asctime)s %(name)s %(levelname)s %(message)s")

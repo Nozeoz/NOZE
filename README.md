@@ -18,6 +18,8 @@ Satu tempat buat nyari **referensi & aset** (motion, video, Lottie, GIF, gambar,
 - **Bank tumbuh sendiri**: tambah "interest" (mis. *liquid chrome*, *film burn transition*) atau *starter pack* 50 topik motion/design → di-crawl di background tiap hari, makin dalam tiap putaran.
 - **Generate yang nggak ketemu** (opsional): Seedance (video) / FLUX (gambar) via Replicate, hasilnya masuk bank sebagai asetmu.
 
+- **NOZE Studio — perusahaan clipper otomatis** (`noze agency`): satu tim agent — Manager, Scout, Analyst, Editor, Reviewer — yang mengubah video panjang creator jadi clip vertikal siap posting. Manager cari campaign clipping yang lagi buka (lewat jalur yang diizinkan), bikin brief + bukti izin, bagi tugas, ACC final, upload & laporan. Analyst bedah referensi sampai kerangka script/video/edit, Editor bikin EDL lengkap (reframe 9:16, punch-in, transisi, caption animasi, SFX, musik ber-ducking, −14 LUFS), Reviewer cek QC terukur + kreatif dan balikin poin-poin bertimecode ke Editor. Tim **belajar terus** lewat playbook ber-counter dengan trial, promosi, dan rollback otomatis — flow-nya sendiri nggak pernah berubah. Panduan: [docs/AGENCY.md](docs/AGENCY.md).
+
 | Vibe search | Detail + lisensi + "More like this" |
 |---|---|
 | ![](docs/img/vibe.jpg) | ![](docs/img/detail.jpg) |
@@ -95,6 +97,14 @@ Perbandingan opsi, estimasi biaya, dan cara setup: [docs/STORAGE.md](docs/STORAG
 | `noze export-board "Client X" pack.zip` | zip + CREDITS.txt |
 | `noze enrich` / `noze reindex` | proses thumbnail & vektor sekarang / hitung ulang setelah pasang CLIP |
 | `noze stats` | isi bank & pemakaian storage |
+| `noze agency init` / `doctor` | siapkan studio clipping (font caption, SFX bawaan) & cek tools |
+| `noze agency campaign add grind --terms-file syarat.txt` | daftarkan campaign (syaratnya = brief + bukti izin) |
+| `noze agency submit episode.mp4 --campaign grind` | antrekan video panjang (atau drop ke `agency/inbox/grind/`) |
+| `noze agency run [--forever]` | jalankan tim: scout → analyst → editor ↔ reviewer → manager → delivery |
+| `noze agency status` / `show <id>` / `report` | papan tim, detail job, laporan KPI per role |
+| `noze agency approve\|changes\|reject <id>` | keputusanmu atas sebuah clip |
+| `noze agency lead scout\|add\|accept` | cari & kualifikasi creator yang lagi buka jasa clipper |
+| `noze agency playbook` | apa yang sudah dipelajari tim (+ tambah/retire lesson) |
 
 ## Develop
 
@@ -102,6 +112,8 @@ Perbandingan opsi, estimasi biaya, dan cara setup: [docs/STORAGE.md](docs/STORAG
 pip install -e ".[dev]"
 pytest            # tiap konektor diuji dengan bentuk respons API aslinya (tanpa jaringan)
 ```
+
+Studio clipping ada di `noze/agency/` (SOP tiap role di `noze/agency/sop/`, media engine di `noze/agency/media/`), dashboard di **http://localhost:8787/agency**. Referensi riset (repo & paper yang diamati dan apa yang di-upgrade): [docs/AGENCY_REFERENCES.md](docs/AGENCY_REFERENCES.md).
 
 Struktur: `noze/sources/` (satu file per sumber — nambah sumber baru cukup satu class, lihat [docs/SOURCES.md](docs/SOURCES.md#nambah-sumber-baru)), `noze/harvest.py` (fan-out + cache), `noze/search.py` (ranking), `noze/enrich.py` (thumbnail/warna/vektor), `noze/api.py` + `noze/web/` (UI tanpa build step), `noze/importers/`.
 

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "noze"
 version = "0.1.0"
-description = "NOZE — personal creative asset bank: search many free/open creative sources by vibe, keep what you find."
+description = "NOZE — personal creative asset bank (search free/open sources by vibe, keep what you find) + an automated short-form clipping studio run by a team of agents."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -22,8 +22,14 @@ dependencies = [
 clip = ["fastembed>=0.4"]
 # Cloud storage for the bank: Cloudflare R2, Backblaze B2, Wasabi, MinIO, AWS S3.
 s3 = ["boto3>=1.28"]
-dev = ["pytest>=8", "respx>=0.21"]
-all = ["fastembed>=0.4", "boto3>=1.28"]
+# The clipping studio (noze agency): Claude as the team's brain.
+agency = ["anthropic>=2.3"]
+# Word-level transcripts for moment picking and captions (CPU is fine).
+transcribe = ["faster-whisper>=1.1"]
+# Optional speaker locator for 16:9 → 9:16 reframing.
+faces = ["opencv-python-headless>=4.9"]
+dev = ["pytest>=8", "respx>=0.21", "anthropic>=2.3"]
+all = ["fastembed>=0.4", "boto3>=1.28", "anthropic>=2.3"]
 
 [project.scripts]
 noze = "noze.cli:main"
@@ -32,7 +38,7 @@ noze = "noze.cli:main"
 include = ["noze*"]
 
 [tool.setuptools.package-data]
-noze = ["web/*", "web/vendor/*"]
+noze = ["web/*", "web/vendor/*", "agency/sop/*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
