@@ -119,7 +119,8 @@ def mount(app: FastAPI, web: AgencyWeb) -> None:
             jobs = a.store.list_jobs(limit=200)
             return {"jobs": [_job_json(a, j) for j in jobs], "counts": a.store.state_counts("clip"),
                     "alerts": Manager(a).monitor(), "spend_24h": round(a.store.spend(since=time.time() - 86400), 3),
-                    "llm": {"available": a.llm.available, "reason": a.llm.reason, "model": a.cfg.model},
+                    "llm": {"available": a.llm.available, "reason": a.llm.reason, "model": a.cfg.models_label(),
+                            "backend": a.llm.backend},
                     "auto_approve": a.cfg.auto_approve, "runner": web.running}
         return await run_in_threadpool(work)
 
@@ -134,7 +135,8 @@ def mount(app: FastAPI, web: AgencyWeb) -> None:
             render = (a.store.artifact(job_id, "render") or {}).get("data") or {}
             return {**_job_json(a, j), "input": j["input"],
                     "data": {k: v for k, v in (j.get("data") or {}).items()
-                             if k in ("history", "fix_log", "post", "delivery", "learning", "escalated", "duration")},
+                             if k in ("history", "fix_log", "post", "delivery", "learning", "escalated", "duration",
+                                      "hold_reason")},
                     "events": a.store.events(job_id, limit=200), "reviews": a.store.reviews(job_id),
                     "plan": {k: plan.get(k) for k in ("title", "overlays", "captions", "music", "color", "post",
                                                       "rationale", "used_lessons")} if plan else None,

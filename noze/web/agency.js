@@ -78,6 +78,7 @@
     if (j.has_video) kids.push(el("video", { src: `/api/agency/jobs/${id}/video?ts=${j.updated_at}`, controls: "", playsinline: "" }));
     if (j.render) kids.push(el("div", { class: "muted", text: `${(j.render.duration || 0).toFixed(1)}s · ${j.render.loudness?.integrated} LUFS · ${j.render.captions} captions · font ${j.render.font}` }));
     if (j.kind === "clip" && ["awaiting_human", "escalated", "approval", "approved"].includes(j.state)) {
+      if (j.state === "awaiting_human" && j.data?.hold_reason) kids.push(el("div", { class: "muted", text: `⏸ ${j.data.hold_reason}` }));
       const notes = el("textarea", { placeholder: "What should change? (one note per line)" });
       kids.push(el("h3", { text: "Your call" }), notes, el("div", { class: "st-row" },
         el("button", { class: "st-btn primary", text: "Approve", onclick: () => decide(id, "approve", notes) }),

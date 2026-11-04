@@ -253,6 +253,12 @@ def test_manager_assigns_extra_clip(tmp_path, source):
     ag = Agency(ax)
     sid = ag.submit(str(source), own_content=True)
     drain(ag)
+    # no LLM → no creative review → every clip waits for a human ACC; give it
+    held = [c["id"] for c in ax.store.list_jobs(parent_id=sid) if c["state"] == "awaiting_human"]
+    assert held
+    for c in held:
+        ag.decide(c, "approve")
+    drain(ag)
     assert ax.store.get_job(sid)["state"] == "done"
     with pytest.raises(ValueError):
         ag.add_clip(sid, 25.0, 999.0)
@@ -262,5 +268,11 @@ def test_manager_assigns_extra_clip(tmp_path, source):
     assert clip["state"] == "planning" and clip["input"]["moment"]["start_s"] == 1.0
     drain(ag)
     assert ax.store.get_job(cid)["state"] in ("delivered", "awaiting_human", "escalated")
+    assert ax.store.get_job(sid)["state"] == "producing"  # a clip still waits for a human
+    if ax.store.get_job(cid)["state"] == "awaiting_human":
+        ag.decide(cid, "approve")
+    else:
+        ag.decide(cid, "reject")
+    drain(ag)
     assert ax.store.get_job(sid)["state"] == "done"
     ax.close()

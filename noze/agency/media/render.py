@@ -22,7 +22,8 @@ from typing import Any
 
 from ..standards import DELIVERY
 from .analyze import loudness, loudnorm_measure
-from .captions import AssDoc, add_flash, build_captions, build_overlays, caption_styles, overlay_styles, pick_font
+from .captions import (AssDoc, add_flash, box_pad, build_captions, build_overlays, caption_styles, overlay_styles,
+                       pick_font, rides_seam)
 from .ffmpeg import MediaError, probe, run
 from .timeline import Timeline
 
@@ -127,6 +128,18 @@ def stack_graph(cam: dict[str, Any], game_x: float, src_w: int, src_h: int, w: i
             f"[top][bot]vstack=inputs=2")
 
 
+def band_src_range(seg: dict[str, Any]) -> tuple[float, float, float] | None:
+    """(start, end, speed) of a usable ``band_src`` (stack mode: the gameplay band's own source range), else None."""
+    bs = seg.get("band_src")
+    if not isinstance(bs, dict):
+        return None
+    try:
+        a, b, s = float(bs.get("start")), float(bs.get("end")), float(bs.get("speed") or 1.0)
+    except (TypeError, ValueError):
+        return None
+    return (a, b, min(4.0, max(0.25, s))) if a >= 0 and b - a >= 0.1 else None
+
+
 def zoom_filters(kind: str, scale: float, transition_in: str, dur: float, w: int, h: int, fps: int) -> list[str]:
     scale = min(1.4, max(1.0, scale or 1.0))
     if transition_in == "zoom":  # zoom-in transition: start 25% in, settle in 0.3 s
@@ -172,13 +185,13 @@ class Renderer:
                 shutil.copyfile(f, local / f.name)
         return "fonts"
 
-    def _render_segment(self, source: Path, seg: dict[str, Any], speed: float, dur: float, trans: str, nxt: str,
-                        src_w: int, src_h: int, has_audio: bool, dest: Path) -> None:
-        """One source range → a W×H intermediate (near-lossless video, PCM audio so
-        concatenation stays sample-accurate). Seeking per segment keeps memory flat."""
+    def segment_graph(self, seg: dict[str, Any], speed: float, dur: float, trans: str, nxt: str,
+                      src_w: int, src_h: int, has_audio: bool) -> tuple[str, list[tuple[float, float]]]:
+        """(filter graph, source ranges of the ffmpeg inputs). Input 0 is the segment's own range (cam + audio);
+        a stack segment with a valid ``band_src`` has input 1: the range the GAMEPLAY band shows instead."""
         sp = self.spec
         W, H, FPS = sp.width, sp.height, sp.fps
-        a, b = float(seg["src_start"]), float(seg["src_end"])
+        inputs = [(float(seg["src_start"]), float(seg["src_end"]))]
         chain = ["setpts=PTS-STARTPTS"]
         if abs(speed - 1.0) > 1e-3:
             chain.append(f"setpts=PTS/{speed:.4f}")
@@ -205,9 +218,18 @@ class Renderer:
             post.append(f"avgblur=sizeX=48:sizeY=1:enable='gt(t,{max(0.0, dur - 0.08):.3f})'")
         post += [f"fps={FPS}", "format=yuv420p", "setsar=1"]
         if rf == ["STACK"]:
-            graph = f"[0:v]{','.join(chain)},split=2[c][g];" + stack_graph(
-                reframe["cam"], float(reframe.get("x") or 0.5), src_w, src_h, W, H,
-                game_post) + f",{','.join(post)}[v]"
+            bs = band_src_range(seg)
+            if bs:  # the gameplay band replays another range (muted); cam + audio keep this segment's own
+                inputs.append((bs[0], bs[1]))
+                # a replay shorter than the segment slows down to cover it (≥ 0.5×) instead of freezing on its
+                # last frame — a held frame reads as an empty stage (QC visual:empty_band)
+                sp = min(bs[2], max(0.5, (bs[1] - bs[0]) / max(dur, 1e-3)))
+                head = (f"[0:v]{','.join(chain)}[c];[1:v]setpts=PTS-STARTPTS,setpts=PTS/{sp:.4f},"
+                        f"tpad=stop_mode=clone:stop_duration={dur:.3f},trim=duration={dur:.3f},setpts=PTS-STARTPTS[g];")
+            else:
+                head = f"[0:v]{','.join(chain)},split=2[c][g];"
+            graph = head + stack_graph(reframe["cam"], float(reframe.get("x") or 0.5), src_w, src_h, W, H,
+                                       game_post) + f",{','.join(post)}[v]"
         elif rf == ["FIT_BLUR"]:
             graph = (f"[0:v]{','.join(chain)},split=2[bg][fg];"
                      f"[bg]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
@@ -225,9 +247,19 @@ class Renderer:
             graph += f";[0:a]{','.join(ach)}[a]"
         else:
             graph += f";anullsrc=r=48000:cl=stereo,atrim=0:{dur:.3f}[a]"
+        return graph, inputs
+
+    def _render_segment(self, source: Path, seg: dict[str, Any], speed: float, dur: float, trans: str, nxt: str,
+                        src_w: int, src_h: int, has_audio: bool, dest: Path) -> None:
+        """One source range → a W×H intermediate (near-lossless video, PCM audio so
+        concatenation stays sample-accurate). Seeking per segment keeps memory flat."""
+        graph, inputs = self.segment_graph(seg, speed, dur, trans, nxt, src_w, src_h, has_audio)
         tmp = dest.with_suffix(".part.mkv")
-        run(["-y", "-nostats", "-v", "error", "-threads", "4", "-ss", f"{a:.3f}", "-to", f"{b:.3f}",
-             "-i", str(source), "-filter_complex", graph, "-map", "[v]", "-map", "[a]",
+        ins: list[str] = []
+        for a, b in inputs:
+            ins += ["-ss", f"{a:.3f}", "-to", f"{b:.3f}", "-i", str(source)]
+        run(["-y", "-nostats", "-v", "error", "-threads", "4", *ins,
+             "-filter_complex", graph, "-map", "[v]", "-map", "[a]",
              "-c:v", "libx264", "-preset", "veryfast", "-crf", "14", "-pix_fmt", "yuv420p",
              "-c:a", "pcm_s16le", "-t", f"{dur:.3f}", str(tmp)], timeout=max(300, int(dur * 40)))
         tmp.replace(dest)
@@ -255,7 +287,7 @@ class Renderer:
         doc = AssDoc(W, H)
         cap_spec = plan.get("captions") or {}
         caption_styles(doc, font, cap_spec)
-        overlay_styles(doc, font)
+        overlay_styles(doc, font, pick_font(self.fonts_dir, "Anton"))
         out_words = tl.map_words(words)
         seams = [(p.out_start, p.out_end, stack_layout(segs[p.index]["reframe"]["cam"], src_w, src_h, W, H)[0])
                  for p in tl.placed if (segs[p.index].get("reframe") or {}).get("mode") == "stack"
@@ -266,7 +298,10 @@ class Renderer:
 
         n_caps = (build_captions(doc, out_words, cap_spec, sp.platform, D, seam_at if seams else None)
                   if cap_spec.get("enabled", True) else 0)
-        n_ovs = build_overlays(doc, plan.get("overlays") or [], sp.platform, D)
+        seam_caps = seam_at if seams and n_caps and rides_seam(cap_spec) else None  # keep text off the seam caption
+        cst = doc.styles["Caption"]
+        n_ovs = build_overlays(doc, plan.get("overlays") or [], sp.platform, D, seam_caps, cst.size, box_pad(cst),
+                               cap_spec.get("highlight_color") or "")
         for p in tl.placed[1:]:
             if (segs[p.index].get("transition_in") or "cut") == "flash":
                 add_flash(doc, p.out_start)
@@ -283,7 +318,8 @@ class Renderer:
             nxt = (segs[i + 1].get("transition_in") or "cut") if i + 1 < len(segs) else "cut"
             key = hashlib.sha1(json.dumps([str(source), src_stat.st_size, int(src_stat.st_mtime), W, H, FPS,
                                            seg.get("src_start"), seg.get("src_end"), p.speed, seg.get("reframe"),
-                                           seg.get("zoom"), bool(seg.get("shake")), trans, nxt],
+                                           seg.get("zoom"), bool(seg.get("shake")), trans, nxt,
+                                           seg.get("band_src")],
                                           sort_keys=True, default=str).encode()).hexdigest()[:16]
             dest = seg_dir / f"seg_{key}.mkv"
             if not dest.exists():

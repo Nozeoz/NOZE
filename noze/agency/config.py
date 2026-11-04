@@ -24,6 +24,18 @@ DEFAULT_EFFORT = {
     "reflector": "medium",
 }
 
+# Model per role when AGENCY_MODEL_<ROLE> isn't set. Judgement that is expensive to get wrong
+# (the editor's cut, the reviewer's verdict, the manager's ACC) gets Opus; scouting, measured
+# breakdowns and reflection score the same on Sonnet at a fraction of the quota.
+DEFAULT_ROLE_MODELS = {
+    "manager": "claude-opus-5-5",
+    "editor": "claude-opus-5-5",
+    "reviewer": "claude-opus-5-5",
+    "analyst": "claude-sonnet-5-5",
+    "scout": "claude-sonnet-5-5",
+    "reflector": "claude-sonnet-5-5",
+}
+
 AGENCY_KEYS = (
     "ANTHROPIC_API_KEY",
     "YOUTUBE_CLIENT_ID",
@@ -40,8 +52,10 @@ AGENCY_KEYS = (
 @dataclass
 class AgencySettings:
     base: Settings
-    llm: str = "auto"  # auto (Claude when credentials exist) | claude | off
-    model: str = "claude-opus-5-5"
+    llm: str = "auto"  # auto (API key → API, else a logged-in `claude` CLI) | api | cli | off
+    model: str = ""  # one model for every role; empty = DEFAULT_ROLE_MODELS
+    claude_bin: str = ""  # path to the Claude Code CLI (default: PATH, then ~/.local/bin)
+    cli_timeout_s: float = 900.0
     role_models: dict[str, str] = field(default_factory=dict)
     role_effort: dict[str, str] = field(default_factory=lambda: dict(DEFAULT_EFFORT))
     fallbacks: bool = True  # server-side refusal fallbacks on Claude
@@ -57,7 +71,7 @@ class AgencySettings:
     height: int = 1920
     fps: int = 30
     transcriber: str = "auto"  # auto | faster-whisper | sidecar | none
-    whisper_model: str = "small"
+    whisper_model: str = "auto"  # auto = large-v3 on a CUDA GPU, small on CPU
     allow_download: bool = False  # yt-dlp for platform URLs (only for content you have rights to)
     auto_publish: bool = False  # push approved clips to platforms without a human click
     publish_targets: list[str] = field(default_factory=lambda: ["folder"])
@@ -100,6 +114,10 @@ class AgencySettings:
             if merged.get(f"AGENCY_EFFORT_{r.upper()}"):
                 role_effort[r] = merged[f"AGENCY_EFFORT_{r.upper()}"].lower()
         keys = {k: merged[k] for k in AGENCY_KEYS if merged.get(k)}
+        if env is None:  # media/transcribe.py reads these from the process env; let .env set them too
+            for k in ("AGENCY_WHISPER_DEVICE", "AGENCY_CUDA_DLL_DIRS"):
+                if merged.get(k) and not os.environ.get(k):
+                    os.environ[k] = merged[k]
 
         def lst(name: str, default: list[str]) -> list[str]:
             raw = merged.get(name)
@@ -110,7 +128,9 @@ class AgencySettings:
         return cls(
             base=base,
             llm=get("AGENCY_LLM", "auto").lower(),
-            model=get("AGENCY_MODEL", "claude-opus-5-5"),
+            model=get("AGENCY_MODEL", ""),
+            claude_bin=get("AGENCY_CLAUDE_BIN", ""),
+            cli_timeout_s=num("AGENCY_CLI_TIMEOUT_S", 900.0),
             role_models=role_models,
             role_effort=role_effort,
             fallbacks=_bool(merged.get("AGENCY_FALLBACKS"), True),
@@ -126,7 +146,7 @@ class AgencySettings:
             height=int(num("AGENCY_HEIGHT", 1920)),
             fps=int(num("AGENCY_FPS", 30)),
             transcriber=get("AGENCY_TRANSCRIBER", "auto").lower(),
-            whisper_model=get("AGENCY_WHISPER_MODEL", "small"),
+            whisper_model=get("AGENCY_WHISPER_MODEL", "auto"),
             allow_download=_bool(merged.get("AGENCY_ALLOW_DOWNLOAD"), False),
             auto_publish=_bool(merged.get("AGENCY_AUTO_PUBLISH"), False),
             publish_targets=lst("AGENCY_PUBLISH_TARGETS", ["folder"]),
@@ -149,7 +169,14 @@ class AgencySettings:
         return self.keys.get(name) or self.base.key(name)
 
     def model_for(self, role: str) -> str:
-        return self.role_models.get(role) or self.model
+        return self.role_models.get(role) or self.model or DEFAULT_ROLE_MODELS.get(role, "claude-opus-5-5")
+
+    def models_label(self) -> str:
+        """``manager=claude-opus-5-5, scout=claude-sonnet-5-5 …`` collapsed to one name when all agree."""
+        per = {r: self.model_for(r) for r in (*ROLES, "reflector")}
+        if len(set(per.values())) == 1:
+            return next(iter(per.values()))
+        return ", ".join(f"{r}={m.removeprefix('claude-')}" for r, m in per.items())
 
     def effort_for(self, role: str) -> str:
         return self.role_effort.get(role, "medium")

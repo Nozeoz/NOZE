@@ -97,8 +97,9 @@ def cmd_doctor(args) -> None:
     ytd = bool(shutil.which("yt-dlp") or importlib.util.find_spec("yt_dlp"))
     print(f"{mark(ytd)} yt-dlp (platform links; AGENCY_ALLOW_DOWNLOAD={int(cfg.allow_download)})")
     print(f"{mark(faces.available())} OpenCV speaker locator (optional: pip install opencv-python-headless)")
-    print(f"{mark(ax.llm.available)} Claude ({cfg.model}) " + (ax.llm.reason if not ax.llm.available else
-                                                               f"— fallbacks {'on' if cfg.fallbacks else 'off'}"))
+    via = {"api": "Anthropic API", "cli": f"Claude Code CLI / subscription ({ax.llm.cli})"}.get(ax.llm.backend, "")
+    print(f"{mark(ax.llm.available)} Claude ({cfg.models_label()}) " + (
+        ax.llm.reason if not ax.llm.available else f"via {via} — fallbacks {'on' if cfg.fallbacks else 'off'}"))
     print(f"  captions font: {pick_font(cfg.fonts_dir)}")
     print(f"  platform: {cfg.platform} · {cfg.width}x{cfg.height}@{cfg.fps} · {cfg.target_lufs} LUFS · "
           f"max {cfg.max_rounds} review rounds · auto-approve {'on' if cfg.auto_approve else 'off'}")
@@ -364,20 +365,82 @@ def cmd_frames(args) -> None:
     from .media.ffmpeg import probe
 
     ax = _ax(args)
+    is_id = str(args.target).isdigit()
+    if getattr(args, "debug", False) and not is_id:
+        sys.exit("--debug needs a clip id (it draws what the reviewer measured from that clip's plan)")
     path = Path(args.target)
-    if not path.exists():
+    if not path.is_file():
+        if not is_id:
+            sys.exit(f"no such video file or clip id: {args.target}")
         job = ax.store.get_job(int(args.target))
-        data = (job or {}).get("data") or {}
+        if not job:
+            sys.exit(f"no such clip: #{args.target}")
+        data = job.get("data") or {}
         path = Path(data.get("final_path") or data.get("render_path") or "")
-        if not path.exists():
+        if not path.is_file():  # Path("") is "." — a folder, so this also covers "never rendered"
             sys.exit("no render for that clip yet")
     dur = probe(path)["duration"]
     times = sample_times(dur, [], n=args.n)
     st = path.stat()  # re-renders reuse file names: key the cache by content too, or old frames come back
     out = ax.cfg.root / "cache" / "frames" / f"{path.stem}_{int(st.st_mtime)}_{st.st_size}"
+    if getattr(args, "debug", False):
+        for p in _debug_frames(ax, int(args.target), path, times, out / "debug"):
+            print(p)
+        return
     frames = extract_frames(path, times, out, width=360)
     for p in contact_sheets(frames, times, out / "sheet"):
         print(p)
+
+
+def _debug_frames(ax, clip_id: int, path: Path, times: list[float], out: Path) -> list[Path]:
+    """Full-size frames with what the reviewer measured drawn on top: safe zone (yellow), each text
+    layer's box (cyan caption, magenta title/label/cta, orange watermark), cam band seam and face area."""
+    from PIL import Image, ImageDraw
+
+    from .media.analyze import extract_frames
+    from .media.qc import layout_lint, measure_cam_faces, stack_seams
+    from .media.timeline import Timeline
+    from .pipeline import Agency
+    from .standards import safe_zone
+
+    job = ax.store.get_job(clip_id)
+    plan = ((ax.store.artifact(clip_id, "plan") or {}).get("data")) if job else None
+    if not plan:
+        sys.exit("--debug needs a clip id with a plan")
+    c = Agency(ax).clip_ctx(job)
+    cfg = ax.cfg
+    p = c["source_info"]
+    dbg: dict = {}
+    src = (int(p["width"]), int(p["height"])) if p.get("width") else None
+    # the same measured faces the reviewer uses (output frames), so the green box is where the face really is
+    measured = measure_cam_faces(str(path), stack_seams(plan, src, cfg.width, cfg.height), out / "cam")
+    issues = layout_lint(plan, c["brief"], words=Timeline(plan["segments"]).map_words(c["words"]), width=cfg.width,
+                         height=cfg.height, platform=cfg.platform, fonts_dir=cfg.fonts_dir, src_size=src, debug=dbg,
+                         measured_faces=measured)
+    for i in issues:
+        print(f"  [{i['severity']}] {i['id']}: {i['description'][:140]}")
+    frames = extract_frames(path, times, out, width=cfg.width)
+    z = safe_zone(cfg.platform, cfg.width, cfg.height)
+    colors = {"caption": (0, 220, 255), "watermark": (255, 150, 0)}
+    shots = []
+    for t, f in zip(times, frames):
+        im = Image.open(f).convert("RGB")
+        d = ImageDraw.Draw(im)
+        d.rectangle((z["left"], z["top"], cfg.width - z["right"], cfg.height - z["bottom"]), outline=(255, 230, 0), width=3)
+        for a, b, band in dbg.get("seams", []):
+            if a - 0.01 <= t < b:
+                d.line((0, band, cfg.width, band), fill=(0, 255, 0), width=3)
+        for a, b, area, measured in dbg.get("faces", []):
+            if a - 0.01 <= t < b:
+                d.rectangle(area, outline=(0, 255, 0) if measured else (120, 255, 120), width=3)
+        for ly in dbg.get("layers", []):
+            if ly["a"] <= t < ly["b"]:
+                d.rectangle(ly["box"], outline=colors.get(ly["kind"], (255, 0, 200)), width=4)
+        d.text((12, cfg.height - 40), f"t={t:.2f}s", fill=(255, 255, 255))
+        dst = out / f"debug_{t:07.2f}.jpg"
+        im.save(dst, quality=88)
+        shots.append(dst)
+    return shots
 
 
 def cmd_plan(args) -> None:
@@ -526,6 +589,8 @@ def register(sub: argparse._SubParsersAction) -> None:
     p = s.add_parser("frames", help="labelled frame sheets of a clip render (or a video file)")
     p.add_argument("target", help="clip id or video path")
     p.add_argument("-n", type=int, default=16)
+    p.add_argument("--debug", action="store_true",
+                   help="full-size frames with the measured text boxes, safe zone, cam seam and face area drawn on")
     p.set_defaults(func=cmd_frames)
 
     p = s.add_parser("plan", help="show a clip's edit plan, or --set a hand-edited one and re-render")

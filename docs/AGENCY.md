@@ -29,9 +29,16 @@ Butuh **ffmpeg** (dengan libass, sudah standar di hampir semua build) dan Python
 
 ```bash
 pip install -e ".[agency,transcribe]"   # anthropic SDK + faster-whisper
-export ANTHROPIC_API_KEY=sk-ant-...      # atau `ant auth login`; tanpa key studio tetap jalan pakai heuristik
+claude auth login                        # otak lewat langganan Claude (Claude Code CLI), tanpa API key
+# atau: export ANTHROPIC_API_KEY=sk-ant-...   (API berbayar; kalau ada, ini yang dipakai)
 noze agency init                         # bikin folder, unduh font caption (OFL), siapkan 9 SFX bawaan, cek tools
 ```
+
+**Otak tim.** `AGENCY_LLM=auto` memilih sendiri: ada API key → Anthropic API; tidak ada → `claude -p` (Claude Code CLI yang sudah login, jadi pakai kuota langganan). Kontraknya sama persis: structured output (`--json-schema`), gambar frame ikut lewat `--input-format stream-json`, SOP + playbook lewat file system prompt, effort per role, dan panggilan selalu "hemat" (tanpa tools, tanpa MCP, tanpa skill, dari folder kosong). `noze agency doctor` menunjukkan backend mana yang aktif. Tanpa otak sama sekali, studio tetap jalan pakai heuristik, **tapi klip tidak pernah di-ACC otomatis**: tanpa review kreatif, skor QC saja tidak cukup jadi bukti bagus, jadi klip berhenti di `awaiting_human`.
+
+Model default per role: editor, reviewer, dan manager memakai Opus (salahnya mahal); analyst, scout, dan reflector memakai Sonnet (terukur sama akurat, jauh lebih hemat). Ganti dengan `AGENCY_MODEL` (semua role) atau `AGENCY_MODEL_<ROLE>`.
+
+**Transkripsi.** Kalau CTranslate2 melihat GPU CUDA, Whisper jalan `large-v3` float16 di GPU; kalau tidak, `small` int8 di CPU (`AGENCY_WHISPER_MODEL`, `AGENCY_WHISPER_DEVICE`). Di Windows, DLL cuBLAS/cuDNN dicari di wheel `nvidia-*` atau dipinjam dari PyTorch CUDA yang sudah terpasang. Ejaan nama creator yang meleset tipis ("skiMaskTimmy") dibetulkan otomatis ke nama di brief.
 
 **1. Daftarkan campaign.** Tempel syarat campaign apa adanya. Teks ini jadi brief sekaligus bukti bahwa creator memang mengundang clipper:
 
@@ -139,6 +146,19 @@ Font caption: `noze agency init` mengunduh Montserrat ExtraBold/Black dan Anton 
 | Statis | tidak ada perubahan visual > 5 s |
 | Caption | wajib kalau brief minta; kecepatan baca ≤ ~20 karakter/detik |
 | Compliance | hashtag, mention, disclosure di 3 detik pertama dan di caption, CTA, kata terlarang, panjang clip |
+| Layout (diukur, bukan ditebak) | kotak tiap teks dihitung dari geometri writer ASS + metrik font asli: keluar frame = blocker; keluar safe zone / < 24 px dari tepi = major; dua teks tampil bareng beririsan = major (jarak < 24 px = minor) |
+| Layout stack (streamer) | band facecam ≥ 30% tinggi frame (< 33% = minor); hook title tidak boleh di band cam; teks tidak menutup area wajah; wajah ≥ 35% tinggi band, garis mata ≥ 300 px (UI atas TikTok); upscale cam ≤ 2,5×, gameplay ≤ 1,5× |
+| Teks | caption ≥ 64 px (cap-height ≥ 44 px), maks 2 baris × 22 karakter; hook title mulai di frame 0, tampil ≥ 1,5 dtk, ≤ 7 kata; watermark ≥ 34 px dan di luar kolom tombol kanan TikTok |
+
+Aturan yang menjaga supaya pengaman kode tidak membatalkan keputusan editor (pelajaran run nyata 3 Nov):
+- Crop cam hasil detektor dilebarkan otomatis sampai zoom ≤ 2,5×. Crop yang dipilih editor atau manusia (misalnya dirapatkan supaya chat dan alert stream tidak ikut) dibiarkan apa adanya. Zoom 2,5–3,2× cuma minor, di atas 3,2× baru major.
+- Di layout stack, `captions.position: "upper"` (atau kosong) artinya caption duduk di garis sambungan. `"center"` atau `"lower"` artinya editor sengaja menaruhnya di band gameplay, dan pilihan itu dihormati renderer maupun lint.
+- Teks watermark di brief dibersihkan dari ekor instruksi ("… overlay, on screen for the whole clip") di semua jalur, termasuk brief lama yang sudah tersimpan. Merge watermark hanya menyentuh `label`, jadi CTA atau judul yang menyebut handle tetap utuh.
+- Caption otomatis menyensor kata kasar (B\*\*\*H), kecuali plan menyetel `captions.uncensored: true` kalau brief mengizinkan.
+
+Angka layout ada di `LAYOUT` di [`standards.py`](../noze/agency/standards.py), masing-masing dengan tag sumbernya. Untuk melihat apa yang diukur reviewer: `noze agency frames <id> --debug` menggambar safe zone, kotak tiap teks, garis sambungan cam, dan area wajah di atas frame ukuran penuh.
+
+**Tanpa review kreatif tidak ada ACC otomatis.** Kalau Claude tidak tersedia, review hanya berisi QC terukur (ringkasannya diawali "QC-only, no creative review"), dan clip berhenti di `awaiting_human` walaupun `AGENCY_AUTO_APPROVE=1`. Alasannya: pada run pertama, reviewer tanpa LLM memberi skor 9,6 ke clip yang facecam-nya kecil, caption-nya menabrak watermark, dan judulnya terpotong.
 
 Angka-angka ini ada di [`standards.py`](../noze/agency/standards.py), yang berfungsi sebagai "konstitusi". Pembelajaran **tidak bisa** melonggarkannya. Safe zone per platform (TikTok/Reels/Shorts) diambil dari template iklan resmi masing-masing platform.
 
@@ -243,7 +263,8 @@ Referensi riset (repo dan paper yang diamati, apa yang diambil, dan apa yang di-
 
 ## Biaya
 
-- Default model: `claude-opus-5-5` untuk semua role, dengan *effort* per role: manager `medium`, scout `low`, analyst/editor/reviewer `high`. Bisa diganti per role (`AGENCY_MODEL_EDITOR`, `AGENCY_EFFORT_REVIEWER`, …).
+- Default model: Opus untuk editor/reviewer/manager, Sonnet untuk analyst/scout/reflector, dengan *effort* per role: manager `medium`, scout `low`, analyst/editor/reviewer `high`. Bisa diganti per role (`AGENCY_MODEL_EDITOR`, `AGENCY_EFFORT_REVIEWER`, …).
+- Lewat `claude -p` (langganan), angka biaya di laporan adalah harga setara API yang dilaporkan CLI. Yang terpakai sebenarnya kuota langganan, tapi batas budget tetap berlaku sebagai rem.
 - SOP dan playbook di-*cache* sebagai system prompt.
 - Budget: `AGENCY_JOB_BUDGET_USD` (per video sumber) dan `AGENCY_DAILY_BUDGET_USD`. Kalau habis, role memakai heuristik dan manager memberi peringatan.
 - Biaya tercatat per panggilan (`llm_usage`) dan muncul di laporan.

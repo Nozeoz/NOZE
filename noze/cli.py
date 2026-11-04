@@ -254,6 +254,10 @@ def cmd_stats(args) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
+    # Windows consoles default to cp1252, which can't print the →/✓/⚠ used below.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     p = argparse.ArgumentParser(prog="noze", description="NOZE — your creative asset bank")
     p.add_argument("--data-dir", default=None, help="where the bank lives (default ./noze-data or NOZE_DATA_DIR)")
     p.add_argument("-v", "--verbose", action="store_true")

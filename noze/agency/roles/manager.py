@@ -29,6 +29,33 @@ def _num(text: str) -> float | None:
         return None
 
 
+_INSTRUCTION_TAIL = re.compile(
+    r"[\s,;:–-]*(?:\(|\b)(?:as an? )?(?:text )?(?:overlay|watermark|on[- ]screen|throughout(?: the (?:whole|entire|full) "
+    r"(?:clip|video))?|(?:for|during) the (?:whole|entire|full) (?:clip|video)|(?:in|on) (?:every|each|all) clips?|"
+    r"the whole clip|at all times)\)?[\s.,;:]*$", re.I)
+
+
+def clean_watermark(text: str) -> str:
+    """The exact text to burn in. Briefs (and models writing them) often keep the instruction around it:
+    "Twitch.tv/skiimasktimmy overlay, on screen for the whole clip" → "Twitch.tv/skiimasktimmy".
+    Only known instruction phrases at the END are peeled off (until none is left), so real text such as
+    "Kai Cenat (Twitch)" or "Full stream: twitch.tv/x" survives whole."""
+    text = (text or "").strip()
+    while True:
+        cut = _INSTRUCTION_TAIL.sub("", text).strip().strip("\"'“”").strip()
+        if cut == text or not cut:
+            return text.strip("\"'“”").strip()
+        text = cut
+
+
+def clean_brief(brief: dict[str, Any]) -> dict[str, Any]:
+    """Normalise fields that get burned into the video, whoever wrote the brief (heuristic, model, human)."""
+    req = brief.get("requirements") or {}
+    if req.get("watermark"):
+        req["watermark"] = clean_watermark(req["watermark"])
+    return brief
+
+
 def heuristic_brief(text: str, url: str = "", name: str = "") -> dict[str, Any]:
     t = text or ""
     low = t.lower()
@@ -61,9 +88,16 @@ def heuristic_brief(text: str, url: str = "", name: str = "") -> dict[str, Any]:
         b["clip_length"] = {"min_s": float(mn.group(1)) if mn else 0.0, "max_s": float(mx.group(1)) if mx else 0.0}
     plats = []
     for word, plat in (("tiktok", "tiktok"), ("reels", "reels"), ("instagram", "reels"), ("shorts", "shorts"),
-                       ("youtube", "shorts"), ("twitter", "x"), (" x ", "x"), ("facebook", "facebook")):
+                       ("youtube", "shorts"), ("twitter", "x"), ("x.com", "x"), ("facebook", "facebook")):
         if word in f" {low} " and plat not in plats:
             plats.append(plat)
+    # a bare "x" is X only next to other platforms ("TikTok / X", "X, Reels") or as "on X" —
+    # never "Brand x Creator" collabs or "up to x views"
+    other = r"(?:tiktok|reels|instagram|shorts|youtube|facebook|ig|yt)"
+    sep = r"\s*(?:/|,|&|\band\b|\bor\b|\+)\s*"
+    if "x" not in plats and re.search(rf"{other}{sep}x\b(?!\s*(?:views|times|amount|number))|"
+                                      rf"\bx{sep}{other}|\b(?:on|to)\s+x\b(?!\s*(?:views|times|amount|number))", low):
+        plats.append("x")
     b["platforms"] = plats
     links = re.findall(r"https?://[^\s)>\]]+", t)
     b["source_material"] = [u for u in links if any(h in u for h in ("drive.google", "dropbox", "mega.nz",
@@ -209,12 +243,21 @@ class Manager(Role):
             out = self._heuristic_approve(packet, escalation)
         return out
 
+    @staticmethod
+    def needs_human(packet: dict[str, Any]) -> str | None:
+        """Why this clip must wait for the human gate instead of being approved automatically (or None)."""
+        if not (packet.get("review") or {}).get("creative_review"):  # missing (older review) counts as none
+            return "no creative review (Claude unavailable) — needs your ACC"
+        return None
+
     def _heuristic_approve(self, packet: dict[str, Any], escalation: bool) -> dict[str, Any]:
         review = packet.get("review") or {}
         issues = review.get("issues") or []
         blockers = [i for i in issues if i.get("severity") == "blocker"]
         majors = [i for i in issues if i.get("severity") == "major"]
-        if escalation:
+        if self.needs_human(packet):  # the pipeline parks these before asking; never approve one here either
+            decision = "reject" if escalation else "changes"
+        elif escalation:
             decision = "approve" if not blockers and len(majors) <= 1 and (review.get("score") or 0) >= 6 else "reject"
         else:
             decision = "approve" if review.get("verdict") == "pass" and not blockers else "changes"

@@ -38,6 +38,7 @@ from .media.transcribe import all_words, speech_rate, text_between, transcribe
 from .publish import Publisher
 from .reports import clip_report, source_report
 from .roles import Analyst, Editor, Manager, Reviewer, Scout
+from .roles.manager import clean_brief
 from .schemas import BRIEF, conform, example
 
 log = logging.getLogger("noze.agency.pipeline")
@@ -89,7 +90,7 @@ class Agency:
                         creator: str = "", lead_id: int | None = None) -> int:
         if brief is None:
             brief = self.manager.brief_from_terms(terms, url, name)
-        brief = conform(brief, BRIEF)
+        brief = clean_brief(conform(brief, BRIEF))
         permission = {**brief.get("permission", {}), "terms_excerpt": terms[:4000], "url": url or
                       (brief.get("permission") or {}).get("url"), "recorded_at": time.time()}
         cid = self.store.create_campaign(name, brief, permission, creator=creator or brief.get("creator", ""),
@@ -317,7 +318,7 @@ class Agency:
     def _brief(self, job: dict[str, Any]) -> dict[str, Any]:
         camp = self.store.get_campaign(job["campaign_id"]) if job.get("campaign_id") else None
         if camp:
-            return conform(camp["brief"], BRIEF)
+            return clean_brief(conform(camp["brief"], BRIEF))  # also heals briefs saved before the fix
         b = example(BRIEF)
         b["campaign_name"] = "own content"
         b["permission"] = {"granted": True, "evidence": "user's own content", "url": None}
@@ -552,7 +553,7 @@ class Agency:
             frames = extract_frames(render["path"], times, self.ax.job_dir(job) / "approval_frames", width=360)
             sheets = [str(p) for p in contact_sheets(frames, times, self.ax.job_dir(job) / "approval_sheet")]
         packet = {"title": job.get("title"), "moment": c["moment"], "brief": c["brief"],
-                  "review": {k: rev.get(k) for k in ("verdict", "score", "summary", "issues", "scores")},
+                  "review": {k: rev.get(k) for k in ("verdict", "score", "summary", "issues", "scores", "creative_review")},
                   "qc": {k: (rev.get("metrics") or {}).get(k) for k in ("duration", "loudness", "longest_static_s")},
                   "post": plan.get("post"), "history": (job.get("data") or {}).get("history"),
                   "plan": {k: plan.get(k) for k in ("overlays", "captions", "music", "color")}}
@@ -563,13 +564,25 @@ class Agency:
             self.store.log(job["id"], "manager", "awaiting_human", "passed review — waiting for your approval")
             return "awaiting_human"
         packet, sheets = self._packet(job)
+        if self._hold_for_human(job, packet):
+            return "awaiting_human"
         dec = self.manager.approve(job, packet, sheets)
         return self._apply_decision(job, dec, "manager")
+
+    def _hold_for_human(self, job: dict[str, Any], packet: dict[str, Any]) -> bool:
+        """A QC-only review (no creative pass) is never enough for an automatic approval."""
+        why = self.manager.needs_human(packet)
+        if why:
+            self.store.merge_job_data(job["id"], {"hold_reason": why})
+            self.store.log(job["id"], "manager", "awaiting_human", why)
+        return bool(why)
 
     def _escalate(self, job: dict[str, Any]) -> str:
         if not self.cfg.auto_approve:
             return "awaiting_human"
         packet, sheets = self._packet(job)
+        if self._hold_for_human(job, packet):
+            return "awaiting_human"
         dec = self.manager.approve(job, packet, sheets, escalation=True)
         if dec["decision"] == "changes":
             dec["decision"] = "reject"  # no more rounds after an escalation

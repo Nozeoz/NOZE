@@ -47,6 +47,43 @@ def _largest_faces(frames: list[Path]) -> list[tuple[float, float, float, float,
     return out
 
 
+def faces_in_band(frames: list[tuple[Path, int]]) -> list[tuple[int, int, int, int] | None] | None:
+    """The face per OUTPUT frame, inside the top ``band`` px (the stacked layout's cam band), as (x, y, w, h) in
+    output-frame pixels; None for a frame without a face. Returns None (not a list) when OpenCV cannot detect
+    at all, so "no detector" is never mistaken for "no face". ``frames`` = (image, band px).
+
+    Haar is brittle on a streamer looking down at the game (glasses, mic, tilted head): the same face is found
+    or missed, and boxed at 120 or 215 px, depending on where the crop ends. So each frame is scanned at a few
+    crop heights, detections whose centre is outside the band are dropped, and the median-size box is returned.
+    ponytail: Haar, not a DNN; swap in a real face detector if the box-size noise matters."""
+    try:
+        import cv2  # type: ignore
+    except ImportError:
+        return None
+    if not hasattr(cv2, "CascadeClassifier"):
+        return None
+    # alt2 holds on frames where `default` returns nothing at all
+    cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_alt2.xml")
+    if cascade.empty():
+        cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+    out: list[tuple[int, int, int, int] | None] = []
+    for f, band in frames:
+        img = cv2.imread(str(f))
+        if img is None:
+            out.append(None)
+            continue
+        m = max(24, int(img.shape[1] * 0.04))  # a face under 4% of the frame width is a speck, not the streamer
+        found: list[tuple[int, int, int, int]] = []
+        for k in (1.0, 1.15, 1.3, 1.5):
+            gray = cv2.cvtColor(img[: min(max(int(band * k), 1), img.shape[0])], cv2.COLOR_BGR2GRAY)
+            for x, y, w, h in cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=3, minSize=(m, m)):
+                if y + h / 2 < band:
+                    found.append((int(x), int(y), int(w), int(h)))
+        found.sort(key=lambda r: r[2] * r[3])
+        out.append(found[len(found) // 2] if found else None)
+    return out
+
+
 def facecam_box(frames: list[Path]) -> dict[str, float] | None:
     """Estimate a streamer's facecam rectangle (fractions) when a small face sits in the
     same spot across frames — the overlay you must keep visible on gaming clips.
@@ -67,7 +104,11 @@ def facecam_box(frames: list[Path]) -> dict[str, float] | None:
     h = min(1.0, w * aspect * 9 / 16)
     x = min(max(cx - w / 2, 0.0), 1.0 - w)
     y = min(max(cy - h * 0.55, 0.0), 1.0 - h)
-    return {k: round(float(v), 3) for k, v in (("x", x), ("y", y), ("w", w), ("h", h))}
+    box = {k: round(float(v), 3) for k, v in (("x", x), ("y", y), ("w", w), ("h", h))}
+    # where the face sits inside that cam (fractions of the cam): the reviewer checks its size and the eye line
+    box["face"] = {k: round(min(max(float(v), 0.0), 1.0), 3) for k, v in (
+        ("x", (cx - fw / 2 - x) / w), ("y", (cy - fh / 2 - y) / h), ("w", fw / w), ("h", fh / h))}
+    return box
 
 
 def subject_x(frames: list[Path]) -> float | None:

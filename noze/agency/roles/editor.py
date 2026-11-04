@@ -10,14 +10,56 @@ from typing import Any
 
 from ..media import faces
 from ..media.analyze import contact_sheets, extract_frames
-from ..media.render import Renderer, RenderResult, RenderSpec
+from ..media.render import Renderer, RenderResult, RenderSpec, stack_layout
 from ..media.sfx import AUDIO_EXT, sfx_file
 from ..media.timeline import Timeline, jump_cut, remove_output_range, sanitize_segments
 from ..media.transcribe import all_words, words_between
 from ..schemas import EDIT_PLAN, SFX_KINDS, conform, example
+from ..standards import LAYOUT
 from .base import Role, dump
 
 log = logging.getLogger("noze.agency.editor")
+
+
+def same_box(a: Any, b: Any, tol: float = 0.005) -> bool:
+    try:
+        return all(abs(float(a[k]) - float(b[k])) <= tol for k in ("x", "y", "w", "h"))
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
+def reproject_box(box: dict[str, Any], src: dict[str, Any], dst: dict[str, Any]) -> dict[str, Any] | None:
+    """A box given as fractions of rectangle ``src`` (both in source-frame fractions) → fractions of ``dst``.
+    None when less than half of the box lands inside ``dst`` (a face the new crop cuts off is no face box)."""
+    sx, sy, sw, sh = (float(src[k]) for k in ("x", "y", "w", "h"))
+    dx, dy, dw, dh = (float(dst[k]) for k in ("x", "y", "w", "h"))
+    x0, y0 = sx + float(box["x"]) * sw, sy + float(box["y"]) * sh
+    x1, y1 = x0 + float(box["w"]) * sw, y0 + float(box["h"]) * sh
+    clamp = lambda v: round(min(max(v, 0.0), 1.0), 3)  # noqa: E731
+    nx, ny = clamp((x0 - dx) / dw), clamp((y0 - dy) / dh)
+    out = {"x": nx, "y": ny, "w": clamp((x1 - dx) / dw - nx), "h": clamp((y1 - dy) / dh - ny)}
+    kept = (out["w"] * dw * out["h"] * dh) / max((x1 - x0) * (y1 - y0), 1e-9)
+    return out if kept >= 0.5 else None
+
+
+def fit_cam_upscale(cam: dict[str, Any], src_w: int, src_h: int, w: int, h: int, limit: float) -> dict[str, Any]:
+    """Grow the facecam crop around its centre (same shape) until the band magnifies it ≤ ``limit``.
+
+    Face detectors crop inside the overlay on purpose; at 1080p that small crop lands just over the
+    softness limit (2.6× on a typical streamer cam), so a few more source pixels fix it for free.
+    """
+    out = {k: float(cam[k]) for k in ("x", "y", "w", "h")}
+    for _ in range(4):  # clamping at the frame edge can cost a little; settle in a few passes
+        top, _ = stack_layout(out, src_w, src_h, w, h)
+        up = max(w / max(out["w"] * src_w, 1.0), top / max(out["h"] * src_h, 1.0))
+        if up <= limit * 0.98 or (out["w"] >= 1.0 and out["h"] >= 1.0):
+            break
+        k = up / (limit * 0.97)
+        cx, cy = out["x"] + out["w"] / 2, out["y"] + out["h"] / 2
+        out["w"], out["h"] = min(1.0, out["w"] * k), min(1.0, out["h"] * k)
+        out["x"] = min(max(cx - out["w"] / 2, 0.0), 1.0 - out["w"])
+        out["y"] = min(max(cy - out["h"] / 2, 0.0), 1.0 - out["h"])
+    return {k: round(v, 3) for k, v in out.items()} if out != {k: float(cam[k]) for k in out} else dict(cam)
 
 SFX_SPACING = {"none": 0.0, "low": 6.0, "medium": 3.5, "high": 2.0}
 
@@ -117,8 +159,10 @@ class Editor(Role):
             cam = faces.facecam_box(frames)
         except Exception as exc:  # frames are a nice-to-have for framing decisions
             log.info("moment frames unavailable: %s", exc)
+        face = cam.pop("face", None) if cam else None
         return {"words": words, "moment_words": words_between(transcript, a, b), "ranges": ranges,
-                "sheets": sheets, "subject_x": sx, "facecam": cam, "source_info": source_info}
+                "sheets": sheets, "subject_x": sx, "facecam": cam, "facecam_face": face,
+                "source_info": source_info}
 
     # -- planning -----------------------------------------------------------------------------------------
     def plan(self, job: dict[str, Any], moment: dict[str, Any], brief: dict[str, Any], blueprint: dict[str, Any],
@@ -130,6 +174,9 @@ class Editor(Role):
             f"Moment (source seconds):\n{dump(moment, 3000)}\n\nSource: {prep['source_info'].get('width')}x"
             f"{prep['source_info'].get('height')} @ {prep['source_info'].get('fps')}fps, "
             f"duration {prep['source_info'].get('duration')}s. Detected speaker x (0-1, may be null): {prep['subject_x']}\n"
+            f"Detected facecam overlay (source fractions, may be null): {prep.get('facecam')}; "
+            f"face inside it (fractions of the cam): {prep.get('facecam_face')} — check both against the frames; "
+            "for stack mode set reframe.cam and reframe.face to what you see.\n"
             f"Target: {cfg.width}x{cfg.height}, max length {max_s:.0f}s.\n\n"
             f"Suggested tight cut (pauses/fillers removed), source seconds:\n{dump(prep['ranges'], 4000)}\n\n"
             f"Words with source timings:\n{self._words_text(prep['moment_words'])}\n\n"
@@ -167,7 +214,8 @@ class Editor(Role):
             if i > 0 and gap > 2.0 and trans_pool:
                 trans = trans_pool[0]
             segs.append({"src_start": a, "src_end": b, "speed": 1.0,
-                         "reframe": {"mode": mode, "x": x or 0.5, "cam": cam if mode == "stack" else None},
+                         "reframe": {"mode": mode, "x": x or 0.5, "cam": cam if mode == "stack" else None,
+                                     "face": prep.get("facecam_face") if mode == "stack" else None},
                          "zoom": {"type": "punch" if i % 2 == 1 else "none", "scale": punch},
                          "shake": False, "transition_in": trans, "note": ""})
             prev_end = b
@@ -186,7 +234,8 @@ class Editor(Role):
             "used_lessons": [], "rationale": "heuristic plan from blueprint + tight cut",
         })
         if (blueprint.get("text_overlays") or {}).get("hook_title", True):
-            hook = short_hook(moment.get("hook_line") or moment.get("title") or "")
+            # the moment's title frames the line; the hook line itself is already in the captions
+            hook = short_hook(moment.get("title") or moment.get("hook_line") or "")
             if hook:
                 plan["overlays"].append({"kind": "hook_title", "text": hook.upper(), "start": 0.0, "end": 2.6,
                                          # stacked: the top band is the facecam and captions ride the seam
@@ -194,6 +243,8 @@ class Editor(Role):
                                          "style": (blueprint.get("text_overlays") or {}).get("style") or "pop"})
         else:
             plan["segments"][0]["zoom"] = {"type": "punch", "scale": punch}
+        if mode == "stack":
+            plan["captions"]["position"] = "upper"  # = ride the cam/gameplay seam
         self._place_sfx(plan, blueprint)
         return plan
 
@@ -232,11 +283,44 @@ class Editor(Role):
                                       for a, b in prep["ranges"]], src_dur, (moment["start_s"], moment["end_s"]),
                                      max_total=self._max_len(brief))
         plan["segments"] = segs
+        info = prep["source_info"]
+        det_cam, det_face = prep.get("facecam"), prep.get("facecam_face")
+        for s in segs:
+            rf = s.get("reframe") or {}
+            if rf.get("mode") != "stack":
+                continue
+            # missing boxes fall back to what the face detector measured; its face box is relative to *its*
+            # cam, so re-project it whenever the plan (model, human, revision) chose another cam
+            # the model's / a human's crop is a decision (e.g. tight to keep chat out); the detector's own box
+            # copied into the plan (heuristic plan, or a model echoing it) is still just the detector's guess
+            chosen = rf.get("cam") if not same_box(rf.get("cam"), det_cam) else None
+            cam = chosen or det_cam
+            face = rf.get("face") or (reproject_box(det_face, det_cam, cam) if det_face and det_cam and cam else None)
+            if not chosen and cam and info.get("width") and info.get("height"):  # only the detector's guess grows
+                wider = fit_cam_upscale(cam, int(info["width"]), int(info["height"]), self.ax.cfg.width,
+                                        self.ax.cfg.height, LAYOUT["cam_max_upscale"])
+                face = reproject_box(face, cam, wider) if face else None
+                cam = wider
+            rf["cam"], rf["face"] = cam, face
+        for s in segs:  # a replay range outside the source renders a band with no video (and exits 0)
+            bs = s.get("band_src")
+            if bs:
+                a = max(0.0, float(bs.get("start") or 0.0))
+                b = min(src_dur, float(bs.get("end") or 0.0))
+                s["band_src"] = ({"start": round(a, 3), "end": round(b, 3), "speed": float(bs.get("speed") or 1.0)}
+                                 if b - a >= 0.3 else None)
         D = Timeline(segs).duration
         for o in plan["overlays"]:
             o["start"] = max(0.0, min(float(o["start"]), D - 0.3))
             o["end"] = max(o["start"] + 0.3, min(float(o["end"] or o["start"] + 2.5), D))
-        plan["overlays"] = [o for o in plan["overlays"] if (o.get("text") or "").strip()]
+        seen: set[tuple] = set()
+        kept = []
+        for o in plan["overlays"]:  # empty texts and exact duplicates never reach the screen
+            key = (o.get("kind"), (o.get("text") or "").strip().lower(), round(o["start"], 1), o.get("position"))
+            if key[1] and key not in seen:
+                seen.add(key)
+                kept.append(o)
+        plan["overlays"] = kept
         plan["sfx"] = [s for s in plan["sfx"] if 0.0 <= float(s["at"]) < D][:40]
         cap = plan["captions"]
         cap["words_per_caption"] = min(6, max(1, int(cap.get("words_per_caption") or 3)))
@@ -255,11 +339,20 @@ class Editor(Role):
         cap = plan["captions"]
         if not cap.get("enabled"):
             return
+        modes = {(s.get("reframe") or {}).get("mode") for s in plan["segments"]}
         if cap.get("position") == "lower" and any(
                 o["kind"] == "label" and o.get("position") == "bottom" and o["end"] - o["start"] >= duration * 0.5
                 for o in plan["overlays"]):
-            cap["position"] = "center"
-        modes = {(s.get("reframe") or {}).get("mode") for s in plan["segments"]}
+            if "stack" in modes:
+                # live run 3 Nov: "center" is where stacked titles live — back to the seam, one line (≤ 2 words)
+                # so the chunk can't grow up into the face
+                cap["position"] = "upper"
+                cap["words_per_caption"] = min(2, int(cap.get("words_per_caption") or 2))
+            else:
+                cap["position"] = "center"
+            # a house rule changed the editor's choice: say so, or the reviewer reads the fix log as a lie
+            plan.setdefault("fixes", []).append({"issue_id": "house:declutter", "change": (
+                f"captions lower → {cap['position']}: the watermark pill owns the bottom strip")})
         taken = ({cap.get("position")} if modes - {"stack"} else set()) | ({"upper"} if "stack" in modes else set())
         prefs = ("center", "top", "lower") if "stack" in modes else ("upper", "top", "center")  # top = face on stack
         for o in plan["overlays"]:
@@ -276,10 +369,25 @@ class Editor(Role):
             plan["overlays"].append({"kind": "label", "text": disclosure, "start": 0.0,
                                      "end": min(3.0, duration), "position": "bottom", "style": "fade"})
         mark = (req.get("watermark") or "").strip()
-        if mark and not any(mark.lower() in (o.get("text") or "").lower() and o["start"] <= 0.1
-                            and o["end"] >= duration - 0.1 for o in plan["overlays"]):
-            plan["overlays"].append({"kind": "label", "text": mark, "start": 0.0, "end": duration,
-                                     "position": "bottom", "style": "fade"})
+        if mark:
+            # one watermark for the whole clip: stretch an existing one (a revision may have made the clip
+            # longer) and drop copies, instead of stacking a second label on top of the first
+            marks = [o for o in plan["overlays"] if mark.lower() in (o.get("text") or "").lower()]
+            # keep the label that says exactly the mark (a copy may carry instruction text around it)
+            marks.sort(key=lambda o: (o.get("text") or "").strip().lower() != mark.lower())
+            marks = [o for o in marks if o["kind"] == "label"]  # a CTA/title that names the handle is its own text
+            # house style (mandor 3 Nov): bottom-left of the safe zone on a dark pill, out of the action area
+            house = {"start": 0.0, "end": duration, "text": mark, "position": "bottom", "align": "left", "box": True}
+            if marks:
+                marks[0].update(house)
+                extra = {id(o) for o in marks[1:]}
+                plan["overlays"] = [o for o in plan["overlays"] if id(o) not in extra]
+            else:
+                plan["overlays"].append({"kind": "label", "style": "fade", **house})
+        if mark and disclosure:  # the disclosure would sit on the bottom-left watermark pill
+            for o in plan["overlays"]:
+                if disclosure.lower() in (o.get("text") or "").lower() and o.get("position") == "bottom":
+                    o["position"] = "lower"
         cta = (req.get("cta") or "").strip()
         if cta and not any(cta.lower() in (o.get("text") or "").lower() for o in plan["overlays"]):
             plan["overlays"].append({"kind": "cta", "text": cta, "start": max(0.0, duration - 3.0),
@@ -409,6 +517,43 @@ class Editor(Role):
                     note(iid, f"extended the ending to {segs[-1]['src_end']:.1f}s (source)")
             elif iid.startswith("compliance:"):
                 note(iid, "compliance fields re-applied from the brief")  # enforce_compliance does the work
+            elif iid in ("layout:caption_lines", "layout:caption_chars"):
+                p["captions"]["words_per_caption"] = max(1, int(p["captions"].get("words_per_caption") or 3) - 1)
+                note(iid, f"captions now {p['captions']['words_per_caption']} words each")
+            elif iid == "layout:caption_small":
+                m = re.search(r"≥\s*([\d.]+)", iss.get("fix") or "")
+                p["captions"]["font_scale"] = min(1.5, float(m.group(1)) if m else 1.2)
+                note(iid, f"captions.font_scale → {p['captions']['font_scale']:.2f}")
+            elif iid == "layout:hook_in_cam_band":
+                for o in p["overlays"]:
+                    if o["kind"] == "hook_title":
+                        o["position"] = "center"
+                note(iid, "hook title moved onto the gameplay half")
+            elif iid.startswith(("layout:overlap_", "layout:gap_", "layout:over_face_")):
+                # move the movable text one strip down; captions and the watermark keep their places
+                kinds = iid.split(":", 1)[1].split("_", 1)[1]  # e.g. "caption_hook_title"
+                mark = ((brief.get("requirements") or {}).get("watermark") or "").lower()
+                order = ("top", "upper", "center", "lower")
+                moved = []
+                for o in p["overlays"]:
+                    is_mark = bool(mark) and mark in (o.get("text") or "").lower()
+                    if is_mark or o["kind"] not in kinds:
+                        continue
+                    where = o.get("position") or ("top" if o["kind"] == "hook_title" else "center")
+                    if where in order[:-1]:
+                        o["position"] = order[order.index(where) + 1]
+                        moved.append(f"{o['kind']} → {o['position']}")
+                if not moved and iid == "layout:over_face_caption":
+                    cap = p["captions"]
+                    n = int(cap.get("words_per_caption") or 3)
+                    if n > 1:  # a seam caption grows UP into the face only when it wraps: keep it one line
+                        cap["words_per_caption"] = n - 1
+                        moved.append(f"captions {n} → {n - 1} words (one line on the seam)")
+                    elif cap.get("position") in ("upper", None, ""):
+                        cap["position"] = "lower"  # last resort; _declutter keeps it off the watermark strip
+                        moved.append("captions → lower (gameplay band)")
+                if moved:  # only claim what changed — a fix log that lies makes the reviewer loop
+                    note(iid, "; ".join(moved))
             elif iid == "audio:loudness" or iid == "audio:true_peak":
                 for cue in p["sfx"]:
                     cue["gain_db"] = min(float(cue.get("gain_db") or -8.0), -10.0)

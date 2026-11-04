@@ -61,7 +61,7 @@ REFRAME_MODES = ["auto", "center", "fixed", "fit_blur", "fill", "stack"]
 ZOOM_TYPES = ["none", "punch", "push", "pull"]
 TRANSITIONS = ["cut", "flash", "fade", "whip", "zoom"]
 OVERLAY_STYLES = ["pop", "slide", "fade", "typewriter"]
-OVERLAY_KINDS = ["hook_title", "text", "cta", "label"]
+OVERLAY_KINDS = ["hook_title", "text", "cta", "label", "punch_title"]
 SFX_KINDS = ["whoosh", "pop", "hit", "riser", "click", "ding", "swoosh", "boom", "glitch"]
 COLOR_PRESETS = ["none", "punchy", "warm", "cool", "bw", "cinematic"]
 HOOK_TYPES = ["question", "bold_claim", "story", "visual", "controversy", "number", "secret", "challenge", "other"]
@@ -204,10 +204,15 @@ SEGMENT = O({
         "x": N("0-1 horizontal center of the subject (fixed mode) or of the gameplay (stack mode)"),
         "cam": Null(O({"x": N("left edge 0-1"), "y": N("top edge 0-1"), "w": N("width 0-1"), "h": N("height 0-1")},
                       "facecam rectangle in the source frame, as fractions")),
+        "face": Null(O({"x": N("left edge 0-1"), "y": N("top edge 0-1"), "w": N("width 0-1"), "h": N("height 0-1")},
+                       "the streamer's face inside the cam rectangle, as fractions of the cam (stack mode)")),
     }),
     "zoom": O({"type": E(ZOOM_TYPES), "scale": N("1.0-1.35")}),
     "shake": B(),
     "transition_in": E(TRANSITIONS),
+    "band_src": Null(O({"start": N("source seconds"), "end": N(), "speed": N("playback speed of the replay, 0.75 = slower")},
+                       "stack mode: the GAMEPLAY band shows this source range (replay, muted) while the cam band and "
+                       "the audio keep the segment's own range; shorter than the segment = holds the last frame")),
     "note": S(),
 })
 
@@ -217,10 +222,14 @@ EDIT_PLAN = O({
     "captions": O({
         "enabled": B(), "style": E(CAPTION_STYLES), "words_per_caption": I(), "position": E(CAPTION_POSITIONS),
         "uppercase": B(), "highlight_color": S(), "font_scale": N("1.0 default"),
+        "uncensored": B("true only if the brief allows profanity on screen; default false = captions mask it"),
     }),
     "overlays": A(O({
         "kind": E(OVERLAY_KINDS), "text": S(), "start": N("output seconds"), "end": N(),
         "position": E(["top", "upper", "center", "lower", "bottom"]), "style": E(OVERLAY_STYLES),
+        "emphasis": S("hook_title / punch_title: the word(s) of `text` drawn huge in the accent colour; empty = the last word"),
+        "align": E(["center", "left"], "left = flush with the safe-zone left edge (watermark / mention)"),
+        "box": B("dark pill behind the text (label / watermark)"),
     })),
     "sfx": A(O({"kind": E(SFX_KINDS), "at": N("output seconds"), "gain_db": N()})),
     "music": O({"enabled": B(), "mood": S(), "asset": S("NOZE asset id or file path; empty = pick by mood"),

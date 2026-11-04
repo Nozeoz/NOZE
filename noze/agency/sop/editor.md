@@ -35,10 +35,30 @@ music, house standards, and — when revising — the review issues you must fix
 8. **Post copy:** caption that hooks in its first line + all required hashtags/mentions/
    disclosure from the brief.
 
+## Streamer clips (stack layout)
+- Facecam band on top, gameplay band below. Set `reframe.cam` to the **webcam only** — no chat,
+  alerts, tickers or overlay frames (check the frame sheets; crop a few % inside the cam border).
+  `reframe.face` = the face box inside that cam. The seam caption sits at the bottom of the cam band:
+  if the streamer's face is low in the webcam (leaning in), extend the cam crop **downward** (shoulders /
+  chest below the chin) so the face rises above the seam — don't move the captions onto the titles.
+- `captions.position: "upper"` = captions ride the cam/gameplay seam (default for streamers);
+  `"center"`/`"lower"` put them on the gameplay band. Keep captions to one line on the seam.
+- **Titles are mixed scale.** `hook_title` from 0 s: a short setup in small type + the key word(s)
+  in `emphasis` (rendered huge in the accent colour). Never just repeat the line being spoken —
+  the title frames it ("HE SAID THIS IS EASY" over a line that proves the opposite).
+  `punch_title` (same look) lands the punchline later, e.g. emphasis "LEFT ONE".
+- **The gameplay band must never sit empty.** When the game shows nothing (cleared stage, menu,
+  loading), give that segment a `band_src` (source seconds of a moment worth replaying — the
+  kill, the dodge — played muted under the ongoing voice, speed 0.75–1.0) or a `punch_title`.
+- The watermark/handle is a `label` with `align: "left"`, `position: "bottom"`, `box: true`.
+- Profanity in captions is masked automatically; set `captions.uncensored` only if the brief allows it.
+
 ## When revising
 Fix **every** issue you received, starting with blockers. In `fixes`, map each issue id to
 the concrete change you made. Change only what the issues need — don't rework what passed.
 If an issue is wrong or impossible, say so in `fixes` instead of silently ignoring it.
+The plan you return **is** the edit: before answering, check that every change you list in
+`fixes` is actually in the plan's fields (reviewers compare the two and fail mismatches).
 
 Times in `overlays` and `sfx` are **output** seconds (after your cuts); segment times are
 **source** seconds.

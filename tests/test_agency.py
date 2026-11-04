@@ -461,3 +461,12 @@ def test_captions_follow_the_stack_seam():
     size = doc.styles["Caption"].size
     assert f"\\an2\\pos(510,{572 + int(size * 0.55)})" in text  # pinned to the seam while stacked
     assert "\\an5\\pos(510,464)" in text  # the plan's anchor afterwards
+
+
+def test_brand_x_creator_is_not_the_x_platform():
+    assert heuristic_brief("ClippedIn x SkiiMaskTimmy. Post to Instagram, TikTok and YouTube.")["platforms"] == [
+        "tiktok", "reels", "shorts"]
+    for text in ("Post on TikTok and X.", "TikTok / X", "TikTok/X only", "Reels or X", "Reels & X", "X, Shorts"):
+        assert "x" in heuristic_brief(text)["platforms"], text
+    for text in ("Earn up to x views on TikTok", "Reels: get to x views", "ClippedIn x Creator on Shorts"):
+        assert "x" not in heuristic_brief(text)["platforms"], text

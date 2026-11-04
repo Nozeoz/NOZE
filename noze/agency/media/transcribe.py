@@ -1,7 +1,7 @@
 """Transcripts with word timings — the backbone of moment picking, jump cuts and captions.
 
 Backends, best first:
-- ``faster-whisper`` (``pip install faster-whisper``; CPU int8 is fine for clipping)
+- ``faster-whisper`` (``pip install faster-whisper``): large-v3 float16 on a CUDA GPU, small int8 on CPU
 - sidecar subtitles next to the video: ``video.srt`` / ``video.en.vtt`` (yt-dlp writes
   these; YouTube auto-captions even carry per-word timings) / whisper-style ``video.json``
 - none: the pipeline still runs on scene cuts and audio energy, just without captions
@@ -145,6 +145,8 @@ def transcribe(video: Path, backend: str = "auto", model_size: str = "small", la
             result = load_sidecar(side)
     if result is None and backend in ("auto", "faster-whisper"):
         result = _faster_whisper(video, model_size, language, hint)
+        if result:
+            fix_names(result, hint)
     if result is None:
         result = {"language": language or "", "source": "none", "segments": []}
     if cache:
@@ -153,28 +155,107 @@ def transcribe(video: Path, backend: str = "auto", model_size: str = "small", la
     return result
 
 
+def fix_names(transcript: dict[str, Any], hint: str) -> int:
+    """Snap near-miss spellings of the hinted names ("skiMaskTimmy") to the real one ("SkiiMaskTimmy").
+
+    Only one-word names of 5+ letters; names of 8+ letters take close matches (difflib ratio ≥ 0.8), shorter
+    ones only a case fix, so ordinary words survive.
+    """
+    from difflib import SequenceMatcher
+
+    names: dict[str, str] = {}  # lower → first spelling given (the brief's "SkiiMaskTimmy" beats the handle)
+    for n in re.split(r"[,;]", hint or ""):
+        n = n.strip().strip(".")
+        if re.fullmatch(r"\w[\w.]{4,}", n):
+            names.setdefault(n.lower(), n)
+    fixed = 0
+    for seg in transcript.get("segments") or []:
+        for w in seg.get("words") or []:
+            m = re.fullmatch(r"(\W*)([\w.]+?)(\W*)", w["word"])
+            if not m:
+                continue
+            core = m.group(2)
+            for low, name in names.items():
+                # short names ("Sketch") only get their capitals fixed: fuzzy matching would eat "sketchy"
+                close = (core.lower() == low) if len(low) < 8 else SequenceMatcher(None, core.lower(), low).ratio() >= 0.8
+                if core != name and close:
+                    seg["text"] = re.sub(rf"\b{re.escape(core)}\b", name, seg["text"])
+                    w["word"] = m.group(1) + name + m.group(3)
+                    fixed += 1
+                    break
+    return fixed
+
+
+def cuda_dll_dirs() -> list[Path]:
+    """Folders holding cuBLAS/cuDNN for CTranslate2 on Windows: ``AGENCY_CUDA_DLL_DIRS``, pip ``nvidia-*``
+    wheels in this environment, or a CUDA build of PyTorch installed in any user Python (it ships them)."""
+    import os
+    import site
+    import sys
+
+    if sys.platform != "win32":
+        return []
+    found = [Path(p) for p in os.environ.get("AGENCY_CUDA_DLL_DIRS", "").split(os.pathsep) if p]
+    for sp in site.getsitepackages():
+        found += [Path(sp) / "nvidia" / sub / "bin" for sub in ("cublas", "cudnn")]
+    local = Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Python"
+    found += sorted(local.glob("Python3*/Lib/site-packages/torch/lib"), reverse=True)
+    return [d for d in found if d.is_dir() and (any(d.glob("cublas*.dll")) or any(d.glob("cudnn*.dll")))]
+
+
+def _whisper_devices() -> list[str]:
+    import os
+
+    want = os.environ.get("AGENCY_WHISPER_DEVICE", "auto").lower()
+    if want in ("cpu", "cuda"):
+        return [want]
+    try:
+        import ctranslate2  # type: ignore
+
+        if ctranslate2.get_cuda_device_count() > 0:
+            for d in cuda_dll_dirs():  # CTranslate2 finds its DLLs through PATH, not add_dll_directory
+                if str(d) not in os.environ.get("PATH", ""):
+                    os.environ["PATH"] = str(d) + os.pathsep + os.environ.get("PATH", "")
+            return ["cuda", "cpu"]
+    except Exception:  # noqa: BLE001 — no CUDA runtime is the normal case on laptops without a GPU
+        pass
+    return ["cpu"]
+
+
 def _faster_whisper(video: Path, model_size: str, language: str | None, hint: str = "") -> dict[str, Any] | None:
     try:
         from faster_whisper import WhisperModel  # type: ignore
     except ImportError:
         log.info("faster-whisper not installed; no transcript (pip install faster-whisper)")
         return None
-    model = WhisperModel(model_size, device="auto", compute_type="int8")
     # decode with ffmpeg ourselves: faster-whisper's PyAV path breaks across PyAV releases
     audio = _pcm16k(video)
     if audio.size == 0:
         return None
-    segments, info = model.transcribe(audio, word_timestamps=True, vad_filter=True, language=language or None,
-                                      vad_parameters={"min_silence_duration_ms": 500},
-                                      initial_prompt=hint or None)
-    out = []
-    for s in segments:
-        words = [{"start": round(w.start, 3), "end": round(w.end, 3), "word": w.word.strip()}
-                 for w in (s.words or []) if w.word.strip()]
-        out.append({"start": round(s.start, 3), "end": round(s.end, 3), "text": s.text.strip(),
-                    "words": words or spread_words(s.text, s.start, s.end)})
-    return {"language": getattr(info, "language", "") or (language or ""), "source": f"faster-whisper:{model_size}",
-            "segments": out}
+    last: Exception | None = None
+    for device in _whisper_devices():
+        # "auto": the big model on a GPU (names, shouted lines under game audio), small on CPU
+        size = model_size if model_size != "auto" else ("large-v3" if device == "cuda" else "small")
+        try:
+            model = WhisperModel(size, device=device, compute_type="float16" if device == "cuda" else "int8")
+            segments, info = model.transcribe(audio, word_timestamps=True, vad_filter=True,
+                                              language=language or None,
+                                              vad_parameters={"min_silence_duration_ms": 500},
+                                              initial_prompt=hint or None)
+            out = []
+            for s in segments:  # a generator: CUDA library errors surface here, inside the try
+                words = [{"start": round(float(w.start), 3), "end": round(float(w.end), 3), "word": w.word.strip()}
+                         for w in (s.words or []) if w.word.strip()]
+                out.append({"start": round(float(s.start), 3), "end": round(float(s.end), 3), "text": s.text.strip(),
+                            "words": words or spread_words(s.text, s.start, s.end)})
+        except (RuntimeError, ValueError, OSError) as exc:
+            log.warning("faster-whisper on %s failed (%s); trying the next device", device, exc)
+            last = exc
+            continue
+        return {"language": getattr(info, "language", "") or (language or ""),
+                "source": f"faster-whisper:{size}:{device}", "segments": out}
+    log.warning("faster-whisper unavailable on every device: %s", last)
+    return None
 
 
 def _pcm16k(video: Path):
