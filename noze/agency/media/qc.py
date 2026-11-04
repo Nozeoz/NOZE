@@ -12,7 +12,7 @@ from typing import Any
 
 from ..standards import DELIVERY, LAYOUT, QC, PLATFORM_LIMITS, safe_zone
 from .analyze import blacks, freezes, loudness, scene_cuts, silences
-from .captions import (AssDoc, Meter, box_pad, caption_styles, overlay_styles, pick_font, plan_captions, plan_overlays,
+from .captions import (AssDoc, title_holds, Meter, box_pad, caption_styles, overlay_styles, pick_font, plan_captions, plan_overlays,
                        rides_seam, text_box)
 from .ffmpeg import MediaError, probe, run
 from . import faces as face_finder
@@ -378,7 +378,7 @@ def layout_lint(plan: dict[str, Any], brief: dict[str, Any], *, words: list[dict
     layers: list[dict[str, Any]] = []
     cstyle = doc.styles["Caption"]
     for ev in plan_captions(words, cap, platform, W, H, cstyle.size, D, seam_at if seams else None,
-                          box_pad(cstyle)):
+                          box_pad(cstyle), title_holds(plan.get("overlays"))):
         lines = [" ".join(ln) for ln in ev.lines]
         layers.append({"kind": "caption", "text": " ".join(lines), "lines": lines, "a": ev.start, "b": ev.end,
                        "size": cstyle.size, "box": text_box(lines, cstyle.size, ev.x, ev.y, ev.an, box_pad(cstyle), meter)})
@@ -603,6 +603,25 @@ def layout_lint(plan: dict[str, Any], brief: dict[str, Any], *, words: list[dict
                 flag("game_upscale", "major", a, f"The gameplay band is magnified {gz:.1f}x from the source "
                      f"(max {LY['game_max_upscale']}x).", "Drop the punch-in on stacked segments or use a higher-resolution source.",
                      scale=round(gz, 2))
+
+    # crop modes (podcast / talking head): reframe.scale × punch magnifies the source too
+    if src_size and src_w / max(src_h, 1) > W / H + 0.02:
+        for p in tl.placed:
+            seg = segs[p.index]
+            rf, zoom = seg.get("reframe") or {}, seg.get("zoom") or {}
+            if rf.get("mode") not in ("fixed", "center", "auto", "fill"):
+                continue
+            base = H / src_h  # a full-height crop: the source resolution, not the editor's choice
+            extra = min(1.5, max(1.0, float(rf.get("scale") or 1.0))) * (
+                float(zoom.get("scale") or 1.0) if zoom.get("type") not in (None, "none") else 1.0)
+            up = base * extra
+            # only the plan's own zoom is judged (a low-res source can't be fixed by the editor = endless loop);
+            # major only when that zoom alone pushes a decent source past the hard limit
+            if extra > 1.0 and up > LY["cam_max_upscale"]:
+                sev = "major" if base <= LY["cam_max_upscale_major"] < up else "minor"
+                flag("crop_upscale", sev, p.out_start,
+                     f"The picture is magnified {up:.1f}x from the source (reframe.scale × punch).",
+                     "Lower reframe.scale or the punch-in on this segment.", scale=round(up, 2))
 
     # (A7) watermark / mention overlays
     for ly in layers:

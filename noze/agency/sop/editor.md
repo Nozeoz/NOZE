@@ -53,6 +53,21 @@ music, house standards, and — when revising — the review issues you must fix
 - The watermark/handle is a `label` with `align: "left"`, `position: "bottom"`, `box: true`.
 - Profanity in captions is masked automatically; set `captions.uncensored` only if the brief allows it.
 
+## Podcast / interview clips (split-screen or single shots, 16:9 source)
+- The source switches between a split-screen (one panel per person) and single shots. Split a segment at
+  every switch and frame each part on whoever matters there: `fixed` with `x` = that person's panel centre.
+  A reaction beat = a `fixed` crop on the listener's panel, not `fit_blur` (a blurred band over two thirds
+  of the frame).
+- A full-height crop puts the chin exactly where `lower` captions sit. On every talking-head segment set
+  `reframe.scale` 1.15–1.3 and `reframe.y` about 0.18 below the face centre (face centre at 0.40 of the source
+  height → `y` 0.58): the eyes land in the upper third and the chin stays above ~1000 px of 1920, so the
+  captions sit on the chest. Keep one `scale`/`y` per person so cuts between them don't jump.
+- `zoom` punches scale about the frame centre on top of that: ≤ 1.10 at scale ≤ 1.25, ≤ 1.05 above (the lint
+  flags a total magnification above 2.5×; a 1080p crop starts at 1.78×).
+- Titles: once the face is lifted the head fills the top of the frame, so `top`/`upper`/`center` titles land on
+  the eyes. Put `hook_title` / `punch_title` at `lower` (on the chest, ≤ 2.5 s): captions pause automatically
+  while a title sits there, so the title must carry that line on its own.
+
 ## When revising
 Fix **every** issue you received, starting with blockers. In `fixes`, map each issue id to
 the concrete change you made. Change only what the issues need — don't rework what passed.

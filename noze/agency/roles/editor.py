@@ -340,10 +340,17 @@ class Editor(Role):
         if not cap.get("enabled"):
             return
         modes = {(s.get("reframe") or {}).get("mode") for s in plan["segments"]}
+        # a lifted talking head (reframe.scale > 1) fills the top and middle: the chest strip is the only free one
+        lifted = any(float((s.get("reframe") or {}).get("scale") or 1.0) > 1.0 for s in plan["segments"])
         if cap.get("position") == "lower" and any(
                 o["kind"] == "label" and o.get("position") == "bottom" and o["end"] - o["start"] >= duration * 0.5
                 for o in plan["overlays"]):
-            if "stack" in modes:
+            if lifted and "stack" not in modes:
+                # live run 4 Nov: "center" = on the lifted face; stay on the chest, one line clears the pill
+                cap["words_per_caption"] = min(2, int(cap.get("words_per_caption") or 2))
+                plan.setdefault("fixes", []).append({"issue_id": "house:declutter", "change": (
+                    "captions stay lower (lifted face), ≤ 2 words so one line clears the watermark pill")})
+            elif "stack" in modes:
                 # live run 3 Nov: "center" is where stacked titles live — back to the seam, one line (≤ 2 words)
                 # so the chunk can't grow up into the face
                 cap["position"] = "upper"
@@ -357,6 +364,8 @@ class Editor(Role):
         prefs = ("center", "top", "lower") if "stack" in modes else ("upper", "top", "center")  # top = face on stack
         for o in plan["overlays"]:
             where = o.get("position") or ("top" if o["kind"] == "hook_title" else "center")  # renderer defaults
+            if o["kind"] in ("hook_title", "punch_title") and where in ("lower", "bottom"):
+                continue  # captions pause under a title in their strip (captions.title_holds) — no clash to fix
             if o["kind"] != "label" and where in taken:
                 o["position"] = next(p for p in prefs if p not in taken)
 
@@ -467,8 +476,11 @@ class Editor(Role):
                     note(iid, f"first segment now starts on the first word ({first_word['word']})")
             elif iid == "hook:slow_open":
                 if not any(o["kind"] == "hook_title" for o in p["overlays"]):
+                    # a lifted talking head (reframe.scale > 1) fills the top: the title goes on the chest
+                    lifted = bool(segs) and float((segs[0].get("reframe") or {}).get("scale") or 1.0) > 1.0
                     p["overlays"].insert(0, {"kind": "hook_title", "text": short_hook(p.get("title", "")).upper(),
-                                             "start": 0.0, "end": 2.6, "position": "top", "style": "pop"})
+                                             "start": 0.0, "end": 2.6, "position": "lower" if lifted else "top",
+                                             "style": "pop"})
                 if segs:
                     segs[0]["zoom"] = {"type": "punch", "scale": punch}
                 note(iid, "hook title from 0s + punch-in on the opening")

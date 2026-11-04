@@ -22,7 +22,7 @@ from typing import Any
 
 from ..standards import DELIVERY
 from .analyze import loudness, loudnorm_measure
-from .captions import (AssDoc, add_flash, box_pad, build_captions, build_overlays, caption_styles, overlay_styles,
+from .captions import (AssDoc, title_holds, add_flash, box_pad, build_captions, build_overlays, caption_styles, overlay_styles,
                        pick_font, rides_seam)
 from .ffmpeg import MediaError, probe, run
 from .timeline import Timeline
@@ -73,8 +73,12 @@ def _even(x: float) -> int:
     return max(2, int(round(x / 2.0)) * 2)
 
 
-def reframe_filters(mode: str, x_frac: float, src_w: int, src_h: int, w: int, h: int) -> list[str]:
-    """Filters that turn a source frame into a w×h frame (labels handled by caller)."""
+def reframe_filters(mode: str, x_frac: float, src_w: int, src_h: int, w: int, h: int,
+                    scale: float = 1.0, y_frac: float | None = None) -> list[str]:
+    """Filters that turn a source frame into a w×h frame (labels handled by caller).
+    ``scale`` > 1 crops tighter than full height, which frees vertical room: ``y_frac`` (0-1) is then the
+    vertical centre of the crop in the source — below the face lifts the face up the frame (podcast shots,
+    where full-height crops put the chin exactly where the captions sit)."""
     tgt = w / h
     src = src_w / src_h if src_h else tgt
     if mode == "stack" and src > tgt:
@@ -84,10 +88,14 @@ def reframe_filters(mode: str, x_frac: float, src_w: int, src_h: int, w: int, h:
     if abs(src - tgt) <= 0.02:
         return [f"scale={w}:{h}:flags=lanczos"]
     if src > tgt:  # wider than 9:16 → crop width
-        cw = _even(src_h * tgt)
+        sc = min(1.5, max(1.0, scale or 1.0))
+        ch = _even(src_h / sc)
+        cw = _even(ch * tgt)
         xf = 0.5 if mode in ("center", "auto", "fill") else min(1.0, max(0.0, x_frac or 0.5))
         x = int(min(max(xf * src_w - cw / 2, 0), src_w - cw))
-        return [f"crop={cw}:{src_h}:{x}:0", f"scale={w}:{h}:flags=lanczos"]
+        yf = 0.5 if y_frac is None else min(1.0, max(0.0, y_frac))
+        y = int(min(max(yf * src_h - ch / 2, 0), src_h - ch))
+        return [f"crop={cw}:{ch}:{x}:{y}", f"scale={w}:{h}:flags=lanczos"]
     ch = _even(src_w / tgt)  # taller → crop height, biased up (faces live in the upper half)
     y = int(min(max(0.42 * src_h - ch / 2, 0), src_h - ch))
     return [f"crop={src_w}:{ch}:0:{y}", f"scale={w}:{h}:flags=lanczos"]
@@ -199,7 +207,9 @@ class Renderer:
         mode = reframe.get("mode") or "auto"
         if mode == "stack" and not _valid_cam(reframe.get("cam")):
             mode = "fit_blur"  # no facecam rectangle: keep the whole frame visible instead
-        rf = reframe_filters(mode, float(reframe.get("x") or 0.5), src_w, src_h, W, H)
+        rf = reframe_filters(mode, float(reframe.get("x") or 0.5), src_w, src_h, W, H,
+                             float(reframe.get("scale") or 1.0),
+                             None if reframe.get("y") is None else float(reframe["y"]))
         zoom = seg.get("zoom") or {}
         zkind, zscale = zoom.get("type") or "none", float(zoom.get("scale") or 1.0)
         # on a stacked frame only the gameplay band zooms: the facecam must stay whole
@@ -296,7 +306,8 @@ class Renderer:
         def seam_at(t: float) -> int | None:  # stacked layout: captions ride the cam/gameplay seam
             return next((y for a, b, y in seams if a - 0.01 <= t < b), None)
 
-        n_caps = (build_captions(doc, out_words, cap_spec, sp.platform, D, seam_at if seams else None)
+        n_caps = (build_captions(doc, out_words, cap_spec, sp.platform, D, seam_at if seams else None,
+                                 title_holds(plan.get("overlays")))
                   if cap_spec.get("enabled", True) else 0)
         seam_caps = seam_at if seams and n_caps and rides_seam(cap_spec) else None  # keep text off the seam caption
         cst = doc.styles["Caption"]

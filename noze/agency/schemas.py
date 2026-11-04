@@ -202,6 +202,9 @@ SEGMENT = O({
     "reframe": O({
         "mode": E(REFRAME_MODES, "stack = streamer facecam on top, gameplay below (needs cam)"),
         "x": N("0-1 horizontal center of the subject (fixed mode) or of the gameplay (stack mode)"),
+        "scale": Null(N("crop modes: 1.0-1.5 base zoom (1.0 = full source height); > 1 frees vertical room for y")),
+        "y": Null(N("crop modes, needs scale > 1: 0-1 vertical centre of the crop in the source; set it BELOW the "
+                    "face (e.g. face centre 0.40 → y 0.58 at scale 1.25) to lift the face above the captions")),
         "cam": Null(O({"x": N("left edge 0-1"), "y": N("top edge 0-1"), "w": N("width 0-1"), "h": N("height 0-1")},
                       "facecam rectangle in the source frame, as fractions")),
         "face": Null(O({"x": N("left edge 0-1"), "y": N("top edge 0-1"), "w": N("width 0-1"), "h": N("height 0-1")},

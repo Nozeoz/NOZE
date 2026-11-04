@@ -276,3 +276,22 @@ def test_manager_assigns_extra_clip(tmp_path, source):
     drain(ag)
     assert ax.store.get_job(sid)["state"] == "done"
     ax.close()
+
+
+def test_render_pauses_captions_under_a_chest_title(tmp_path, source):
+    # wiring guard: render.py must pass title_holds to the caption writer (retest 4 Nov: unguarded)
+    from noze.agency.media.render import Renderer, RenderSpec
+
+    plan = conform({"segments": [{"src_start": 1.0, "src_end": 5.0, "speed": 1.0,
+                                  "reframe": {"mode": "fixed", "x": 0.5, "scale": 1.25, "y": 0.6}}],
+                    "captions": {"enabled": True, "words_per_caption": 2, "position": "lower"},
+                    "overlays": [{"kind": "hook_title", "text": "HE SAID IT", "start": 0.0, "end": 2.0,
+                                  "position": "lower"}]}, EDIT_PLAN)
+    words = [{"word": w, "start": 1.0 + i * 0.4, "end": 1.0 + i * 0.4 + 0.35}
+             for i, w in enumerate("so this is what happened to me okay".split())]
+    res = Renderer(RenderSpec(width=360, height=640, fps=15)).render(plan, source, tmp_path / "o.mp4",
+                                                                     tmp_path / "w", words)
+    caps = [ln for ln in Path(res.ass_path).read_text(encoding="utf-8").splitlines()
+            if ln.startswith("Dialogue:") and ",Caption," in ln]
+    starts = [ln.split(",")[1] for ln in caps]
+    assert caps and all(s >= "0:00:02.00" for s in starts), starts

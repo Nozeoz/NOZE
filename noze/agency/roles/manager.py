@@ -258,7 +258,9 @@ class Manager(Role):
         if self.needs_human(packet):  # the pipeline parks these before asking; never approve one here either
             decision = "reject" if escalation else "changes"
         elif escalation:
-            decision = "approve" if not blockers and len(majors) <= 1 and (review.get("score") or 0) >= 6 else "reject"
+            # same rule as the manager's SOP: an escalation is approved only when what's left is minor
+            # (live run 4 Nov: the budget ran out at the verdict and this fallback shipped a clip with an open major)
+            decision = "approve" if not blockers and not majors and (review.get("score") or 0) >= 6 else "reject"
         else:
             decision = "approve" if review.get("verdict") == "pass" and not blockers else "changes"
         post = packet.get("post") or {}

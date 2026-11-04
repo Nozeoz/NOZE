@@ -433,3 +433,13 @@ def test_stretched_clip_keeps_one_watermark(tmp_path):
         assert [o["kind"] for o in out["overlays"]].count("hook_title") == 1
     finally:
         ax.close()
+
+
+def test_fallback_escalation_never_ships_an_open_major():
+    # live run 4 Nov: the LLM budget ran out at the verdict and the fallback approved a clip with a major open
+    mgr = Manager.__new__(Manager)
+    one_major = {"review": {"verdict": "fail", "score": 6.8, "creative_review": True,
+                            "issues": [{"severity": "major"}, {"severity": "minor"}]}}
+    minors = {"review": {"verdict": "fail", "score": 6.8, "creative_review": True, "issues": [{"severity": "minor"}]}}
+    assert mgr._heuristic_approve(one_major, True)["decision"] == "reject"
+    assert mgr._heuristic_approve(minors, True)["decision"] == "approve"  # positive control

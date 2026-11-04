@@ -262,8 +262,9 @@ def rides_seam(spec: dict[str, Any]) -> bool:
 
 def plan_captions(words: list[dict[str, Any]], spec: dict[str, Any], platform: str, width: int, height: int,
                   size: int, duration: float, y_at: Callable[[float], int | None] | None = None,
-                  pad: int = 0) -> list[CapEvent]:
-    """Where and when each caption chunk goes. ``y_at(t)`` may pin a chunk to a horizontal line instead
+                  pad: int = 0, holds: list[tuple[float, float]] | None = None) -> list[CapEvent]:
+    """Where and when each caption chunk goes. ``holds`` = windows where a title sits in the caption band
+    (``title_holds``): chunks spoken there are left out — the title is the text on screen then. ``y_at(t)`` may pin a chunk to a horizontal line instead
     (the seam of a stacked layout): one line straddles it and longer chunks grow upwards, away from
     whatever sits below the seam. Shared by the ASS writer and the layout lint: one source of truth."""
     if not spec.get("enabled", True) or not words:
@@ -293,6 +294,9 @@ def plan_captions(words: list[dict[str, Any]], spec: dict[str, Any], platform: s
     # (live run 3 Nov: three clips in a row lost a review round to a two-line seam caption over the face)
     chunks = [c for ch in group_words(words, n_words, max_chars)
               for c in split_tall(ch, 1 if y_at and y_at(ch[0]["start"]) is not None else 2)]
+    holds = [(a, b) for a, b in holds or [] if b > a]
+    # any overlap counts (a chunk straddling the title's edge would still sit on it), tail included
+    chunks = [c for c in chunks if not any(c[0]["start"] < b and c[-1]["end"] + 0.12 > a for a, b in holds)]
     events: list[CapEvent] = []
     for i, chunk in enumerate(chunks):
         start = chunk[0]["start"]
@@ -301,7 +305,7 @@ def plan_captions(words: list[dict[str, Any]], spec: dict[str, Any], platform: s
         end = max(chunk[-1]["end"] + 0.12, start + 0.35)
         if nxt - end < 0.3:
             end = nxt
-        end = min(end, duration)
+        end = min([end, duration] + [a for a, _ in holds if a > start])  # never run into a title
         lines = wrap_words(tokens_of(chunk), max_chars)
         events.append(CapEvent(chunk, start, end, lines, 2 if seam else 5, x,
                                seam + int(size * 0.55) if seam else fit_y(y, len(lines) * size + 2 * pad,
@@ -310,12 +314,13 @@ def plan_captions(words: list[dict[str, Any]], spec: dict[str, Any], platform: s
 
 
 def build_captions(doc: AssDoc, words: list[dict[str, Any]], spec: dict[str, Any], platform: str,
-                   duration: float, y_at: Callable[[float], int | None] | None = None) -> int:
+                   duration: float, y_at: Callable[[float], int | None] | None = None,
+                   holds: list[tuple[float, float]] | None = None) -> int:
     """Add caption events for re-timed words. Returns how many caption chunks were placed."""
     style = spec.get("style") or "bold_pop"
     hi = ass_color(spec.get("highlight_color") or "#FFE600")
     cs = doc.styles["Caption"]
-    events = plan_captions(words, spec, platform, doc.width, doc.height, cs.size, duration, y_at, box_pad(cs))
+    events = plan_captions(words, spec, platform, doc.width, doc.height, cs.size, duration, y_at, box_pad(cs), holds)
     for ev in events:
         chunk, start, end, lines = ev.chunk, ev.start, ev.end, ev.lines
         pos = f"\\an{ev.an}\\pos({ev.x},{ev.y})"
@@ -356,6 +361,13 @@ def build_captions(doc: AssDoc, words: list[dict[str, Any]], spec: dict[str, Any
 
 
 TITLE_KINDS = ("hook_title", "punch_title")
+
+
+def title_holds(overlays: list[dict[str, Any]] | None) -> list[tuple[float, float]]:
+    """(start, end) of titles placed in the caption band (``lower``/``bottom``, e.g. on the chest of a lifted
+    talking head, where nothing fits above the head): captions pause there instead of colliding."""
+    return [(float(o.get("start") or 0.0), float(o.get("end") or 0.0)) for o in overlays or []
+            if o.get("kind") in TITLE_KINDS and o.get("position") in ("lower", "bottom")]
 KEY_SCALE = {"hook_title": 0.105, "punch_title": 0.115}  # emphasis font = share of the frame height (≈ 200 / 220 px at 1920)
 KEY_FLOOR = {"hook_title": 150, "punch_title": 180}  # never smaller than this (px at 1920) even when the word is long
 TITLE_TILT = -3  # degrees (\frz)

@@ -15,6 +15,8 @@ creative and compliance review that numbers can't do, plus checking the editor's
    cropped; no awkward empty frames; fit-blur used where two people matter.
 5. **Text & captions:** spelling of names and key words, captions in sync with speech,
    readable size/contrast, inside the safe zone, never covering faces or other text.
+   On a cropped talking head the fix for captions over the chin is to lift the picture
+   (`reframe.scale` 1.15–1.3 + `reframe.y` below the face), not to push captions into the UI zone.
 6. **Pacing:** dead spots, a stretch that drags, cuts that jump mid-word, jarring
    transitions, overused effects.
 7. **Sound** (from QC numbers + plan): voice clear, music under the voice, SFX deliberate.
