@@ -171,14 +171,15 @@ class Playbook:
 
     def record_use(self, used: list[str], shown: list[str], job_id: int | None) -> list[str]:
         valid = [i for i in dict.fromkeys(used or []) if i in set(shown)]
-        for lid in valid:
-            l = self.store.get_lesson(lid)
-            if not l:
-                continue
-            jobs = list(l.get("jobs") or [])
-            if job_id and job_id not in jobs:
-                jobs.append(job_id)
-            self.store.update_lesson(lid, uses=l["uses"] + 1, jobs=jobs[-50:])
+        with self.store._lock:  # read-modify-write: parallel clip workers would lose counts otherwise
+            for lid in valid:
+                l = self.store.get_lesson(lid)
+                if not l:
+                    continue
+                jobs = list(l.get("jobs") or [])
+                if job_id and job_id not in jobs:
+                    jobs.append(job_id)
+                self.store.update_lesson(lid, uses=l["uses"] + 1, jobs=jobs[-50:])
         return valid
 
 

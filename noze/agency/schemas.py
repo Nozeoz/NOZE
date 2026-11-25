@@ -59,11 +59,21 @@ CAPTION_STYLES = ["bold_pop", "karaoke", "minimal", "boxed", "outline"]
 CAPTION_POSITIONS = ["upper", "center", "lower"]
 REFRAME_MODES = ["auto", "center", "fixed", "fit_blur", "fill", "stack"]
 ZOOM_TYPES = ["none", "punch", "push", "pull"]
-TRANSITIONS = ["cut", "flash", "fade", "whip", "zoom"]
-OVERLAY_STYLES = ["pop", "slide", "fade", "typewriter"]
-OVERLAY_KINDS = ["hook_title", "text", "cta", "label", "punch_title"]
-SFX_KINDS = ["whoosh", "pop", "hit", "riser", "click", "ding", "swoosh", "boom", "glitch"]
-COLOR_PRESETS = ["none", "punchy", "warm", "cool", "bw", "cinematic"]
+TRANSITIONS = ["cut", "flash", "fade", "whip", "zoom", "rewind", "glitch"]
+OVERLAY_STYLES = ["pop", "slide", "fade", "typewriter", "stamp", "glitch"]
+OVERLAY_KINDS = ["hook_title", "text", "cta", "label", "punch_title", "time_card", "callout"]
+SFX_KINDS = ["whoosh", "pop", "hit", "riser", "click", "ding", "swoosh", "boom", "glitch",
+             "rewind", "tape_stop", "heartbeat", "shutter", "bass_drop", "sting"]
+COLOR_PRESETS = ["none", "punchy", "warm", "cool", "bw", "cinematic", "teal_orange", "night"]
+# story & emotion: what the clip should make the viewer feel drives every edit choice (standards.VIBES)
+EMOTIONS = ["hype", "funny", "shock", "tense", "wholesome", "sad", "rage", "awe"]
+STRUCTURES = ["linear", "cold_open", "arc", "montage"]
+PART_ROLES = ["cold_open", "hook", "setup", "foreshadow", "build", "turn", "payoff", "reaction", "callback", "button"]
+LOOKS = ["none", "flashback", "vhs", "noir", "dream"]
+HOLD_STYLES = ["zoom", "polaroid", "bw"]
+VOICES = ["streamer", "game", "other"]
+BEAT_KINDS = ["funny", "hype", "fail", "clutch", "shock", "reveal", "emotional", "rant", "conflict", "claim",
+              "prediction", "promise", "callback", "running_gag", "wholesome", "explain", "other"]
 HOOK_TYPES = ["question", "bold_claim", "story", "visual", "controversy", "number", "secret", "challenge", "other"]
 BEATS = ["hook", "setup", "context", "tension", "payoff", "cta", "other"]
 
@@ -183,12 +193,40 @@ BLUEPRINT = O({
     "used_lessons": A(S()),
 })
 
+# pass 1 of moment mining: an index of everything notable, small enough to read a whole stream at once
+BEAT_INDEX = O({
+    "beats": A(O({
+        "start_s": N(), "end_s": N(),
+        "kind": E(BEAT_KINDS, "prediction/promise/claim = possible SETUP for a later payoff; callback = refers back"),
+        "summary": S("what happens, <= 20 words"),
+        "quote": S("the key words, verbatim from the transcript"),
+        "entities": A(S("people/objects/places/topics that could link this beat to another one")),
+        "heat": N("0-10: how loud/funny/intense it is, using the measured signals"),
+    })),
+    "used_lessons": A(S()),
+})
+
+PART = O({
+    "start_s": N("source seconds"), "end_s": N(),
+    "role": E(PART_ROLES),
+    "label": S("time-jump card shown when this part starts, e.g. '40 MIN EARLIER'; empty = none (must match the real "
+               "gap between parts)"),
+})
+
 MOMENTS = O({
     "moments": A(O({
-        "start_s": N(), "end_s": N(), "title": S(), "hook_line": S("first words the viewer hears/reads"),
+        "start_s": N("envelope start (= earliest part start when parts are used)"), "end_s": N("envelope end"),
+        "parts": A(PART, "the clip's pieces IN PLAY ORDER (may jump back/forward in the source); empty = the single "
+                         "range start_s-end_s"),
+        "structure": E(STRUCTURES, "linear = one stretch; cold_open = payoff first, then rewind to the setup; "
+                                   "arc = setup and payoff from different times; montage = same joke/theme across times"),
+        "emotion": E(EMOTIONS, "what the viewer should feel at the end"),
+        "story": S("one sentence: setup → turn → payoff"),
+        "title": S(), "hook_line": S("first words the viewer hears/reads"),
         "hook_type": E(HOOK_TYPES), "summary": S(),
         "scores": O({"hook": N("0-10"), "flow": N("0-10"), "value": N("0-10"), "trend": N("0-10"),
-                     "emotion": N("0-10")}),
+                     "emotion": N("0-10"), "story": N("0-10: does it build and pay off")}),
+        "signals": S("the measured evidence used (chat spike, laughter, replay heatmap, loud reaction)"),
         "rationale": S(), "keywords": A(S()),
     })),
     "used_lessons": A(S()),
@@ -202,20 +240,32 @@ SEGMENT = O({
     "reframe": O({
         "mode": E(REFRAME_MODES, "stack = streamer facecam on top, gameplay below (needs cam)"),
         "x": N("0-1 horizontal center of the subject (fixed mode) or of the gameplay (stack mode)"),
-        "scale": Null(N("crop modes: 1.0-1.5 base zoom (1.0 = full source height); > 1 frees vertical room for y")),
+        "scale": Null(N("crop modes: 1.0-1.5 base zoom (1.0 = full source height); > 1 frees vertical room for y. "
+                        "stack mode: zoom of the GAMEPLAY band (1.0-1.5) so the action is big and clear of the UI")),
         "y": Null(N("crop modes, needs scale > 1: 0-1 vertical centre of the crop in the source; set it BELOW the "
-                    "face (e.g. face centre 0.40 → y 0.58 at scale 1.25) to lift the face above the captions")),
+                    "face (e.g. face centre 0.40 → y 0.58 at scale 1.25) to lift the face above the captions. "
+                    "stack mode: vertical centre (0-1 of the source) of the gameplay crop — move the player/action up, "
+                    "out of the bottom UI and away from HUD/minimap")),
         "cam": Null(O({"x": N("left edge 0-1"), "y": N("top edge 0-1"), "w": N("width 0-1"), "h": N("height 0-1")},
                       "facecam rectangle in the source frame, as fractions")),
         "face": Null(O({"x": N("left edge 0-1"), "y": N("top edge 0-1"), "w": N("width 0-1"), "h": N("height 0-1")},
                        "the streamer's face inside the cam rectangle, as fractions of the cam (stack mode)")),
     }),
-    "zoom": O({"type": E(ZOOM_TYPES), "scale": N("1.0-1.35")}),
+    "zoom": O({"type": E(ZOOM_TYPES), "scale": N("1.0-1.35"),
+               "fx": Null(N("0-1 horizontal focus point of the zoom in the OUTPUT frame; null = centre")),
+               "fy": Null(N("0-1 vertical focus point; null = centre"))}),
     "shake": B(),
-    "transition_in": E(TRANSITIONS),
+    "transition_in": E(TRANSITIONS, "rewind = tape-rewind look (time jump back); glitch = RGB-split jolt"),
+    "role": E(PART_ROLES, "this segment's job in the story"),
+    "look": E(LOOKS, "flashback/vhs/noir/dream = treatment for footage from another time"),
+    "hold": N("seconds to freeze the segment's LAST frame after it plays (0 = none, max 1.2): the reaction beat"),
+    "hold_style": E(HOLD_STYLES, "zoom = slow push on the frozen frame; polaroid = framed tilted still; bw = desaturate"),
     "band_src": Null(O({"start": N("source seconds"), "end": N(), "speed": N("playback speed of the replay, 0.75 = slower")},
                        "stack mode: the GAMEPLAY band shows this source range (replay, muted) while the cam band and "
                        "the audio keep the segment's own range; shorter than the segment = holds the last frame")),
+    "label": S("time-jump label of the part this segment opens (shown on the rewind pill); empty = none"),
+    "voice": E(VOICES, "who is heard in this segment: streamer (their mic) | game (NPC, ad, cutscene, in-game call) | "
+                       "other; captions are styled per voice so a game line never reads as the streamer's"),
     "note": S(),
 })
 
@@ -227,16 +277,23 @@ EDIT_PLAN = O({
         "uppercase": B(), "highlight_color": S(), "font_scale": N("1.0 default"),
         "uncensored": B("true only if the brief allows profanity on screen; default false = captions mask it"),
     }),
+    "vibe": E(EMOTIONS, "the clip's emotion; picks the effect palette (standards.VIBES)"),
+    "fx": O({"vignette": B(), "grain": B(), "letterbox": B("thin cinematic bars (tense/awe only)")}),
     "overlays": A(O({
-        "kind": E(OVERLAY_KINDS), "text": S(), "start": N("output seconds"), "end": N(),
+        "kind": E(OVERLAY_KINDS, "time_card = big time-jump card ('40 MIN LATER'); callout = circle + arrow at "
+                                 "at_x/at_y with a short label"),
+        "text": S(), "start": N("output seconds"), "end": N(),
         "position": E(["top", "upper", "center", "lower", "bottom"]), "style": E(OVERLAY_STYLES),
         "emphasis": S("hook_title / punch_title: the word(s) of `text` drawn huge in the accent colour; empty = the last word"),
         "align": E(["center", "left"], "left = flush with the safe-zone left edge (watermark / mention)"),
         "box": B("dark pill behind the text (label / watermark)"),
+        "at_x": Null(N("callout: 0-1 x of the thing pointed at, OUTPUT frame")),
+        "at_y": Null(N("callout: 0-1 y of the thing pointed at")),
     })),
     "sfx": A(O({"kind": E(SFX_KINDS), "at": N("output seconds"), "gain_db": N()})),
     "music": O({"enabled": B(), "mood": S(), "asset": S("NOZE asset id or file path; empty = pick by mood"),
-                "gain_db": N(), "duck": B()}),
+                "gain_db": N(), "duck": B(),
+                "drop_at": Null(N("output second of the payoff: music cuts out ~0.35 s before it; null = none"))}),
     "color": E(COLOR_PRESETS),
     "progress_bar": B(),
     "post": O({"caption": S(), "hashtags": A(S())}),
@@ -256,7 +313,8 @@ ISSUE = O({
 
 CREATIVE_REVIEW = O({
     "scores": O({"hook": N("0-10"), "pacing": N(), "captions": N(), "framing": N(), "audio": N(),
-                 "compliance": N(), "overall": N()}),
+                 "compliance": N(), "story": N("does the clip build and pay off its story"),
+                 "emotion": N("does the edit make the viewer feel the intended vibe"), "overall": N()}),
     "issues": A(ISSUE),
     "resolved_previous": A(O({"issue_id": S(), "resolved": B(), "note": S()})),
     "summary": S(),

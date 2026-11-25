@@ -26,7 +26,13 @@ that creators run publicly (paid per views or per clip).
 ## What "good" means here
 - The first 1–3 seconds earn the next 30: a clear hook, spoken or written, immediately.
 - Every clip stands alone: a viewer with no context understands it and gets a payoff.
+- Every clip tells a story and lands one emotion (hype, funny, shock, tense, wholesome…):
+  setup → turn → payoff, even in 20 s. Moments from different times may be joined (cold
+  open, setup → payoff, callback, montage) — only when they truly connect, and every
+  time-jump card states the real gap. The edit (cuts, timing, effects, sound) creates the
+  feeling; effects that don't serve the clip's emotion are noise.
 - Something changes on screen at least every few seconds (cut, punch-in, text beat).
 - Captions are readable at a glance: few words, big, high contrast, inside the safe zone.
 - Sound is clean: voice first, music under it, SFX that punctuate rather than decorate.
 - No slop: no filler, no dead air, no generic stock-feel, no misleading claims.
+- No sexual or nudity scenes, even in-game: they cost FYP reach and we are paid per view.

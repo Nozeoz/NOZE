@@ -211,23 +211,33 @@ class Manager(Role):
 
     # -- staffing -----------------------------------------------------------------------------
     def select_moments(self, moments: list[dict[str, Any]], n: int, min_s: float, max_s: float) -> list[dict[str, Any]]:
-        """Best non-overlapping moments that fit the length window."""
+        """Best non-overlapping moments that fit the length window. Overlap is checked per part (an arc's envelope can
+        be hours wide); picks are spread over structures/emotions so three linear hype clips don't beat a good arc."""
+        from ..story import moment_parts, parts_duration
+        from .analyst import parts_overlap
+
         def overall(m: dict[str, Any]) -> float:
             s = m.get("scores") or {}
             return float(m.get("overall") or (0.35 * s.get("hook", 0) + 0.2 * s.get("flow", 0) +
                                               0.25 * s.get("value", 0) + 0.1 * s.get("trend", 0) +
                                               0.1 * s.get("emotion", 0)))
 
+        pool = [m for m in moments if max(3.0, min_s) <= parts_duration(moment_parts(m)) <= max_s * 1.4]
         picked: list[dict[str, Any]] = []
-        for m in sorted(moments, key=overall, reverse=True):
-            d = m["end_s"] - m["start_s"]
-            if d < max(3.0, min_s) or d > max_s * 1.4:
+
+        def eff(m: dict[str, Any]) -> float:
+            st, em = m.get("structure") or "linear", m.get("emotion") or ""
+            if not em:
+                return overall(m)
+            same = sum(1 for p in picked if (p.get("structure") or "linear") == st and p.get("emotion") == em)
+            return overall(m) - 0.8 * same - 0.3 * sum(1 for p in picked if p.get("emotion") == em)
+
+        while pool and len(picked) < n:
+            best = max(pool, key=eff)
+            pool.remove(best)
+            if any(parts_overlap(best, p) > 0 for p in picked):
                 continue
-            if any(not (m["end_s"] <= p["start_s"] or m["start_s"] >= p["end_s"]) for p in picked):
-                continue
-            picked.append({**m, "overall": round(overall(m), 2)})
-            if len(picked) >= n:
-                break
+            picked.append({**best, "overall": round(overall(best), 2)})
         return picked
 
     # -- final gate -------------------------------------------------------------------------------
@@ -238,7 +248,16 @@ class Manager(Role):
                 "(only if remaining issues are minor) or reject." if escalation else
                 "Final approval of a clip the reviewer passed.")
         task = f"{what}\n\nEverything you need:\n{dump(packet)}"
-        out = self.ask(job, task, APPROVAL, images=sheets, campaign=campaign)
+        if packet.get("internal_test"):  # the delivery gate blocks it in code; judge the edit, not the paperwork
+            task += ("\n\nINTERNAL TEST (`internal_test: true`): rendered only for the owner's review while the campaign "
+                     "terms are pending; delivery/posting is blocked in code until real terms grant permission. Do not "
+                     "decide on the missing permission — decide on the edit as if the terms were in.")
+        if escalation:  # you are the creative director again: Opus with the frames
+            out = self.ask(job, task, APPROVAL, images=sheets, campaign=campaign)
+        else:  # the vision reviewer already judged the frames — brief/risk/post check on text, cheap seat
+            out = self.ask(job, task + "\n\n(No frames: the reviewer judged the picture. Check the brief, risks, the "
+                           "post copy, and whether the review's own notes contradict its pass.)", APPROVAL,
+                           campaign=campaign, as_role="approver")
         if out is None:
             out = self._heuristic_approve(packet, escalation)
         return out

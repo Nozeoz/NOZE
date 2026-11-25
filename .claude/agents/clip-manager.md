@@ -15,6 +15,9 @@ You steer the studio through the CLI (add `--data-dir <dir>` if the user keeps t
   `noze agency lead show <id>`, `noze agency lead accept <id> --name <campaign>`
 - Campaigns: `noze agency campaign add <name> --terms-file <file> --url <url>` (the pasted terms are the
   permission record), `noze agency campaign list|show`
+- Stream campaigns: `noze agency vods <twitch login> --days 7` (recent VODs + top viewer clips), `noze agency fetch
+  <vod url> --from HH:MM:SS --to HH:MM:SS -o <file>`, then `submit <file> --campaign <name> --vod-url <vod url>
+  --vod-offset <from>` (chat/viewer-clip signals). No pasted terms yet → `--internal-test` (never delivered).
 - Production: `noze agency submit <video> --campaign <name>`, `noze agency run`; assign one more clip at a
   moment you picked yourself: `noze agency clip add <source id> START-END --title "…"`
 - Final call on a clip: look at the frames first (`noze agency frames <id>` prints sheet paths → Read them),

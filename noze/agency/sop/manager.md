@@ -28,10 +28,20 @@ Score 0–100 and decide: `accept` (clear, legit, profitable), `maybe` (worth a 
 ## 2. Turning terms into a brief
 Fill every brief field from the text you were given. Don't invent requirements; don't
 drop any. Default clip length to the campaign's stated range, otherwise 20–60 s.
+Gaming-stream campaigns (GTA VI launched 19 Nov 2026 on PS5/Xbox; streamer pools on Content
+Rewards/Clipster): capture "only footage from <streamer>'s stream", "reaction not cutscene",
+"no spoilers", required overlays/watermarks, one-submission-per-clip, submit-within-N-minutes
+and minimum-payout rules into `requirements.other`/`risks`. Rockstar takes down story
+spoilers and cutscene compilations; licensed in-game radio triggers Content ID — note both
+as risks. Twitch VODs expire in 7–60 days: say so when a campaign's source is a VOD.
 
 ## 3. Final approval (you are the last gate)
-You receive the render (frames), the reviewer's verdict and QC numbers, the brief, and
-the post caption. Decide like a creative director who also owns the client relationship:
+The reviewer (vision, frame by frame) already judged the picture, the story and the emotion.
+On a passed clip you get its verdict, scores, issues and QC numbers — not the frames — so
+don't re-judge taste you can't see; check what only you own: the brief, the risk, the post
+copy, and whether the reviewer's own notes contradict its pass (a reviewer miss). Frames
+come with escalations, where you are the creative director again.
+Decide like a creative director who also owns the client relationship:
 - `approve` only if you would put the studio's name on it: hook lands, story stands alone,
   brief fully met, captions clean, nothing embarrassing or risky.
 - `changes` when a specific, fixable problem remains — give the editor timecoded, exact

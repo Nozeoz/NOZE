@@ -26,6 +26,7 @@ import shutil
 import threading
 import time
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -40,12 +41,36 @@ from .reports import clip_report, source_report
 from .roles import Analyst, Editor, Manager, Reviewer, Scout
 from .roles.manager import clean_brief
 from .schemas import BRIEF, conform, example
+from .story import envelope, label_parts, moment_parts
 
 log = logging.getLogger("noze.agency.pipeline")
 
 SOURCE_STEPS = ("queued", "research", "select", "producing")
 CLIP_STEPS = ("planning", "rendering", "reviewing", "revising", "approval", "escalated", "approved")
 MAX_ATTEMPTS = 3
+
+
+PEAK_MIN_HEAT = 6.0  # [D] heat 0-10; below this no stretch is a peak worth opening on
+
+
+def _overlaps(a: dict[str, Any], b: dict[str, Any]) -> bool:
+    from .roles.analyst import parts_overlap
+
+    return parts_overlap(a, b) > 0
+
+
+def peak_second(sig: dict[str, Any] | None, parts: list[dict[str, Any]]) -> float | None:
+    """Source second of the hottest signal bin inside the moment's parts (chat spike, scream, viewer clip),
+    or None without signals. Speechless peaks (a scream, a crash) count — the editor's word search can't see them."""
+    if not sig or not sig.get("bins"):
+        return None
+    step = float(sig.get("bin_s") or 2.0)
+    best = None
+    for b in sig["bins"]:
+        t = float(b.get("t") or 0.0) + step / 2
+        if any(p["start_s"] <= t <= p["end_s"] for p in parts) and (best is None or b.get("heat", 0) > best[0]):
+            best = (float(b.get("heat") or 0.0), t)
+    return round(best[1], 2) if best and best[0] >= PEAK_MIN_HEAT else None
 
 
 class Blocked(Exception):
@@ -74,14 +99,26 @@ class Agency:
 
     # -- intake ----------------------------------------------------------------------------------------
     def submit(self, source: str, campaign: str | int | None = None, *, references: list[str] | None = None,
-               clips: int | None = None, own_content: bool = False, notes: str = "", priority: int = 0) -> int:
+               clips: int | None = None, own_content: bool = False, notes: str = "", priority: int = 0,
+               signals_url: str = "", offset_s: float = 0.0, internal_test: bool = False,
+               vod_map: list[dict[str, Any]] | None = None, moments: list[dict[str, Any]] | None = None) -> int:
+        """``signals_url``: the public VOD/video page the file came from (Twitch VOD, YouTube) so the
+        analyst can read chat replay / viewer clips / most-replayed; ``offset_s``: where the file starts
+        inside that VOD (a downloaded section). A platform URL as ``source`` is its own signals URL."""
         camp = self.store.get_campaign(campaign) if campaign is not None else None
         if campaign is not None and camp is None:
             raise ValueError(f"no campaign {campaign!r}")
+        if not signals_url and str(source).startswith(("http://", "https://")):
+            signals_url = str(source)
         jid = self.store.create_job(
             "source", "queued", campaign_id=camp["id"] if camp else None, title=Path(str(source)).name[:120],
             input={"source": str(source), "references": references or [], "clips": clips,
-                   "own_content": own_content, "notes": notes},
+                   "own_content": own_content, "notes": notes, "signals_url": signals_url,
+                   "offset_s": float(offset_s or 0.0), "internal_test": bool(internal_test),
+                   # a story pack (several VOD ranges glued): file second → stream second, for chat & time cards
+                   "vod_map": vod_map or None,
+                   # moments the scan already picked (VOD seconds) — used as-is so a found arc is not lost
+                   "moments": moments or None},
             priority=priority, playbook_version=self.store.current_version())
         self.store.log(jid, "manager", "submitted", f"new source {source}" + (f" for {camp['name']}" if camp else ""))
         return jid
@@ -184,14 +221,24 @@ class Agency:
     def tick(self, max_jobs: int = 4) -> int:
         """Advance up to ``max_jobs`` jobs by one step each. Returns how many moved."""
         states = list(SOURCE_STEPS) + list(CLIP_STEPS)
-        jobs = self.store.claim_jobs(states, limit=max_jobs)
-        moved = 0
-        for job in jobs:
+        jobs = self.store.claim_jobs(states, limit=max(max_jobs, self.cfg.parallel + 1))
+
+        def one(job: dict[str, Any]) -> int:
             try:
-                if self.step(job):
-                    moved += 1
+                return 1 if self.step(job) else 0
             finally:
                 self.store.release_job(job["id"])
+
+        sources = [j for j in jobs if j["kind"] == "source"]
+        clips = [j for j in jobs if j["kind"] != "source"]
+        moved = 0
+        if len(clips) > 1 and self.cfg.parallel > 1:  # each clip is its own editor/reviewer: no shared state
+            with ThreadPoolExecutor(max_workers=min(self.cfg.parallel, len(clips)),
+                                    thread_name_prefix="noze-clip") as pool:
+                moved += sum(pool.map(one, clips))
+        else:
+            moved += sum(one(j) for j in clips)
+        moved += sum(one(j) for j in sources)
         return moved
 
     def run(self, stop: threading.Event | None = None, idle_sleep: float = 5.0, once: bool = False) -> None:
@@ -327,7 +374,10 @@ class Agency:
     def _ingest(self, job: dict[str, Any]) -> str:
         inp = job["input"]
         brief = self._brief(job)
-        if not (brief.get("permission") or {}).get("granted") and not inp.get("own_content"):
+        if inp.get("internal_test") and not (brief.get("permission") or {}).get("granted"):
+            self.store.log(job["id"], "manager", "internal_test",
+                           "no permission recorded: rendering for internal review only — never delivered/published")
+        elif not (brief.get("permission") or {}).get("granted") and not inp.get("own_content"):
             raise Blocked("no clipping permission recorded for this campaign — paste the campaign terms "
                           "(`noze agency campaign add --terms`) or mark the source as your own content (--own)")
         d = self.ax.job_dir(job)
@@ -350,7 +400,10 @@ class Agency:
         facts: dict[str, Any] = measure(path) if dur <= 20 * 60 else {"probe": info, "loudness": loudness(path)}
         facts["speech_wpm"] = speech_rate(tr)
         facts["transcript_source"] = tr.get("source")
+        if inp.get("vod_map"):
+            facts["vod_map"] = inp["vod_map"]
         self.store.put_artifact(job["id"], "source_info", facts, path=path, role="manager")
+        self._collect_signals(job, path, d, dur)
         self.store.merge_job_data(job["id"], {"source_path": str(path), "transcript_path": str(d / "transcript.json"),
                                               "language": tr.get("language"), "duration": dur})
         words = len(all_words(tr))
@@ -358,6 +411,88 @@ class Agency:
                        f"{dur / 60:.1f} min, {info.get('width')}x{info.get('height')}, transcript: "
                        f"{tr.get('source')} ({words} words)")
         return "research"
+
+    def _collect_signals(self, job: dict[str, Any], path: Path, d: Path, dur: float) -> None:
+        """Chat replay, viewer clips, most-replayed, laughter/cheer — whatever this source has. Optional:
+        a missing signal never stops the job (the analyst falls back to transcript + loudness)."""
+        inp = job["input"]
+        try:
+            from .media.signals import collect_signals
+
+            sig = collect_signals(path, d, url=inp.get("signals_url") or "", offset_s=float(inp.get("offset_s") or 0),
+                                  vod_map=inp.get("vod_map") or None,
+                                  duration=dur,
+                                  # --vod-url is the user opting in to reading that page's chat/clips
+                                  allow_network=self.cfg.allow_download or bool(inp.get("signals_url")),
+                                  models_dir=self.cfg.root / "cache" / "models")
+        except Exception as exc:
+            log.warning("signals unavailable for job %s: %s", job["id"], exc)
+            self.store.log(job["id"], "analyst", "signals", f"no signals: {str(exc)[:300]}")
+            return
+        self.store.merge_job_data(job["id"], {"signals_path": str(d / "signals.json")})
+        self.store.log(job["id"], "analyst", "signals",
+                       f"signals: {', '.join(sig.get('sources') or []) or 'none'}; {len(sig.get('peaks') or [])} peaks, "
+                       f"{len(sig.get('clips') or [])} viewer clips" + (f"; notes: {'; '.join(sig['notes'])[:300]}"
+                                                                      if sig.get("notes") else ""))
+
+    def _scan_moments(self, job: dict[str, Any], tr: dict[str, Any], facts: dict[str, Any], brief: dict[str, Any],
+                      min_s: float, max_s: float) -> list[dict[str, Any]]:
+        """Moments `noze agency scan` picked (VOD seconds) mapped onto the pack file and re-checked by the analyst's
+        own gate (snap, quote, link) — never trusted blindly; a part outside the pack drops the moment."""
+        raw = (job.get("input") or {}).get("moments") or []
+        if not raw:
+            return []
+        vod_map = facts.get("vod_map")
+        offset = float((job.get("input") or {}).get("offset_s") or 0.0)
+        from .roles.analyst import build_moment
+        from .story import to_file
+
+        def file_t(t: float) -> float | None:
+            if vod_map:
+                return to_file(t, vod_map)
+            v = t - offset  # a plain section (fetch + --vod-offset): one offset for the whole file
+            return v if 0.0 <= v <= float(facts.get("probe", {}).get("duration") or 1e12) else None
+
+        words = all_words(tr)
+        out, dropped = [], []
+        for m in raw:
+            parts, why = [], []
+            for p in m.get("parts") or [{"start_s": m["start_s"], "end_s": m["end_s"], "role": "build"}]:
+                a, b = file_t(float(p["start_s"])), file_t(float(p["end_s"]))
+                if a is None or b is None or b - a < 1.0:
+                    why, parts = ["part outside this source file"], []
+                    break
+                parts.append({**p, "start_s": a, "end_s": b})
+            built = None
+            if parts:
+                mm = {**m, "parts": parts, "start_s": min(p["start_s"] for p in parts),
+                      "end_s": max(p["end_s"] for p in parts)}
+                built = build_moment(mm, words, self._signals(job), min_s, max_s, why, vod_map, brief)
+            if not built:
+                dropped.append(f"'{m.get('title', '')[:50]}': {why[0] if why else 'failed the checks'}")
+                continue
+            # the scan already scored and ranked it: keep its numbers (a second build double-counted the boosts and
+            # dropped the arc-gap bonus — the Lucia arc fell from first to last)
+            for k in ("scores", "overall", "emotion", "structure", "story", "title"):
+                if m.get(k) not in (None, ""):
+                    built[k] = m[k]
+            built["rationale"] = "picked by the stream scan; " + str(m.get("rationale") or built.get("rationale") or "")
+            built["from_scan"] = True
+            out.append(built)
+        self.store.log(job["id"], "analyst", "scan_moments",
+                       f"{len(out)} of {len(raw)} scan-picked moment(s) passed the analyst's checks on this source"
+                       + (f"; dropped: {'; '.join(dropped)}"[:900] if dropped else ""))
+        # cross-period arcs lead: they are what the scan exists for
+        out.sort(key=lambda m: (m.get("structure") in ("arc", "cold_open", "montage"), float(m.get("overall") or 0)),
+                 reverse=True)
+        return out
+
+    def _signals(self, job: dict[str, Any]) -> dict[str, Any] | None:
+        p = (job.get("data") or {}).get("signals_path")
+        try:
+            return json.loads(Path(p).read_text(encoding="utf-8")) if p and Path(p).exists() else None
+        except (OSError, ValueError):
+            return None
 
     def _research(self, job: dict[str, Any]) -> str:
         brief = self._brief(job)
@@ -393,9 +528,30 @@ class Agency:
         length = brief.get("clip_length") or {}
         min_s = float(length.get("min_s") or self.cfg.min_clip_s)
         max_s = float(length.get("max_s") or self.cfg.max_clip_s)
-        moments = self.analyst.moments(job, tr, facts, brief, bp, n, min_s, max_s)
-        chosen = self.manager.select_moments(moments, n, min_s, max_s)
-        self.store.put_artifact(job["id"], "moments", {"candidates": moments[:30], "chosen": chosen}, role="analyst")
+        # the scan's picks lead (mandor CP2 #4: re-mining the pack lost the 43-minute Lucia arc); the analyst only
+        # fills the slots left, never overlapping a scan pick
+        self.analyst.last_rejected = []
+        picked = self._scan_moments(job, tr, facts, brief, min_s, max_s)
+        chosen = []
+        for m in picked:  # scan order (arcs first); the manager's length rule still applies, picks never overlap
+            ok = self.manager.select_moments([m], 1, min_s, max_s)
+            if len(chosen) < n and ok and not any(_overlaps(m, c) for c in chosen):
+                chosen.append(ok[0])
+        moments = list(picked)
+        if len(chosen) < n:
+            from .roles.analyst import parts_overlap
+
+            mined = self.analyst.moments(job, tr, facts, brief, bp, n, min_s, max_s, signals=self._signals(job))
+            free = [m for m in mined if not any(parts_overlap(m, c) > 0 for c in chosen)]
+            chosen += self.manager.select_moments(free, n - len(chosen), min_s, max_s)
+            moments += mined
+        sig = self._signals(job)
+        for m in chosen:  # the editor opens on the peak (docs/REFERENSI-CLIPPER-2026-11.md): measured, not guessed
+            if m.get("peak_s") is None:
+                m["peak_s"] = peak_second(sig, moment_parts(m))
+        self.store.put_artifact(job["id"], "moments", {"candidates": moments[:30], "chosen": chosen,
+                                                  "rejected": (getattr(self.analyst, "last_rejected", None) or [])[:30]},
+                                role="analyst")
         if not chosen:
             self.store.log(job["id"], "manager", "alert", "no usable moments found in this source")
             return "done"
@@ -405,9 +561,12 @@ class Agency:
                                         title=m.get("title") or "clip", input={"moment": m},
                                         canary=random.Random(f"{job['id']}:{m['start_s']}").random() < self.cfg.canary_share,
                                         playbook_version=version)
+            parts = moment_parts(m)
             self.store.log(cid, "manager", "assigned",
-                           f"editor assigned: '{m.get('title')}' ({m['start_s']:.1f}-{m['end_s']:.1f}s, "
-                           f"score {m.get('overall')})")
+                           f"editor assigned: '{m.get('title')}' [{m.get('structure') or 'linear'}/"
+                           f"{m.get('emotion') or '?'}] " + " → ".join(f"{p['start_s']:.0f}-{p['end_s']:.0f}s"
+                                                                       for p in parts)
+                           + f", score {m.get('overall')}")
         self.store.log(job["id"], "manager", "staffed", f"{len(chosen)} clip(s) assigned out of "
                        f"{len(moments)} candidate moments")
         return "producing"
@@ -508,6 +667,9 @@ class Agency:
         if data.get("render_failed"):  # whatever the model wrote, the next render is the simple one
             for s in plan["segments"]:
                 s["shake"], s["zoom"], s["transition_in"] = False, {"type": "none", "scale": 1.0}, "cut"
+                s["look"], s["hold"] = "none", 0.0
+            plan["fx"] = {"vignette": False, "grain": False, "letterbox": False}
+            plan.setdefault("music", {})["drop_at"] = None
             self.store.merge_job_data(job["id"], {"render_failed": False})
         v = self.store.put_artifact(job["id"], "plan", plan, role="editor")
         fix_log = list(data.get("fix_log") or []) + [{"round": job.get("round"), "fixes": plan.get("fixes") or []}]
@@ -522,33 +684,43 @@ class Agency:
         from .roles.analyst import sentences
 
         m = dict(c["moment"])
+        parts = moment_parts(m)
+        last = dict(parts[-1])
+        old_end = last["end_s"]
         length = c["brief"].get("clip_length") or {}
         min_s = float(length.get("min_s") or self.cfg.min_clip_s)
         max_s = float(length.get("max_s") or self.cfg.max_clip_s)
         render = (self.store.artifact(job["id"], "render") or {}).get("data") or {}
         short_by = max(0.0, min_s - float(render.get("duration") or 0.0)) + 1.0
-        later = [s for s in sentences(c["words"]) if s["end"] > m["end_s"]]
+        others = sum(p["end_s"] - p["start_s"] for p in parts[:-1])
+        nxt = min([p["start_s"] for p in parts if p["start_s"] > old_end]  # never run into another part ...
+                  + [float(v["file_end"]) for v in m.get("vod_map") or [] if float(v["file_end"]) >= old_end - 0.05]
+                  or [1e12])  # ... nor across a story-pack seam
+        later = [s for s in sentences(c["words"]) if s["end"] > old_end]
         for i, sent in enumerate(later):
-            if sent["end"] - m["start_s"] > max_s:
+            if others + sent["end"] - last["start_s"] > max_s or sent["end"] > nxt:
                 break
             next_start = later[i + 1]["start"] if i + 1 < len(later) else sent["end"] + 1.0
-            m["end_s"] = round(min(sent["end"] + 0.25, next_start - 0.02), 3)
-            if m["end_s"] - c["moment"]["end_s"] >= short_by:
+            last["end_s"] = round(min(sent["end"] + 0.25, next_start - 0.02, nxt - 0.02), 3)
+            if last["end_s"] - old_end >= short_by:
                 break
-        if m["end_s"] != c["moment"]["end_s"]:
+        if last["end_s"] != old_end:
+            parts = label_parts(parts[:-1] + [last], m.get("vod_map"))
+            m["parts"] = parts
+            m["start_s"], m["end_s"] = envelope(parts)
             self.store.update_job(job["id"], input={**job["input"], "moment": m})
             self.store.log(job["id"], "manager", "moment_extended",
-                           f"moment now ends at {m['end_s']:.1f}s (was {c['moment']['end_s']:.1f}s) to reach "
+                           f"last part now ends at {last['end_s']:.1f}s (was {old_end:.1f}s) to reach "
                            f"the {min_s:.0f}s minimum")
         return m
 
-    def _packet(self, job: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    def _packet(self, job: dict[str, Any], frames: bool = True) -> tuple[dict[str, Any], list[str]]:
         c = self.clip_ctx(job)
         plan = self.store.artifact(job["id"], "plan")["data"]
         rev = (self.store.artifact(job["id"], "review") or {}).get("data") or {}
         render = self.store.artifact(job["id"], "render")["data"]
         sheets = [s for s in (job.get("data") or {}).get("review_sheets") or [] if Path(s).exists()]
-        if not sheets:
+        if not sheets and frames:
             times = sample_times(render["duration"], [], n=12)
             frames = extract_frames(render["path"], times, self.ax.job_dir(job) / "approval_frames", width=360)
             sheets = [str(p) for p in contact_sheets(frames, times, self.ax.job_dir(job) / "approval_sheet")]
@@ -556,14 +728,16 @@ class Agency:
                   "review": {k: rev.get(k) for k in ("verdict", "score", "summary", "issues", "scores", "creative_review")},
                   "qc": {k: (rev.get("metrics") or {}).get(k) for k in ("duration", "loudness", "longest_static_s")},
                   "post": plan.get("post"), "history": (job.get("data") or {}).get("history"),
-                  "plan": {k: plan.get(k) for k in ("overlays", "captions", "music", "color")}}
+                  "plan": {k: plan.get(k) for k in ("overlays", "captions", "music", "color")},
+                  "internal_test": bool((c["parent"].get("input") or {}).get("internal_test"))
+                  and not (c["brief"].get("permission") or {}).get("granted")}
         return packet, sheets
 
     def _approve(self, job: dict[str, Any]) -> str:
         if not self.cfg.auto_approve:
             self.store.log(job["id"], "manager", "awaiting_human", "passed review — waiting for your approval")
             return "awaiting_human"
-        packet, sheets = self._packet(job)
+        packet, sheets = self._packet(job, frames=False)  # the reviewer already judged the frames
         if self._hold_for_human(job, packet):
             return "awaiting_human"
         dec = self.manager.approve(job, packet, sheets)
@@ -629,6 +803,11 @@ class Agency:
 
     def _deliver(self, job: dict[str, Any]) -> str:
         c = self.clip_ctx(job)
+        if (c["parent"].get("input") or {}).get("internal_test") and \
+                not (c["brief"].get("permission") or {}).get("granted") and \
+                not (c["parent"].get("input") or {}).get("own_content"):
+            raise Blocked("internal test without campaign permission: paste the real campaign terms "
+                          "(`noze agency campaign add`) before anything is delivered or posted")
         delivery = self.publisher.deliver(job, c["brief"])
         self.store.merge_job_data(job["id"], {"final_path": delivery["video"], "delivery": delivery})
         self.store.log(job["id"], "manager", "delivered", f"delivered to {', '.join(delivery['targets'])}")

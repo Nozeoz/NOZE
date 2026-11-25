@@ -7,12 +7,16 @@ problem can be tracked across revision rounds and counted by the learning loop.
 from __future__ import annotations
 
 import logging
+import re
+import urllib.request
 from pathlib import Path
 from typing import Any
 
-from ..standards import DELIVERY, LAYOUT, QC, PLATFORM_LIMITS, safe_zone
+from ..standards import (DELIVERY, LAYOUT, PLATFORM_LIMITS, QC, STORY_QC, STREAM_SWEET_SPOT_S, internal_tag,
+                         post_leaks, safe_zone, vibe, voice_of)
+from ..story import MIN_LABEL_GAP_S, label_matches, label_parts, moment_parts, time_jump_label
 from .analyze import blacks, freezes, loudness, scene_cuts, silences
-from .captions import (AssDoc, title_holds, Meter, box_pad, caption_styles, overlay_styles, pick_font, plan_captions, plan_overlays,
+from .captions import (GAME_PAD, AssDoc, title_holds, Meter, box_pad, caption_styles, overlay_styles, pick_font, plan_captions, plan_overlays,
                        rides_seam, text_box)
 from .ffmpeg import MediaError, probe, run
 from . import faces as face_finder
@@ -29,6 +33,11 @@ def issue(check: str, category: str, severity: str, description: str, fix: str,
 
 def _near(t: float, points: list[float], tol: float) -> bool:
     return any(abs(t - p) <= tol for p in points)
+
+
+def _in_hold(a: float, b: float, holds: list[tuple[float, float]], share: float) -> bool:
+    """Does [a, b] lie mostly (>= ``share`` of it) inside one intended freeze-frame hold?"""
+    return any(min(b, hb) - max(a, ha) >= share * max(b - a, 1e-6) for ha, hb in holds)
 
 
 log = logging.getLogger("noze.agency.qc")
@@ -109,9 +118,124 @@ def empty_band_issues(empties: list[tuple[float, float, bool]]) -> list[dict[str
     return out
 
 
+def frame0_luma(path: str, seams: list[tuple[float, float, int, Any]], width: int, height: int,
+                t: float | None = None) -> tuple[float, float]:
+    """(mean, std) of the luma of the OUTPUT frame at ``t`` (default QC['frame0_t_s']): the gameplay band below the
+    seam on a stacked opening, the whole frame otherwise. Raises MediaError / ImportError when it cannot be read."""
+    import numpy as np
+
+    t = QC["frame0_t_s"] if t is None else t
+    sw = max(32, width // 9)
+    sh = max(32, round(height * sw / max(width, 1)))
+    raw = run(["-v", "error", "-ss", f"{t:.3f}", "-i", str(path), "-frames:v", "1", "-vf", f"scale={sw}:{sh}:flags=area",
+               "-pix_fmt", "gray", "-f", "rawvideo", "-"], timeout=120, check=False).stdout
+    if len(raw) < sw * sh:
+        raise MediaError("could not read the opening frame for the frame-0 brightness check")
+    img = np.frombuffer(raw[:sw * sh], dtype=np.uint8).reshape(sh, sw).astype(float)
+    seam = next((y for a, b, y, _ in seams if a - 0.01 <= t < b), None)
+    band = img[0 if seam is None else min(sh - 1, int(seam * sh / height) + 1):]
+    return float(band.mean()), float(band.std())
+
+
+def frame0_dark_issues(mean: float, std: float, stacked: bool = False) -> list[dict[str, Any]]:
+    """hook:frame0_dark (major): the first frame is a near-black / flat picture (mandor MF-5): a scroller never stops."""
+    if mean >= QC["frame0_min_luma"] and std >= QC["frame0_min_std"]:
+        return []
+    where = "gameplay band" if stacked else "frame"
+    return [issue("frame0_dark", "hook", "major",
+                  f"The opening {where} is dark/flat (mean luma {mean:.0f} < {QC['frame0_min_luma']} or spread "
+                  f"{std:.0f} < {QC['frame0_min_std']}) at t={QC['frame0_t_s']}s.",
+                  "Open on a bright, readable frame: pick a brighter opening frame, or point segment 0's band_src "
+                  "at a lit part of the footage (never a loading / black screen).", 0.0,
+                  evidence={"luma_mean": round(mean, 1), "luma_std": round(std, 1)})]
+
+
+def _models_dir() -> Path:
+    """<agency root>/cache/models (the agency's data dir; ``NOZE_DATA_DIR`` like the rest of the agency)."""
+    from ..config import AgencySettings
+
+    return AgencySettings.load().root / "cache" / "models"
+
+
+YUNET_URL = ("https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/"
+             "face_detection_yunet_2023mar.onnx")
+YUNET_FILE = "face_detection_yunet_2023mar.onnx"
+_yunet_failed: set[str] = set()  # download/load failures by models dir: one try per process, then Haar
+
+
+def yunet_model(models_dir: Path | None = None) -> Path | None:
+    """The YuNet face model (~230 KB), downloaded once into ``models_dir``; None when it cannot be had."""
+    try:
+        d = Path(models_dir) if models_dir else _models_dir()
+        f = d / YUNET_FILE
+        if f.exists() and f.stat().st_size > 50_000:
+            return f
+        if str(d) in _yunet_failed:
+            return None
+        d.mkdir(parents=True, exist_ok=True)
+        try:
+            with urllib.request.urlopen(YUNET_URL, timeout=20) as r:
+                data = r.read()
+            if len(data) < 50_000:
+                raise ValueError(f"model too small ({len(data)} bytes)")
+            tmp = f.with_suffix(".part")
+            tmp.write_bytes(data)
+            tmp.replace(f)
+            return f
+        except Exception as exc:
+            _yunet_failed.add(str(d))
+            log.info("YuNet model unavailable (%s): Haar fallback", exc)
+            return None
+    except Exception as exc:
+        log.info("YuNet model dir unavailable (%s): Haar fallback", exc)
+        return None
+
+
+def valid_face_box(box: tuple | None, band: int) -> bool:
+    """A face in the cam band is a HEAD: not tiny (< 10% of the band high) and not starting in the bottom 45% of the
+    band (CP1: Haar boxed a chest tattoo, twice)."""
+    if not box or band <= 0:
+        return False
+    x, y, w, h = box
+    return h >= 0.10 * band and y < 0.55 * band and y + h / 2 < band
+
+
+def yunet_faces(frames: list[tuple[Path, int]], models_dir: Path | None = None
+                ) -> list[tuple[int, int, int, int] | None] | None:
+    """The best VALID face per output frame via YuNet (cv2.FaceDetectorYN); None when YuNet cannot run (old OpenCV,
+    no model) so the caller falls back to Haar."""
+    try:
+        import cv2  # type: ignore
+
+        if not hasattr(cv2, "FaceDetectorYN"):
+            return None
+        model = yunet_model(models_dir)
+        if model is None:
+            return None
+        det = cv2.FaceDetectorYN.create(str(model), "", (320, 320), 0.6, 0.3, 5000)
+    except Exception as exc:
+        log.info("YuNet unavailable: %s", exc)
+        return None
+    out: list[tuple[int, int, int, int] | None] = []
+    for f, band in frames:
+        img = cv2.imread(str(f))
+        if img is None:
+            out.append(None)
+            continue
+        crop = img[: min(max(int(band * 1.3), 1), img.shape[0])]  # a little past the seam: a head can straddle it
+        det.setInputSize((crop.shape[1], crop.shape[0]))
+        _, rows = det.detect(crop)
+        boxes = [(int(r[0]), int(r[1]), int(r[2]), int(r[3]), float(r[14])) for r in (rows if rows is not None else [])]
+        good = [b for b in boxes if valid_face_box(b[:4], band) and b[1] + b[3] / 2 < band]
+        out.append(max(good, key=lambda b: b[4] * b[2] * b[3])[:4] if good else None)
+    return out
+
+
 def measure_cam_faces(path: str, seams: list[tuple[float, float, int, Any]], work: Path, per_seg: int = 5
-                      ) -> dict[float, dict[str, Any]] | None:
+                      , models_dir: Path | None = None) -> dict[float, dict[str, Any]] | None:
     """Detect the face on OUTPUT frames, inside the cam band of every stacked segment (not the plan's guess).
+    YuNet first (model cached in ``models_dir`` / <agency root>/cache/models), validated Haar when YuNet is unavailable;
+    either way a box must pass ``valid_face_box`` (not in the bottom 45% of the band, not under 10% of its height).
     {round(seg out_start, 2): {"box": median head box (x, y, w, h px) | None, "hits", "n"}}; None when OpenCV
     cannot detect (the caller then keeps the plan's box)."""
     if not seams or not face_finder.available():
@@ -128,9 +252,18 @@ def measure_cam_faces(path: str, seams: list[tuple[float, float, int, Any]], wor
                     timeout=120, check=False)
             if dest.exists():
                 jobs.append((k, dest, band))
-    found = face_finder.faces_in_band([(f, band) for _, f, band in jobs])
+    pairs = [(f, band) for _, f, band in jobs]
+    found = yunet_faces(pairs, models_dir)
+    if found is None:
+        found = face_finder.faces_in_band(pairs)
+    else:  # YuNet saw no valid head on some frames: Haar gets a second look at those (still validated below)
+        miss = [i for i, b in enumerate(found) if b is None]
+        extra = face_finder.faces_in_band([pairs[i] for i in miss]) if miss else []
+        for i, b in zip(miss, extra or []):
+            found[i] = b
     if found is None:
         return None
+    found = [b if valid_face_box(b, band) else None for b, (_, band) in zip(found, pairs)]
     out: dict[float, dict[str, Any]] = {}
     for k, (a, *_rest) in enumerate(seams):
         mine = [box for (kk, _, _), box in zip(jobs, found) if kk == k]
@@ -151,10 +284,184 @@ def _iou(a: tuple, b: tuple) -> float:
     return inter / union if union > 0 else 0.0
 
 
+def _edge_boundary(arr: Any, search: float, step: float, color: float) -> tuple[int, float] | None:
+    """arr (n lines, m px, 3) float with the band's EDGE at line 0. A foreign strip (a leaf, a wall, a white box from the
+    stream layout) ends in a straight boundary: ALL m pixels jump colour between the same two lines, so the median
+    per-pixel step across a line pair is high; natural content has localised edges and a low median. Returns
+    (offset px of the boundary from the edge, median step) when a boundary lies within the outer ``search`` share, the
+    step is >= ``step`` and the strip outside it differs >= ``color`` from the band's inner median; else None."""
+    import numpy as np
+
+    n, m = arr.shape[:2]
+    k = 3
+    lim = min(int(search * n), n - k - 1)
+    if lim < k or m < 8:
+        return None
+    best_r, best = 0, 0.0
+    for r in range(k, lim + 1):
+        med = float(np.median(np.linalg.norm(arr[r - k:r].mean(0) - arr[r:r + k].mean(0), axis=1)))
+        if med > best:
+            best_r, best = r, med
+    if best < step:
+        return None
+    inner = np.median(arr[int(.1 * n):int(.9 * n), int(.1 * m):int(.9 * m)].reshape(-1, 3), axis=0)
+    strip = np.median(arr[:best_r].reshape(-1, 3), axis=0)
+    if float(np.linalg.norm(strip - inner)) < color:
+        return None
+    return best_r, round(best, 1)
+
+
+def cam_edge_foreign(band: Any) -> dict[str, int]:
+    """{edge: boundary offset px} for the top / left / right edge of an RGB cam-band image (H, W, 3 uint8) that carries
+    foreign pixels (mandor CP2 #2). The bottom edge borders the seam: a foreign line there (CP2 review) counts too."""
+    arr = band.astype(float)
+    t = arr.transpose(1, 0, 2)
+    out = {}
+    for edge, a in (("top", arr), ("left", t), ("right", t[::-1]), ("bottom", arr[::-1])):
+        hit = _edge_boundary(a, LAYOUT["cam_edge_search"], LAYOUT["cam_edge_step"], LAYOUT["cam_edge_color"])
+        if hit:
+            out[edge] = hit[0]
+    return out
+
+
+def cam_edge_samples(path: str, seams: list[tuple[float, float, int, Any]], width: int,
+                     per_seg: int | None = None) -> list[tuple[float, int, dict[str, int]]]:
+    """Measure the OUTPUT frames: (seam out_start, band px, {edge: median offset px}) per stacked segment; an edge counts
+    when it shows in a majority of the sampled frames (a leak is static, a moving cam background is not).
+    Raises MediaError / ImportError when a frame cannot be read."""
+    import numpy as np
+
+    n = per_seg or LAYOUT["cam_edge_samples"]
+    out = []
+    for a, b, band, _ in seams[:10]:
+        votes: dict[str, list[int]] = {}
+        for i in range(n):
+            t = a + (i + 0.5) * (b - a) / n
+            raw = run(["-v", "error", "-ss", f"{t:.3f}", "-i", str(path), "-frames:v", "1", "-vf",
+                       f"crop={width}:{band}:0:0", "-pix_fmt", "rgb24", "-f", "rawvideo", "-"],
+                      timeout=120, check=False).stdout
+            if len(raw) < width * band * 3:
+                raise MediaError("could not read the cam band for the foreign-edge check")
+            img = np.frombuffer(raw[:width * band * 3], dtype=np.uint8).reshape(band, width, 3)
+            for edge, off in cam_edge_foreign(img).items():
+                votes.setdefault(edge, []).append(off)
+        # an edge counts when >= 1/3 of the frames show it, at its DEEPEST offset (review CP2: a median of 6 px hid a
+        # 110 px strip that only some frames of the segment showed)
+        out.append((a, band, {e: int(max(v)) for e, v in votes.items() if len(v) * 3 >= n}))
+    return out
+
+
+def cam_edge_issues(found: list[tuple[float, int, dict[str, int]]], width: int = 1080) -> list[dict[str, Any]]:
+    """framing:cam_edge_foreign (major): the facecam crop shows pixels that are not the webcam (mandor CP2 #2)."""
+    bad = [(a, band, edges) for a, band, edges in found if edges]
+    if not bad:
+        return []
+    a, band, edges = bad[0]
+    where = "; ".join(f"{t:.1f}s: " + ", ".join(f"{e} {px}px" for e, px in ed.items()) for t, _, ed in bad[:4])
+    deepest = max(px for _, _, ed in bad for px in ed.values())
+    # a hairline (< 2% of the frame width) is minor: tester CP2 saw 6-8 px leftovers that three rounds of insets never
+    # removed — a major there only loops the clip to an escalation; a real strip (60-110 px) stays major
+    sev = "major" if deepest >= LAYOUT["cam_edge_major_frac"] * width else "minor"
+    return [issue("cam_edge_foreign", "framing", sev,
+                  f"The facecam crop shows foreign pixels along its edge, a stream-layout strip, a wall or a box that is "
+                  f"not the webcam ({len(bad)} segment(s); depth per segment: {where}).",
+                  "Inset the crop (reframe.cam) of EACH listed segment past the strip on those edges, a few % more than "
+                  "the strip is deep.", a,
+                  evidence={"edges": edges, "band": band, "width": width,
+                            "segments": [{"t": round(t, 2), "band": bd, "edges": ed} for t, bd, ed in bad]})]
+
+
+def title_windows(plan: dict[str, Any]) -> list[tuple[float, float]]:
+    """Output (start, end) of every hook / punch title."""
+    return [(float(o.get("start") or 0.0), float(o.get("end") or 0.0)) for o in plan.get("overlays") or []
+            if o.get("kind") in ("hook_title", "punch_title")]
+
+
+def measure_gameplay_faces(path: str, seams: list[tuple[float, float, int, Any]], windows: list[tuple[float, float]],
+                           work: Path, per_win: int = 3, models_dir: Path | None = None
+                           ) -> list[tuple[float, tuple[float, float, float, float]]] | None:
+    """Faces / heads (YuNet) in the GAMEPLAY band of the OUTPUT frames while a title is on screen: [(t, (x0, y0, x1, y1))]
+    in output pixels. ``windows`` = title (start, end) output seconds. None when YuNet cannot run."""
+    if not seams or not windows:
+        return []
+    try:
+        import cv2  # type: ignore
+
+        model = yunet_model(models_dir) if hasattr(cv2, "FaceDetectorYN") else None
+        if model is None:
+            return None
+        det = cv2.FaceDetectorYN.create(str(model), "", (320, 320), 0.6, 0.3, 5000)
+    except Exception as exc:
+        log.info("YuNet unavailable for the gameplay-face check: %s", exc)
+        return None
+    work.mkdir(parents=True, exist_ok=True)
+    out: list[tuple[float, tuple[float, float, float, float]]] = []
+    for wi, (ta, tb) in enumerate(windows):
+        for i in range(per_win):
+            t = ta + (i + 0.5) * (tb - ta) / per_win
+            seam = next(((a, b, band) for a, b, band, _ in seams if a - 0.01 <= t < b), None)
+            if seam is None:
+                continue
+            dest = work / f"game_{wi}_{i}.jpg"
+            if not dest.exists():
+                run(["-v", "error", "-ss", f"{t:.3f}", "-i", str(path), "-frames:v", "1", "-q:v", "2", "-y", str(dest)],
+                    timeout=120, check=False)
+            img = cv2.imread(str(dest)) if dest.exists() else None
+            if img is None:
+                continue
+            band = seam[2]
+            crop = img[band:]
+            det.setInputSize((crop.shape[1], crop.shape[0]))
+            _, rows = det.detect(crop)
+            for r in (rows if rows is not None else []):
+                x, y, w, h = (float(v) for v in r[:4])
+                if h >= 0.04 * crop.shape[0]:  # not a speck in a crowd
+                    out.append((t, (x, y + band, x + w, y + band + h)))
+    return out
+
+
+def subject_in_game(frames: list[Path], cam: dict[str, Any] | None) -> dict[str, float] | None:
+    """Where a face / head sits in SOURCE frames outside the facecam (the game's subject): {cx, cy, n} as fractions of
+    the source, medians over the frames that have one; None without YuNet or without such a face. The editor puts the
+    title away from it."""
+    try:
+        import cv2  # type: ignore
+
+        model = yunet_model() if hasattr(cv2, "FaceDetectorYN") else None
+        if model is None:
+            return None
+        det = cv2.FaceDetectorYN.create(str(model), "", (320, 320), 0.6, 0.3, 5000)
+    except Exception as exc:
+        log.info("YuNet unavailable for the game-subject check: %s", exc)
+        return None
+    pts = []
+    for f in frames:
+        img = cv2.imread(str(f))
+        if img is None:
+            continue
+        H, W = img.shape[:2]
+        det.setInputSize((W, H))
+        _, rows = det.detect(img)
+        for r in (rows if rows is not None else []):
+            cx, cy = (float(r[0]) + float(r[2]) / 2) / W, (float(r[1]) + float(r[3]) / 2) / H
+            if float(r[3]) < 0.06 * H:
+                continue
+            if cam and cam["x"] <= cx <= cam["x"] + cam["w"] and cam["y"] <= cy <= cam["y"] + cam["h"]:
+                continue  # the streamer's own face
+            pts.append((cx, cy, float(r[2]) * float(r[3])))
+    if not pts:
+        return None
+    pts.sort(key=lambda p: p[1])
+    return {"cx": round(sorted(p[0] for p in pts)[len(pts) // 2], 3), "cy": round(pts[len(pts) // 2][1], 3), "n": len(pts)}
+
+
 def technical_qc(path: str, *, width: int, height: int, fps: int, target_lufs: float,
                  min_s: float, max_s: float, platform: str, intended_dips: list[float] | None = None,
-                 render_info: dict[str, Any] | None = None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    """Measure the delivered file. Returns (issues, metrics)."""
+                 render_info: dict[str, Any] | None = None, intended_holds: list[tuple[float, float]] | None = None
+                 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Measure the delivered file. Returns (issues, metrics). ``intended_holds`` = output (start, end) of the
+    plan's freeze-frame reaction holds: silence / a frozen picture / a still stretch inside one is the edit, not a fault."""
+    holds = [(float(a), float(b)) for a, b in intended_holds or []]
     issues: list[dict[str, Any]] = []
     info = probe(path)
     dur = float(info.get("duration") or 0.0)
@@ -199,7 +506,7 @@ def technical_qc(path: str, *, width: int, height: int, fps: int, target_lufs: f
             if a < QC["hook_first_sound_s"]:
                 issues.append(issue("silent_open", "hook", "major", f"No sound in the first {b:.1f}s.",
                                     "Start on the first spoken word — trim the lead-in.", a))
-            elif b < dur - 0.3:
+            elif b < dur - 0.3 and not _in_hold(a, b, holds, 0.5):
                 issues.append(issue("dead_air", "pacing", "major", f"Dead air {b - a:.1f}s at {a:.1f}s.",
                                     f"Jump-cut the pause between {a:.1f}s and {b:.1f}s.", a,
                                     evidence={"start": a, "end": b}))
@@ -214,6 +521,8 @@ def technical_qc(path: str, *, width: int, height: int, fps: int, target_lufs: f
     fr = freezes(path, min_s=QC["max_freeze_s"], duration=dur)
     m["freezes"] = fr
     for a, b in fr:
+        if _in_hold(a, b, holds, 0.4):
+            continue
         sev = "major" if b - a >= 3.0 else "minor"
         issues.append(issue("frozen", "visual", sev, f"Frozen picture {a:.1f}-{b:.1f}s ({b - a:.1f}s).",
                             "Cut away, punch in, or add b-roll/motion on that stretch.", a,
@@ -228,9 +537,27 @@ def technical_qc(path: str, *, width: int, height: int, fps: int, target_lufs: f
     m["empty_band"] = empties
     issues += empty_band_issues(empties)
 
+    try:  # the opener is judged on the rendered pixels too: a dark frame 0 loses the scroll
+        seams0 = (render_info or {}).get("seams") or []
+        mean0, std0 = frame0_luma(path, seams0, width, height)
+        m["frame0"] = {"luma_mean": round(mean0, 1), "luma_std": round(std0, 1)}
+        issues += frame0_dark_issues(mean0, std0, stacked=any(a - 0.01 <= QC["frame0_t_s"] < b for a, b, _, _ in seams0))
+    except (MediaError, ImportError, ValueError) as exc:
+        log.info("frame-0 brightness check unavailable: %s", exc)
+        m["frame0_error"] = str(exc)[:200]
+
+    try:  # the cam band is judged on the rendered pixels too: a crop that leaks the stream layout is a defect
+        found_edges = cam_edge_samples(path, (render_info or {}).get("seams") or [], width)
+        m["cam_edges"] = [{"t": round(a, 2), "edges": e} for a, _, e in found_edges if e]
+        issues += cam_edge_issues(found_edges, width)
+    except (MediaError, ImportError, ValueError) as exc:
+        log.info("cam-edge check unavailable: %s", exc)
+        m["cam_edges_error"] = str(exc)[:200]
+
     cuts = scene_cuts(path, threshold=0.25)
     m["cuts"] = cuts
-    changes = sorted(set(cuts) | set((render_info or {}).get("visual_changes") or []))
+    changes = sorted(set(cuts) | set((render_info or {}).get("visual_changes") or [])
+                     | {round(t, 3) for h in holds for t in h})  # a hold starting/ending is a deliberate visual beat
     m["visual_changes"] = changes
     first_change = next((c for c in changes if c > 0.05), dur)
     if first_change > QC["hook_first_change_s"] and not (render_info or {}).get("hook_overlay"):
@@ -290,6 +617,16 @@ def compliance_lint(plan: dict[str, Any], brief: dict[str, Any], duration: float
         if mt and mt not in text:
             issues.append(issue("mention", "compliance", "major", f"Required mention {mention} missing.",
                                 f"Add {mention} to the post caption."))
+    keep = [(req.get("disclosure") or "")] + list(req.get("mentions") or [])
+    leaks = {k: post_leaks(post.get(k) or "", keep) for k in ("title", "caption")}
+    leaks["hashtags"] = [t for t in post.get("hashtags") or [] if internal_tag(t)]
+    if any(leaks.values()):
+        shown = sorted({x for v in leaks.values() for x in v})
+        issues.append(issue("post_title", "compliance", "major",
+                            f"The post copy leaks internal wording: {', '.join(repr(x) for x in shown)[:160]}.",
+                            "Rewrite the post title/caption for the viewer: no re-cut / v2 / draft / plan words and "
+                            "nothing in (...) or [...]; keep the creator's name and the brief's hashtags.",
+                            evidence=leaks))
     overlays = plan.get("overlays") or []
     on_screen = " ".join((o.get("text") or "") for o in overlays).lower()
     disclosure = (req.get("disclosure") or "").strip()
@@ -333,13 +670,17 @@ def _hit(a: tuple, b: tuple, gap: float = 0.0) -> bool:
 def layout_lint(plan: dict[str, Any], brief: dict[str, Any], *, words: list[dict[str, Any]], width: int, height: int,
                 platform: str, fonts_dir: Any = None, src_size: tuple[int, int] | None = None,
                 notes: list[str] | None = None, debug: dict[str, Any] | None = None,
-                measured_faces: dict[float, dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+                measured_faces: dict[float, dict[str, Any]] | None = None, video_path: str | None = None,
+                gameplay_faces: list[tuple[float, tuple[float, float, float, float]]] | None = None
+                ) -> list[dict[str, Any]]:
     """Measure every text layer with the writer's own geometry (captions.plan_captions / plan_overlays) and
     real font metrics, then check frame, safe zone, collisions, the stacked facecam band and upscaling.
     ``words`` are the output-timed words; ``src_size`` the source video size (None → 16:9 assumed, upscale
     check skipped). Checks that cannot run append a line to ``notes``.
     ``measured_faces`` (``measure_cam_faces``) = the face found on the OUTPUT frames of each cam band; it beats the
-    plan's reframe.face (a model guess from thumbnails), which stays the fallback when it is None."""
+    plan's reframe.face (a model guess from thumbnails), which stays the fallback when it is None.
+    ``gameplay_faces`` (``measure_gameplay_faces``) / ``video_path`` (measured here): heads in the gameplay band while a
+    title is up; a title covering one is ``layout:title_over_subject``. Neither given = that check is skipped."""
     from ..roles.editor import requires_facecam  # roles import media; keep the dependency lazy
 
     LY = LAYOUT
@@ -375,13 +716,20 @@ def layout_lint(plan: dict[str, Any], brief: dict[str, Any], *, words: list[dict
     req = (brief or {}).get("requirements") or {}
     marks = [m.strip().lower() for m in [req.get("watermark")] + list(req.get("mentions") or []) if m and m.strip()]
 
+    # whose voice each output word is (same rule as Renderer.render): game pages are taller (pill + IN-GAME tag)
+    words = [{**w, "voice": segs[tl.segment_at(w["start"]).index].get("voice") or "streamer"}
+             if tl.segment_at(w["start"]) is not None else w for w in words]
     layers: list[dict[str, Any]] = []
     cstyle = doc.styles["Caption"]
     for ev in plan_captions(words, cap, platform, W, H, cstyle.size, D, seam_at if seams else None,
                           box_pad(cstyle), title_holds(plan.get("overlays"))):
         lines = [" ".join(ln) for ln in ev.lines]
+        pad = max(box_pad(cstyle), GAME_PAD) if ev.voice == "game" else box_pad(cstyle)  # the game pill is a box
+        box = text_box(lines, cstyle.size, ev.x, ev.y, ev.an, pad, meter)
+        if ev.tag:  # the first game page of a block carries the small IN-GAME tag above its pill
+            box = (box[0], box[1] - (round(32 * H / 1920) + 8), box[2], box[3])
         layers.append({"kind": "caption", "text": " ".join(lines), "lines": lines, "a": ev.start, "b": ev.end,
-                       "size": cstyle.size, "box": text_box(lines, cstyle.size, ev.x, ev.y, ev.an, box_pad(cstyle), meter)})
+                       "size": cstyle.size, "box": box, "voice": ev.voice})
     # same rule as Renderer.render (layers = captions so far)
     seam_caps = seam_at if seams and layers and rides_seam(cap) else None
     for ev in plan_overlays(doc, plan.get("overlays") or [], platform, D, seam_caps, cstyle.size, box_pad(cstyle)):
@@ -464,6 +812,18 @@ def layout_lint(plan: dict[str, Any], brief: dict[str, Any], *, words: list[dict
             flag(f"{ly['kind']}_small", "major", ly["a"], f"{quote(ly)} is only {big}px (biggest line); a hook/punch "
                  f"title needs ≥ {LY['hook_title_max_word_px'] * sy:.0f}px or it reads as a caption.",
                  f"Give the key word of the title a font of ≥ {LY['hook_title_max_word_px'] * sy:.0f}px.", sizes=sizes)
+        if big >= LY["hook_title_max_word_px"] * sy - tol and big < LY["hook_emphasis_min_px"] * sy - tol:
+            flag(f"{ly['kind']}_emphasis_small", "major", ly["a"], f"{quote(ly)}: the emphasis word is {big}px; the "
+                 f"mixed-scale title needs ≥ {LY['hook_emphasis_min_px'] * sy:.0f}px (condensed).",
+                 f"Set the emphasis word of the title at ≥ {LY['hook_emphasis_min_px']}px.", sizes=sizes)
+        if len(sizes) > 1:
+            setup_cap = min(sizes) * tmeter.cap_ratio  # CAP height: the glyphs the viewer reads, not the font box
+            if setup_cap < LY["hook_setup_min_cap_px"] * sy - tol or min(sizes) < LY["hook_setup_min_px"] * sy - tol:
+                flag(f"{ly['kind']}_setup_small", "major", ly["a"], f"{quote(ly)}: the small setup line is only "
+                     f"{min(sizes)}px (cap height {setup_cap:.0f}px; min {LY['hook_setup_min_cap_px'] * sy:.0f}px cap).",
+                     f"Size the setup line of the title so its cap height is ≥ {LY['hook_setup_min_cap_px']}px "
+                     f"(font ≈ {LY['hook_setup_min_cap_px'] / max(tmeter.cap_ratio, 0.3):.0f}px).", sizes=sizes,
+                     cap_height=round(setup_cap, 1))
         if len(sizes) > 1 and big / max(min(sizes), 1) < LY["hook_title_ratio_min"] - 1e-6:
             flag(f"{ly['kind']}_one_size", "major", ly["a"], f"{quote(ly)} runs {len(sizes)} lines at nearly one size "
                  f"({min(sizes)}-{big}px); the biggest line must be ≥ {LY['hook_title_ratio_min']:.0f}x the smallest.",
@@ -604,6 +964,46 @@ def layout_lint(plan: dict[str, Any], brief: dict[str, Any], *, words: list[dict
                      f"(max {LY['game_max_upscale']}x).", "Drop the punch-in on stacked segments or use a higher-resolution source.",
                      scale=round(gz, 2))
 
+    # (mandor CP2 #3) a title must not sit on the game character's face: heads measured on the OUTPUT gameplay band
+    titles = [ly for ly in layers if ly["kind"] in ("hook_title", "punch_title")]
+    if seams and titles:
+        gf = gameplay_faces
+        if gf is None and video_path:
+            try:
+                vp = Path(video_path)
+                # re-renders may reuse a name: key the frame cache by content too (as the reviewer does)
+                key = f"{int(vp.stat().st_mtime)}_{vp.stat().st_size}" if vp.exists() else "0_0"
+                gf = measure_gameplay_faces(video_path, seams, [(ly["a"], ly["b"]) for ly in titles],
+                                            vp.parent / f"review_{vp.stem}" / f"game_{key}")
+            except Exception as exc:  # a broken detector must not fail the review
+                log.info("gameplay-face measurement failed: %s", exc)
+            if gf is None:
+                notes.append("title-vs-subject check skipped: face detection (YuNet) unavailable or failed")
+        for ly in titles:
+            tx0, ty0, tx1, ty1 = ly["box"]
+            for t, (fx0, fy0, fx1, fy1) in gf or []:
+                if not ly["a"] <= t < ly["b"]:
+                    continue
+                inter = max(0.0, min(tx1, fx1) - max(tx0, fx0)) * max(0.0, min(ty1, fy1) - max(ty0, fy0))
+                area = (fx1 - fx0) * (fy1 - fy0)
+                if area > 0 and inter / area >= LY["title_face_overlap_min"]:
+                    band = seam_at(t) or 0
+                    # faces in BOTH halves of the band (or one spanning the middle): no free half to move the title to,
+                    # so the editor cannot fix it: minor, not an endless major
+                    mid = band + (H - band) / 2
+                    seen_f = [f for tt, f in gf if ly["a"] <= tt < ly["b"]]
+                    halves = {h for f in seen_f for h, hit in (("top", f[1] < mid), ("bottom", f[3] > mid)) if hit}
+                    sev_t = "minor" if len(halves) == 2 else "major"
+                    cy = ((fy0 + fy1) / 2 - band) / max(H - band, 1)
+                    flag("title_over_subject", sev_t, ly["a"],
+                         f"{quote(ly)} covers {inter / area:.0%} of a face in the gameplay band (face box "
+                         f"{[round(v) for v in (fx0, fy0, fx1, fy1)]}).{est}",
+                         "Put the title in the empty half of the gameplay band: position 'bottom' when the subject is in "
+                         "the top of the band, 'center' (right under the seam) when it is low.",
+                         face=[round(v) for v in (fx0, fy0, fx1, fy1)], title_box=[round(v) for v in ly["box"]],
+                         face_cy=round(cy, 2))
+                    break
+
     # crop modes (podcast / talking head): reframe.scale × punch magnifies the source too
     if src_size and src_w / max(src_h, 1) > W / H + 0.02:
         for p in tl.placed:
@@ -655,3 +1055,336 @@ def layout_lint(plan: dict[str, Any], brief: dict[str, Any], *, words: list[dict
     for check, (n, sev, t, desc, fix, ev) in found.items():
         out.append(issue(check, "layout", sev, desc + (f" (+{n - 1} more)" if n > 1 else ""), fix, t, ev))
     return out
+
+
+# -- story lint: what the plan says about time, emotion and rhythm (no render needed) ----------------------------------
+def hold_of(seg: dict[str, Any]) -> float:
+    try:
+        return min(STORY_QC["hold_max_s"], max(0.0, float(seg.get("hold") or 0.0)))
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def segment_starts(segs: list[dict[str, Any]]) -> list[tuple[float, float]]:
+    """(out_start, out_end) of every segment, freeze-frame hold included (= the renderer's timeline)."""
+    t, out = 0.0, []
+    for s in segs:
+        d = (float(s["src_end"]) - float(s["src_start"])) / (float(s.get("speed") or 1.0) or 1.0) + hold_of(s)
+        out.append((t, t + d))
+        t += d
+    return out
+
+
+def plan_duration(segs: list[dict[str, Any]]) -> float:
+    return round(segment_starts(segs)[-1][1], 3) if segs else 0.0
+
+
+def plan_holds(segs: list[dict[str, Any]]) -> list[tuple[float, float]]:
+    """Output (start, end) of every freeze-frame hold: pass as ``technical_qc(intended_holds=...)``."""
+    return [(round(b - hold_of(s), 3), round(b, 3)) for s, (_, b) in zip(segs, segment_starts(segs)) if hold_of(s) > 0.05]
+
+
+def segment_parts(segs: list[dict[str, Any]], parts: list[dict[str, Any]] | None = None
+                  ) -> tuple[list[dict[str, Any]], list[int]]:
+    """Which story part each segment belongs to. ``parts`` = the moment's parts; without them the parts are derived
+    from the plan itself (a new part starts when the source jumps back, or forward by >= a minute)."""
+    if parts:
+        # the TRUE overlap decides; the sanitize slack (±1.5 s) only breaks ties — with slack alone a 1.5 s piece
+        # just past a story-pack seam tied with the previous part and lost its card
+        idx = [max(range(len(parts)), key=lambda k: (
+            min(float(s["src_end"]), parts[k]["end_s"]) - max(float(s["src_start"]), parts[k]["start_s"]),
+            min(float(s["src_end"]), parts[k]["end_s"] + 1.5) - max(float(s["src_start"]), parts[k]["start_s"] - 1.5)))
+               for s in segs]
+        return parts, idx
+    derived: list[dict[str, Any]] = []
+    idx = []
+    for s in segs:
+        a, b = float(s["src_start"]), float(s["src_end"])
+        cur = derived[-1] if derived else None
+        if cur is None or a < cur["last_end"] - 0.5 or a - cur["last_end"] >= MIN_LABEL_GAP_S:
+            cur = {"start_s": a, "end_s": b, "last_end": b}
+            derived.append(cur)
+        cur["start_s"], cur["end_s"], cur["last_end"] = min(cur["start_s"], a), max(cur["end_s"], b), b
+        idx.append(len(derived) - 1)
+    return derived, idx
+
+
+def card_expectations(plan: dict[str, Any], parts: list[dict[str, Any]] | None = None,
+                      vod_map: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+    """Every time_card overlay with the label the real gap calls for: {overlay, seg, expected, ok}.
+    ``vod_map`` (moment["vod_map"]): a story pack glues several stream ranges into one file; labels use stream time."""
+    segs = plan.get("segments") or []
+    if not segs:
+        return []
+    parts, idx = segment_parts(segs, parts)
+    starts = segment_starts(segs)
+    out = []
+    for o in plan.get("overlays") or []:
+        if o.get("kind") != "time_card":
+            continue
+        t = float(o.get("start") or 0.0)
+        i = min(range(len(segs)), key=lambda k: abs(starts[k][0] - t))
+        if abs(starts[i][0] - t) > 0.6:  # not at a cut: the segment playing then
+            i = next((k for k, (a, b) in enumerate(starts) if a <= t < b), i)
+        prev = parts[idx[i - 1]] if i > 0 and idx[i - 1] != idx[i] else None
+        cur = parts[idx[i]]
+        out.append({"overlay": o, "seg": i, "expected": time_jump_label(prev, cur, vod_map),
+                    "ok": label_matches(o.get("text") or "", prev, cur, vod_map)})
+    return out
+
+
+def _ends_sentence(w: dict[str, Any]) -> bool:
+    t = str(w.get("word") or w.get("text") or "").strip()
+    return bool(re.search(r"[.!?][\"')\]]*$", t)) and not t.endswith(("...", "…"))
+
+
+def phrase_around(words: list[dict[str, Any]], t: float, gap: float | None = None) -> tuple[float, float] | None:
+    """(start, end) of the phrase a freeze/cut at time ``t`` would split, else None. A phrase = words with less than
+    STORY_QC['phrase_gap_s'] between them inside one sentence; ``t`` splits it when it falls inside a word or in
+    such a gap. Same clock as ``words`` (source for the editor, output for the lint)."""
+    gap = STORY_QC["phrase_gap_s"] if gap is None else gap
+    ws = sorted(words or [], key=lambda w: w["start"])
+    k = max((i for i, w in enumerate(ws) if w["start"] < t - 1e-6), default=None)
+    if k is None:
+        return None
+    if t >= ws[k]["end"] - 1e-6 and (k + 1 >= len(ws) or ws[k + 1]["start"] - ws[k]["end"] >= gap
+                                      or _ends_sentence(ws[k])):
+        return None  # between phrases: a pause, or the sentence is over
+    lo = hi = k
+    while lo > 0 and ws[lo]["start"] - ws[lo - 1]["end"] < gap and not _ends_sentence(ws[lo - 1]):
+        lo -= 1
+    while hi + 1 < len(ws) and ws[hi + 1]["start"] - ws[hi]["end"] < gap and not _ends_sentence(ws[hi]):
+        hi += 1
+    return ws[lo]["start"], ws[hi]["end"]
+
+
+def freeze_in_phrase_issues(segs: list[dict[str, Any]], words: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+    """pacing:freeze_in_phrase (major): a hold freezes the picture between two words that belong together
+    ("Fuck… [hold] you"). ``words`` are OUTPUT-timed, so the pause around the hold is measured net of the hold itself;
+    a hold before a source jump (a jump cut over a real pause, another part of the stream) splits nothing."""
+    if not words:
+        return []
+    issues, starts = [], segment_starts(segs)
+    for i, (s, (_, end)) in enumerate(zip(segs, starts)):
+        h = hold_of(s)
+        if h <= 0.05 or i + 1 >= len(segs):
+            continue
+        nxt = segs[i + 1]
+        if not -0.3 <= float(nxt["src_start"]) - float(s["src_end"]) < STORY_QC["phrase_gap_s"]:
+            continue  # the source jumps here: the freeze sits on a real cut, not between two spoken words
+        t0 = end - h  # the picture freezes here
+        a = max((w for w in words if w["start"] < t0 - 1e-6), key=lambda w: w["start"], default=None)
+        b = min((w for w in words if w["start"] >= end - 0.06), key=lambda w: w["start"], default=None)
+        if a is None or b is None or _ends_sentence(a):
+            continue
+        spoken_gap = (b["start"] - a["end"]) - h  # the pause as it was before the freeze went in
+        if spoken_gap < STORY_QC["phrase_gap_s"]:
+            issues.append(issue("freeze_in_phrase", "pacing", "major",
+                                f"The {h:.2f}s freeze at {t0:.1f}s splits a phrase ('{a.get('word', '')}' … "
+                                f"'{b.get('word', '')}', {max(spoken_gap, 0):.2f}s apart).",
+                                "Move the hold to the jaw-drop BEFORE the phrase or to the moment the phrase is "
+                                "finished; never freeze between two words of one sentence.", t0,
+                                evidence={"hold_at": round(t0, 2), "hold_s": h}))
+    return issues
+
+
+def _longest_run(tokens: list[str]) -> tuple[int, str]:
+    best, tok, run = 0, "", 0
+    for i, t in enumerate(tokens):
+        run = run + 1 if i and t and t == tokens[i - 1] else (1 if t else 0)
+        if run > best:
+            best, tok = run, t
+    return best, tok
+
+
+def arc_coverage(plan: dict[str, Any], moment: dict[str, Any] | None
+                 ) -> tuple[list[dict[str, Any]], list[int], set[int], list[int]] | None:
+    """(labelled parts, period of each part, parts the plan plays, the part of each segment) for a story moment that spans >= 2 periods of the
+    stream (arc / cold_open / montage with a time-jump label on some part after the first); None for any other moment.
+    A period starts at a part whose time-jump label is non-empty. A segment counts for the part it overlaps most."""
+    segs = plan.get("segments") or []
+    if not segs or not moment or (moment.get("structure") or "linear") not in ("arc", "cold_open", "montage"):
+        return None
+    if not moment.get("parts") and moment.get("start_s") is None:
+        return None
+    parts = label_parts(moment_parts(moment), moment.get("vod_map"))
+    period, p = [], 0
+    for i, part in enumerate(parts):
+        p += 1 if i and part["label"] else 0
+        period.append(p)
+    if len(parts) < 2 or p < 1:
+        return None
+    _, idx = segment_parts(segs, parts)
+    return parts, period, set(idx), idx
+
+
+_REPEAT_STOP = {"that", "this", "with", "have", "just", "what", "like", "they", "there", "then", "than", "yeah", "okay"}
+
+
+def repeat_line(words: list[dict[str, Any]], duration: float) -> str | None:
+    """The line (2-5 words, non-overlapping) or the long word said >= repeat_line_min times in the ending window."""
+    SQ = STORY_QC
+    tok = [t for t in (re.sub(r"[^a-z0-9']", "", str(w.get("word") or "").lower())
+                       for w in words if w["start"] >= duration - SQ["repeat_line_window_s"]) if t]
+    for n in (5, 4, 3, 2):
+        for i in range(len(tok) - n + 1):
+            g, cnt, j = tok[i:i + n], 0, 0
+            while j + n <= len(tok):
+                if tok[j:j + n] == g:
+                    cnt, j = cnt + 1, j + n
+                else:
+                    j += 1
+            if cnt >= SQ["repeat_line_min"]:
+                return " ".join(g)
+    run, t = _longest_run([x if len(x) >= 4 and x not in _REPEAT_STOP else "" for x in tok])
+    return t if run >= SQ["repeat_line_min"] else None
+
+
+def story_lint(plan: dict[str, Any], *, moment: dict[str, Any] | None = None,
+               words: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+    """Plan-level story/emotion checks the reviewer runs next to the render QC (see standards.STORY_QC / VIBES).
+    ``moment`` (its parts + vod_map) makes the time-card check exact; without it the parts are read off the plan.
+    ``words`` = the OUTPUT-timed words (``Timeline.map_words``): they make the freeze-in-phrase check possible."""
+    segs = plan.get("segments") or []
+    if not segs:
+        return []
+    SQ = STORY_QC
+    overlays = plan.get("overlays") or []
+    starts = segment_starts(segs)
+    D = starts[-1][1]
+    issues: list[dict[str, Any]] = []
+    parts = moment_parts(moment) if moment and (moment.get("parts") or moment.get("start_s") is not None) else None
+    parts = parts if parts and (moment.get("parts") or len(parts) > 1) else None  # a seam split counts as parts
+
+    for c in card_expectations(plan, parts, (moment or {}).get("vod_map")):
+        if not c["ok"]:
+            o, want = c["overlay"], c["expected"]
+            issues.append(issue("label_mismatch", "story", "major",
+                                f"Time card '{o.get('text')}' at {float(o.get('start') or 0):.1f}s does not match the real "
+                                f"gap in the stream ({want or 'under a minute: no card'}).",
+                                f"Set the card to '{want}'" if want else "Remove the card: the parts are under a minute apart.",
+                                float(o.get("start") or 0), evidence={"shown": o.get("text"), "real": want}))
+
+    w = SQ["frame0_window_s"]
+    titled = any(o.get("kind") in ("hook_title", "punch_title") and float(o.get("start") or 0) <= w
+                 and float(o.get("end") or 0) > w for o in overlays)
+    first = segs[0].get("transition_in") or "cut"
+    if not titled or first != "cut":
+        why = "no hook title in the first %.1fs" % w if not titled else f"frame 0 opens on a '{first}' transition"
+        issues.append(issue("frame0", "hook", "major", f"The opening frame is weak: {why}.",
+                            f"Open on the strongest moment with the hook title from 0.0s and a plain cut as the first "
+                            f"transition.", 0.0))
+
+    times = [a for (a, _), s in zip(starts, segs) if s.get("transition_in") == "flash"]
+    worst = max((sum(1 for u in times if t <= u < t + 1.0) for t in times), default=0)
+    if worst > SQ["max_flash_per_s"]:
+        issues.append(issue("flash_rate", "visual", "blocker",
+                            f"{worst} flash transitions inside one second (limit {SQ['max_flash_per_s']}): strobing.",
+                            "Replace the extra flash transitions with cuts; at most 3 flashes in any second.",
+                            next(t for t in times if sum(1 for u in times if t <= u < t + 1.0) == worst)))
+
+    for label, tokens in (("transition", [(s.get("transition_in") or "cut") if i else "" for i, s in enumerate(segs)]),
+                          ("zoom", [(s.get("zoom") or {}).get("type") or "" for s in segs])):
+        tokens = [t if t not in ("cut", "none") else "" for t in tokens]
+        n, tok = _longest_run(tokens)
+        if n > SQ["effect_repeat_max"]:
+            issues.append(issue("effect_repeat", "pacing", "minor",
+                                f"The same {label} ('{tok}') is used {n} times in a row.",
+                                f"Vary it: alternate the {label} or use a plain cut between them."))
+
+    issues += freeze_in_phrase_issues(segs, words)
+
+    n_sfx = sum(1 for c in plan.get("sfx") or [] if 0 <= float(c.get("at") or 0) < D)
+    if D >= 3.0 and n_sfx > D / SQ["sfx_min_gap_s"] + 1e-6:
+        issues.append(issue("sfx_density", "audio", "minor",
+                            f"{n_sfx} SFX in {D:.0f}s (max 1 per {SQ['sfx_min_gap_s']}s = {int(D / SQ['sfx_min_gap_s'])}).",
+                            "Keep only the SFX on real beats (reveals, payoff, time jumps) and drop the rest."))
+
+    v, name = vibe(plan.get("vibe")), plan.get("vibe") or "hype"
+    bad = {"transitions": sorted({s["transition_in"] for s in segs if s.get("transition_in") in v["no_transitions"]}),
+           "sfx": sorted({c["kind"] for c in plan.get("sfx") or [] if c.get("kind") in v["no_sfx"]}),
+           "shake": [i for i, s in enumerate(segs) if s.get("shake")] if not v["shake"] else [],
+           "fx": [k for k in v["no_fx"] if (plan.get("fx") or {}).get(k)]}
+    if any(bad.values()):
+        parts_txt = "; ".join(f"{k}: {', '.join(map(str, b))}" for k, b in bad.items() if b)
+        issues.append(issue("palette", "visual", "minor",
+                            f"The effects fight the '{name}' vibe ({parts_txt}).",
+                            f"Swap them for the '{name}' palette: transitions {', '.join(v['transitions'])}, SFX "
+                            f"{', '.join(v['sfx'])}{'' if v['shake'] else ', no shake'}.", evidence=bad))
+
+    if len(segs) > 1 and segs[-1].get("transition_in") == "fade":
+        issues.append(issue("fade_ending", "story", "minor", "The last beat fades through black.",
+                            "End on the punchline or the reaction: use a cut into the last segment, no dip to black.",
+                            starts[-1][0]))
+
+    structure = (moment or {}).get("structure") or "linear"
+    last = segs[-1]
+    if len(segs) > 1 and structure == "cold_open" and (
+            last.get("role") not in ("reaction", "payoff", "button", "cold_open") and hold_of(last) <= 0.05):
+        issues.append(issue("no_loop", "story", "minor",
+                            "A cold-open clip does not end on the reaction it opened with: the end does not loop back to frame 0.",
+                            "End on the same / a similar reaction as frame 0 (or hold the reaction frame), plain cut, no fade.",
+                            starts[-1][0]))
+
+    jumps = any(o.get("kind") == "time_card" for o in overlays) or any(
+        s.get("transition_in") == "rewind" for s in segs[1:])
+    cuts = len(segs) - 1
+    if D >= 6.0 and not jumps and cuts * 30.0 / D > SQ["over_cut_per_30s"]:
+        issues.append(issue("over_cut", "pacing", "minor",
+                            f"{cuts} cuts in {D:.0f}s ({cuts * 30.0 / D:.0f} per 30 s, limit {SQ['over_cut_per_30s']}): "
+                            f"the picture never settles and a running game action gets chopped.",
+                            f"Merge segments into longer shots (about {SQ['gameplay_max_cuts_30s']} cuts per 30 s); "
+                            f"cut only pauses over {SQ['gameplay_min_gap_s']}s."))
+
+    if structure == "linear" and D > SQ["long_for_stream_s"]:
+        issues.append(issue("long_for_stream", "pacing", "minor",
+                            f"A linear clip of {D:.0f}s: clips of 20-30 s get about twice the views per day.",
+                            f"Trim to the moment and its reaction, about {STREAM_SWEET_SPOT_S[0]}-{STREAM_SWEET_SPOT_S[1]}s."))
+
+    title = next((o for o in overlays if o.get("kind") == "hook_title"), None)
+    if title:
+        txt = str(title.get("text") or "").strip()
+        lines = len([ln for ln in txt.split("\n") if ln.strip()])
+        if len(txt) > SQ["title_max_chars"] or lines > SQ["title_max_lines"]:
+            issues.append(issue("title_long", "hook", "minor",
+                                f"The hook title is {len(txt)} characters / {lines} lines (limit {SQ['title_max_chars']} / "
+                                f"{SQ['title_max_lines']}).",
+                                "[known subject] + [one stakes claim], specific, within 45 characters and 2 lines.",
+                                float(title.get("start") or 0)))
+
+    arc = arc_coverage(plan, moment)  # mandor CP2 #4: the scan's arc is the point of the request
+    if arc:
+        aparts, period, played, seg_part = arc
+        if len({period[k] for k in played}) < 2:
+            lost = [aparts[k].get("label") or f"part {k + 1}" for k in range(len(aparts)) if k not in played]
+            missing = [{"k": k, "start_s": aparts[k]["start_s"], "end_s": aparts[k]["end_s"], "role": aparts[k]["role"],
+                        "label": aparts[k]["label"]} for k in range(len(aparts)) if k not in played]
+            issues.append(issue("arc_dropped", "story", "major",
+                                f"The moment is a {structure} across {max(period) + 1} periods of the stream, but the edit "
+                                f"plays footage from one only (never plays: {', '.join(lost) or 'the other periods'}).",
+                                "Play at least one part of EACH period, in order, with a time card at the jump "
+                                "(the part's label); never drop an arc part.",
+                                evidence={"periods": max(period) + 1, "missing_parts": [m["k"] for m in missing],
+                                          "missing": missing, "seg_parts": list(seg_part)}))
+
+    if words:
+        voices_plan = {s.get("voice") or "streamer" for s in segs}
+        seen = set()
+        for (a, b), _s in zip(starts, segs):
+            ws = [x for x in words if a <= x["start"] < b]
+            if len(ws) >= 3:
+                seen.add(voice_of(" ".join(str(x.get("word") or "") for x in ws)))
+        if len(voices_plan) == 1 and {"game", "streamer"} <= seen:
+            issues.append(issue("speaker_style", "captions", "minor",
+                                "The transcript has game dialogue (NPC / ad / cutscene) next to the streamer's own talk, but "
+                                f"every segment is marked '{next(iter(voices_plan))}': the game lines are captioned as if the "
+                                "streamer said them.",
+                                "Set segment.voice = 'game' on the segments whose audio is the game's dialogue."))
+        said = repeat_line(words, D)
+        if said:
+            issues.append(issue("repeat_line", "pacing", "minor",
+                                f"The ending repeats '{said}' {STORY_QC['repeat_line_min']}+ times in its last "
+                                f"{STORY_QC['repeat_line_window_s']:.0f} s: it reads as a glitch, not a loop.",
+                                "Cut the repeats: end on one clean delivery of the line (or the reaction).",
+                                max(0.0, D - STORY_QC["repeat_line_window_s"])))
+    return issues

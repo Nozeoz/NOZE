@@ -320,8 +320,14 @@ def test_finalize_widens_the_detector_cam_and_moves_its_face_box(tmp_path):
             rf = plan["segments"][0]["reframe"]
             top, _ = stack_layout(rf["cam"], *SRC, ax.cfg.width, ax.cfg.height)
             up = max(ax.cfg.width / (rf["cam"]["w"] * SRC[0]), top / (rf["cam"]["h"] * SRC[1]))
-            assert up <= LAYOUT["cam_max_upscale"], (cam, rf["cam"], up)
-            assert rf["face"] and rf["face"] != det_face and rf["face"]["w"] > 0.1  # re-expressed in the wider cam
+            # mandor CP2 / review: the detector's crop never grows past its own (inset) box — growing it pulled
+            # leaves/walls/frames of the room into the band. A soft cam (upscale up to the 3.2x major line) is the
+            # lesser evil; the lint calls it minor.
+            assert up <= 3.2, (cam, rf["cam"], up)
+            c = rf["cam"]
+            assert c["x"] >= det_cam["x"] and c["y"] >= det_cam["y"] - 1e-9
+            assert c["x"] + c["w"] <= det_cam["x"] + det_cam["w"] + 1e-9 and c["y"] + c["h"] <= det_cam["y"] + det_cam["h"] + 1e-9
+            assert rf["face"] and rf["face"] != det_face and rf["face"]["w"] > 0.1  # re-expressed in the inset cam
         far = {"x": 0.75, "y": 0.0, "w": 0.25, "h": 0.25}  # a model's cam elsewhere in the frame
         plan = Editor(ax).finalize(make_plan([seg(0, 10, "stack", far)]), moment, FACEBRIEF, {}, prep)
         rf = plan["segments"][0]["reframe"]

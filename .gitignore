@@ -26,3 +26,6 @@ venv/
 Thumbs.db
 .idea/
 .vscode/
+
+# downloaded models (YAMNet, YuNet) when no data dir is given
+cache/

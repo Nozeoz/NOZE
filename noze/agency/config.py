@@ -22,6 +22,7 @@ DEFAULT_EFFORT = {
     "editor": "high",
     "reviewer": "high",
     "reflector": "medium",
+    "approver": "low",
 }
 
 # Model per role when AGENCY_MODEL_<ROLE> isn't set. Judgement that is expensive to get wrong
@@ -34,6 +35,10 @@ DEFAULT_ROLE_MODELS = {
     "analyst": "claude-sonnet-5-5",
     "scout": "claude-sonnet-5-5",
     "reflector": "claude-sonnet-5-5",
+    # the manager's ACC on a clip the (Opus, vision) reviewer already passed: brief/post/risk check on text,
+    # no frames — re-judging the same frames on Opus paid twice for one verdict (arena 30 Sep: re-verifying
+    # managers cost 2.8-4.2x, no score gain). Escalations still go to the manager on Opus with frames.
+    "approver": "claude-sonnet-5-5",
 }
 
 AGENCY_KEYS = (
@@ -63,6 +68,7 @@ class AgencySettings:
     daily_budget_usd: float = 40.0
     max_rounds: int = 3  # editor↔reviewer loops before the manager steps in
     clips_per_source: int = 3
+    parallel: int = 3  # clip jobs advanced at the same time (LLM calls + ffmpeg); sources stay one by one
     min_clip_s: float = 15.0
     max_clip_s: float = 60.0
     platform: str = "tiktok"  # tiktok | reels | shorts — drives safe zones & specs
@@ -107,7 +113,7 @@ class AgencySettings:
             except ValueError:
                 return default
 
-        role_models = {r: merged[f"AGENCY_MODEL_{r.upper()}"] for r in (*ROLES, "reflector")
+        role_models = {r: merged[f"AGENCY_MODEL_{r.upper()}"] for r in (*ROLES, "reflector", "approver")
                        if merged.get(f"AGENCY_MODEL_{r.upper()}")}
         role_effort = dict(DEFAULT_EFFORT)
         for r in role_effort:
@@ -138,6 +144,7 @@ class AgencySettings:
             daily_budget_usd=num("AGENCY_DAILY_BUDGET_USD", 40.0),
             max_rounds=int(num("AGENCY_MAX_ROUNDS", 3)),
             clips_per_source=int(num("AGENCY_CLIPS_PER_SOURCE", 3)),
+            parallel=max(1, int(num("AGENCY_PARALLEL", 3))),
             min_clip_s=num("AGENCY_MIN_CLIP_S", 15.0),
             max_clip_s=num("AGENCY_MAX_CLIP_S", 60.0),
             platform=get("AGENCY_PLATFORM", "tiktok").lower(),
@@ -173,7 +180,7 @@ class AgencySettings:
 
     def models_label(self) -> str:
         """``manager=claude-opus-5-5, scout=claude-sonnet-5-5 …`` collapsed to one name when all agree."""
-        per = {r: self.model_for(r) for r in (*ROLES, "reflector")}
+        per = {r: self.model_for(r) for r in (*ROLES, "reflector", "approver")}
         if len(set(per.values())) == 1:
             return next(iter(per.values()))
         return ", ".join(f"{r}={m.removeprefix('claude-')}" for r, m in per.items())

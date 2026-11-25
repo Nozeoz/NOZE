@@ -103,7 +103,8 @@ def test_caption_grouping_and_ass_output():
     assert ass_color("#FFE600") == "&H0000E6FF"
     words = spread_words("This is the hook. And then the payoff lands right here", 0.0, 4.0)
     chunks = group_words(words, max_words=3)
-    assert [len(c) for c in chunks][0] == 3 and chunks[1][0]["word"] == "hook."
+    # CP1: a page never ends on "the"/"is": "THIS IS THE" takes the next word (4 words), the sentence end closes it
+    assert [len(c) for c in chunks][0] == 4 and chunks[0][-1]["word"] == "hook." and chunks[1][0]["word"] == "And"
     doc = AssDoc(1080, 1920)
     caption_styles(doc, "Arial", {"style": "karaoke"})
     overlay_styles(doc, "Arial")

@@ -148,6 +148,8 @@ class LLM:
 
     # -- budget --------------------------------------------------------------------------
     def check_budget(self, budget_job_ids: list[int] | None) -> None:
+        # ponytail: checked before the call, so parallel clip workers can overshoot by up to
+        # AGENCY_PARALLEL calls; a reservation ledger if that ever matters more than a few cents.
         day_start = time.time() - 24 * 3600
         if self.store.spend(since=day_start) >= self.cfg.daily_budget_usd:
             raise BudgetExceeded(f"daily LLM budget ${self.cfg.daily_budget_usd:.2f} reached")

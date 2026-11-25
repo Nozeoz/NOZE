@@ -31,6 +31,15 @@ def _read_terms(args) -> str:
     return getattr(args, "terms", None) or ""
 
 
+def _hms(text: str) -> float:
+    from .media.fetch import parse_hms
+
+    try:
+        return parse_hms(text)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc))
+
+
 def _ago(ts: float | None) -> str:
     if not ts:
         return "—"
@@ -196,11 +205,209 @@ def cmd_lead(args) -> None:
 
 
 # -- production ------------------------------------------------------------------------------------------
+def _load_vod_map(ref: str | None) -> list[dict] | None:
+    """``--vod-map`` = a ``*.vodmap.json`` written by ``fetch_pack`` (a list, or ``{"vod_map": [...]}``) or inline JSON."""
+    if not ref:
+        return None
+    text = Path(ref).read_text(encoding="utf-8") if Path(ref).exists() else ref
+    try:
+        data = json.loads(text)
+        data = data.get("vod_map") if isinstance(data, dict) else data
+        return [{"file_start": float(x["file_start"]), "file_end": float(x["file_end"]),
+                 "vod_start": float(x["vod_start"])} for x in data] or None
+    except (ValueError, KeyError, TypeError, OSError) as exc:
+        raise SystemExit(f"bad --vod-map ({exc}): expected the *.vodmap.json from `noze agency scan`/fetch_pack")
+
+
+def _load_moments(path: str | None) -> list[dict] | None:
+    if not path:
+        return None
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    picks = data.get("picks", data.get("chosen")) if isinstance(data, dict) else data
+    if not isinstance(picks, list) or not all(isinstance(m, dict) and "start_s" in m for m in picks):
+        raise SystemExit(f"--moments {path}: expected the scan's *.moments.json (a list of moments under 'picks')")
+    return picks
+
+
 def cmd_submit(args) -> None:
     ag = _agency(args)
     jid = ag.submit(args.source, args.campaign, references=args.ref or [], clips=args.clips,
-                    own_content=args.own, notes=args.notes or "")
+                    own_content=args.own, notes=args.notes or "", signals_url=args.vod_url or "",
+                    offset_s=args.vod_offset or 0.0, internal_test=args.internal_test,
+                    vod_map=_load_vod_map(args.vod_map), moments=_load_moments(args.moments))
     print(f"✓ source job #{jid} queued — run `noze agency run` (or keep `noze agency run --forever` going)")
+
+
+def cmd_fetch(args) -> None:
+    from .media.ffmpeg import MediaError
+    from .media.fetch import fetch_range, fmt_hms
+
+    a, b = args.from_, args.to
+    out = Path(args.output) if args.output else Path.cwd() / f"vod_{fmt_hms(a).replace(':', '')}-{fmt_hms(b).replace(':', '')}.mp4"
+    t0 = time.time()
+    try:
+        fetch_range(args.url, a, b, out, workers=args.workers)
+    except (MediaError, ValueError) as exc:
+        raise SystemExit(f"fetch failed: {exc}")
+    print(f"✓ {out}  ({fmt_hms(b - a)}, {out.stat().st_size / 1e6:.0f} MB, {time.time() - t0:.0f}s, decoded clean)")
+    print("  only clip content the campaign lets you clip. Next:")
+    print(f'  noze agency submit "{out}" --campaign <name> --vod-url "{args.url}" --vod-offset {a:g}')
+
+
+AUDIO_BYTES_PER_S = 20_000   # Twitch audio_only ~160 kbps
+VIDEO_BYTES_PER_S = 1_000_000  # re-encoded 1080p60 at crf 18 lands around 6-10 Mbps; this is a ceiling-ish estimate
+
+
+def _mb(n: float) -> str:
+    return f"{n / 1e6:,.0f} MB"
+
+
+def cmd_scan(args) -> None:
+    """Audio-only scan of a stream window -> transcript + chat/clip signals -> ``Analyst.scan_arcs`` -> (unless
+    --dry-run) download only the picked pieces, glued into one pack with a vod_map for ``submit``."""
+    from .media.fetch import fetch_audio_range, fetch_pack, fmt_hms
+    from .media.ffmpeg import MediaError
+    from .media.signals import collect_signals, parse_vod_url
+    from .media.transcribe import all_words, transcribe
+    from .roles.analyst import fetch_plan
+
+    a, b = args.from_, args.to
+    kind = parse_vod_url(args.url)
+    if not kind:
+        raise SystemExit("scan needs a Twitch VOD or YouTube link")
+    if b <= a:
+        raise SystemExit("--to must be after --from")
+    if (b - a) > args.max_hours * 3600:
+        raise SystemExit(f"window is {(b - a) / 3600:.1f} h, over --max-hours {args.max_hours:g} "
+                         "(audio + transcript + signals of that much is slow; scan it in pieces or raise the cap)")
+    ag = _agency(args)
+    camp = ag.store.get_campaign(args.campaign)
+    if not camp:
+        raise SystemExit(f"no campaign {args.campaign!r} (noze agency campaign add …)")
+    brief = ag._brief({"campaign_id": camp["id"]})
+    cache = ag.cfg.root / "cache" / "scan" / f"{kind[1]}_{int(a)}_{int(b)}"
+    cache.mkdir(parents=True, exist_ok=True)
+    print(f"scan {args.url}  {fmt_hms(a)}-{fmt_hms(b)} ({fmt_hms(b - a)})  campaign '{camp['name']}'")
+
+    audio = cache / "audio.m4a"
+    t0 = time.time()
+    from .media.fetch import verify_audio
+    if audio.exists():  # a cache hit must still be a whole, decodable window (not a truncated leftover)
+        try:
+            verify_audio(audio, b - a)
+        except MediaError as exc:
+            print(f"  cached audio unusable ({exc}); downloading again")
+            audio.unlink(missing_ok=True)
+            for stale in ("transcript.json", "signals.json"):  # built from the bad audio: never reuse them
+                (audio.parent / stale).unlink(missing_ok=True)
+    if not audio.exists():
+        print(f"  audio-only download, ~{_mb((b - a) * AUDIO_BYTES_PER_S)} …")
+        try:
+            fetch_audio_range(args.url, a, b, audio, workers=args.workers)
+        except (MediaError, ValueError) as exc:
+            raise SystemExit(f"audio fetch failed: {exc}")
+        print(f"  audio ready ({audio.stat().st_size / 1e6:.0f} MB, {time.time() - t0:.0f}s)")
+    else:
+        print(f"  audio cached ({audio.stat().st_size / 1e6:.0f} MB)")
+
+    names = [brief.get("creator") or ""] + [h.rsplit("/", 1)[-1] for h in brief.get("creator_handles") or []]
+    hint = ", ".join(dict.fromkeys(n.lstrip("@") for n in names if n))
+    tr = transcribe(audio, ag.cfg.transcriber, ag.cfg.whisper_model, language=brief.get("language") or None,
+                    cache=cache / "transcript.json", hint=f"{hint}." if hint else "")
+    print(f"  transcript: {tr.get('source')} ({len(all_words(tr))} words)")
+    sig = collect_signals(audio, cache, url=args.url, offset_s=a, allow_network=True,
+                          models_dir=ag.cfg.root / "cache" / "models")
+    print(f"  signals: {', '.join(sig.get('sources') or []) or 'none'}; {len(sig.get('peaks') or [])} peaks, "
+          f"{len(sig.get('clips') or [])} viewer clips")
+
+    length = brief.get("clip_length") or {}
+    min_s = float(length.get("min_s") or ag.cfg.min_clip_s)
+    max_s = float(length.get("max_s") or ag.cfg.max_clip_s)
+    job = ag.store.get_job(ag.store.create_job("scan", "scanned", campaign_id=camp["id"], title=f"scan {kind[1]}",
+                                               input={"url": args.url, "from": a, "to": b}))
+    picks = list(ag.analyst.scan_arcs(job, tr, sig, brief, args.clips, min_s, max_s, gap_min_s=args.min_gap))
+    # the audio file's seconds start at ``--from``: move every picked part onto VOD time
+    for m in picks:
+        m["start_s"], m["end_s"] = m["start_s"] + a, m["end_s"] + a
+        for part in m.get("parts") or []:
+            part["start_s"], part["end_s"] = part["start_s"] + a, part["end_s"] + a
+    if not picks:
+        raise SystemExit("no clip candidates in that window (try a wider window or another campaign brief)")
+    print(f"\n{len(picks)} candidate(s):")
+    for i, m in enumerate(picks, 1):
+        print(f"#{i} [{m.get('structure', 'linear')}] emotion={m.get('emotion') or '-'} "
+              f"overall={m.get('overall', '?')}  {m.get('title', '')[:70]}")
+        if m.get("story"):
+            print(f"    story: {str(m['story'])[:200]}")
+        for j, part in enumerate(m.get("parts") or [], 1):
+            print(f"    part {j}: {fmt_hms(part['start_s'])}-{fmt_hms(part['end_s'])}  {part.get('role', '')}")
+        if m.get("rationale"):
+            print(f"    why: {str(m['rationale'])[:200]}")
+    ranges = [(max(a, x), min(b, y)) for x, y in fetch_plan(picks)]
+    ranges = [(x, y) for x, y in ranges if y > x]
+    total = sum(y - x for x, y in ranges)
+    print(f"\nvideo to download: {len(ranges)} piece(s), {fmt_hms(total)} total, ~{_mb(total * VIDEO_BYTES_PER_S)} "
+          f"(instead of ~{_mb((b - a) * VIDEO_BYTES_PER_S)} for the whole window)")
+    for x, y in ranges:
+        print(f"    {fmt_hms(x)}-{fmt_hms(y)}")
+    if args.dry_run:
+        print("--dry-run: no video fetched.")
+        return
+    out = Path(args.output) if args.output else cache / "pack.mp4"
+    t0 = time.time()
+    try:
+        out, vod_map = fetch_pack(args.url, ranges, out, workers=args.workers)
+    except (MediaError, ValueError) as exc:
+        raise SystemExit(f"pack fetch failed: {exc}")
+    sidecar = out.with_name(out.name + ".vodmap.json")
+    picks_file = out.with_name(out.name + ".moments.json")
+    picks_file.write_text(json.dumps({"picks": picks}, ensure_ascii=False, indent=1), encoding="utf-8")
+    print(f"✓ {out}  ({out.stat().st_size / 1e6:.0f} MB, {time.time() - t0:.0f}s)  vod map: {sidecar}")
+    granted = (brief.get("permission") or {}).get("granted")
+    flags = (f'--campaign "{camp["name"]}" --vod-url "{args.url}" --vod-map "{sidecar}" --moments "{picks_file}" '
+             f'--clips {args.clips}')
+    if not granted:
+        flags += " --internal-test"
+        print("  this campaign has no clipping permission on record: --internal-test renders for your review only "
+              "(never delivered/published).")
+    print("  only clip content the campaign lets you clip. Next:")
+    print(f'  noze agency submit "{out}" {flags}')
+
+
+GTA_WORDS = re.compile(r"gta|grand theft|\bvi\b|\b6\b", re.I)
+
+
+def cmd_vods(args) -> None:
+    from datetime import datetime, timedelta, timezone
+
+    from .media.fetch import fmt_hms
+    from .media.signals import twitch_clips, twitch_vods
+
+    try:
+        vods = twitch_vods(args.login, limit=40)
+        clips = twitch_clips(args.login, "LAST_MONTH" if args.days > 7 else "LAST_WEEK")
+    except Exception as exc:  # network down / the unofficial endpoint changed
+        raise SystemExit(f"twitch lookup failed: {exc}")
+    cutoff = datetime.now(timezone.utc) - timedelta(days=args.days)
+    shown = 0
+    for v in vods:
+        try:
+            when = datetime.fromisoformat(v["created_at"].replace("Z", "+00:00"))
+        except ValueError:
+            when = None
+        if when and when < cutoff:
+            continue
+        shown += 1
+        mine = sorted((c for c in clips if c["vod_id"] == v["id"]), key=lambda c: -c["views"])
+        flag = "  <== GTA" if GTA_WORDS.search(v["title"]) else ""
+        stamp = f"{when:%Y-%m-%d %H:%M}Z  " if when else ""
+        print(f"{v['id']}  {stamp}{fmt_hms(v['length_s'])}  {v['views']:,} views  {v['title'][:70]}{flag}")
+        print(f"    viewer clips: {len(mine)}")
+        for c in mine[:3]:
+            print(f"      {fmt_hms(c['start_s'])}  {c['views']:,} views  {c['title'][:60]}")
+        print(f"    https://www.twitch.tv/videos/{v['id']}")
+    if not shown:
+        print(f"no past broadcasts of {args.login} in the last {args.days} days")
 
 
 def cmd_run(args) -> None:
@@ -416,7 +623,7 @@ def _debug_frames(ax, clip_id: int, path: Path, times: list[float], out: Path) -
     measured = measure_cam_faces(str(path), stack_seams(plan, src, cfg.width, cfg.height), out / "cam")
     issues = layout_lint(plan, c["brief"], words=Timeline(plan["segments"]).map_words(c["words"]), width=cfg.width,
                          height=cfg.height, platform=cfg.platform, fonts_dir=cfg.fonts_dir, src_size=src, debug=dbg,
-                         measured_faces=measured)
+                         measured_faces=measured, video_path=str(path))
     for i in issues:
         print(f"  [{i['severity']}] {i['id']}: {i['description'][:140]}")
     frames = extract_frames(path, times, out, width=cfg.width)
@@ -461,7 +668,8 @@ def cmd_plan(args) -> None:
     plan = conform(json.loads(Path(args.set).read_text(encoding="utf-8")), EDIT_PLAN)
     if args.moment:  # a human editor may re-cut the moment itself; plans are clamped to it
         a, _, b = args.moment.partition("-")
-        moment = dict(c["moment"], start_s=float(a), end_s=float(b))
+        moment = dict(c["moment"], start_s=float(a), end_s=float(b), structure="linear",
+                      parts=[{"start_s": float(a), "end_s": float(b), "role": "build", "label": ""}])
         ax.store.update_job(job["id"], input=dict(job["input"], moment=moment))
         c["moment"] = moment
     prep = ag.editor.prepare(job, c["source"], c["moment"], c["transcript"], c["blueprint"], c["source_info"])
@@ -518,8 +726,47 @@ def register(sub: argparse._SubParsersAction) -> None:
     p.add_argument("--clips", type=int)
     p.add_argument("--ref", action="append", help="reference clip (repeatable)")
     p.add_argument("--own", action="store_true", help="your own content (no campaign needed)")
+    p.add_argument("--internal-test", action="store_true",
+                   help="render for your review only while the campaign's permission is missing: clips can "
+                        "never be delivered or published until real terms grant permission")
     p.add_argument("--notes")
+    p.add_argument("--vod-url", help="the Twitch VOD / YouTube page this file came from (chat, viewer clips, "
+                                      "most-replayed are read from it)")
+    p.add_argument("--vod-offset", type=_hms, default=0.0,
+                   help="where this file starts inside that VOD (HH:MM:SS or seconds)")
+    p.add_argument("--vod-map", help="story pack: the *.vodmap.json (file second -> VOD second per piece) that "
+                                     "`noze agency scan` wrote next to the pack; replaces --vod-offset")
+    p.add_argument("--moments", help="story pack: the *.moments.json the scan wrote (its picked moments, VOD "
+                                     "seconds) — used first, so a found cross-period arc is not re-mined away")
     p.set_defaults(func=cmd_submit)
+
+    p = s.add_parser("scan", help="scan a whole stream window from its AUDIO only, then download just the pieces "
+                                  "the best story clips need (story pack)")
+    p.add_argument("url", help="Twitch VOD / YouTube link")
+    p.add_argument("--from", dest="from_", type=_hms, default=0.0, help="window start, HH:MM:SS (default 0)")
+    p.add_argument("--to", type=_hms, required=True, help="window end, HH:MM:SS")
+    p.add_argument("--campaign", required=True)
+    p.add_argument("--clips", type=int, default=3)
+    p.add_argument("--min-gap", type=float, default=600.0,
+                   help="seconds between setup and payoff for a cross-period arc (default 600)")
+    p.add_argument("--max-hours", type=float, default=8.0, help="refuse a window longer than this (disk guard)")
+    p.add_argument("--workers", type=int, default=8)
+    p.add_argument("-o", "--output", help="where to write the pack mp4 (default: next to the scan cache)")
+    p.add_argument("--dry-run", action="store_true", help="show the candidates + download size, fetch no video")
+    p.set_defaults(func=cmd_scan)
+
+    p = s.add_parser("fetch", help="download just a section of a long VOD, fast (Twitch segments in parallel)")
+    p.add_argument("url")
+    p.add_argument("--from", dest="from_", type=_hms, default=0.0, help="start, HH:MM:SS (default 0)")
+    p.add_argument("--to", type=_hms, required=True, help="end, HH:MM:SS")
+    p.add_argument("-o", "--output")
+    p.add_argument("--workers", type=int, default=8)
+    p.set_defaults(func=cmd_fetch)
+
+    p = s.add_parser("vods", help="latest Twitch VODs of a channel + their top viewer clips (find the GTA stream)")
+    p.add_argument("login")
+    p.add_argument("--days", type=int, default=7)
+    p.set_defaults(func=cmd_vods)
 
     p = s.add_parser("run", help="process the queue (until idle, or --forever)")
     p.add_argument("--forever", action="store_true")

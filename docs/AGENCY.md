@@ -82,6 +82,40 @@ Plan yang kamu set tetap lewat poka-yoke (watermark, disclosure, CTA, layout tek
 
 Hasil akhir ada di `noze-data/agency/deliveries/<campaign>/<tanggal>/`: video `.mp4`, file `.txt` berisi caption, hashtag, dan link submit, plus laporan per clip.
 
+## Cerita, emosi, dan sinyal "rame" (upgrade 23 Nov 2026)
+
+**Momen = cerita, bukan potongan.** Satu momen sekarang punya `parts` (urutan putar, boleh lompat mundur/maju di
+sumber), `structure` (`linear`, `cold_open` = payoff dulu lalu rewind, `arc` = setup/foreshadow → payoff jauh
+kemudian, `montage` = running gag lintas periode), `emotion`, dan `story` satu kalimat. Label kartu time-jump
+("40 MIN LATER") **selalu dihitung kode dari gap asli** ([`story.py`](../noze/agency/story.py)); time_card yang
+bohong diganti atau jadi isu `story:label_mismatch`.
+
+**Sinyal terukur** ([`media/signals.py`](../noze/agency/media/signals.py), saat ingest, semua opsional, gagal = catatan):
+chat replay Twitch (GQL publik tak resmi, bisa pecah) & YouTube, klip buatan penonton (sinyal crowd terkuat),
+heatmap "most replayed" YouTube, YAMNet ONNX lokal (tawa, sorak, teriak, **musik** = risiko Content ID), loudness.
+Jadi kurva heat per 2 dtk + puncak. Analyst: pass-1 *beat index* per chunk (transkrip dianotasi heat), pass-2
+*story composer* membaca seluruh stream sekaligus. Kode memverifikasi quote ada di transkrip dan setup–payoff
+benar-benar nyambung; yang gagal dibuang.
+
+**Editing mengikuti emosi.** `standards.VIBES` = palet per emosi (warna, transisi, zoom, shake, SFX, musik, hold,
+fx). Alat baru di EDL: transisi `rewind` (VHS) & `glitch`, `look` per segmen (flashback/vhs/noir/dream),
+`hold` (freeze frame reaksi: zoom/polaroid/bw), zoom ke titik (`fx/fy`), band gameplay stack bisa di-zoom/geser
+(`reframe.scale/y`), `fx` (vignette/grain/letterbox), `music.drop_at` (musik putus sebelum payoff), overlay
+`time_card` & `callout` (lingkaran + panah), style `stamp`/`glitch`, 6 SFX sintesis baru. Cek mesin baru di
+`qc.story_lint`: label jujur, frame 0 ada hook, flash ≤3/dtk, efek berulang, kepadatan SFX, palet vs vibe, ending
+fade. Reviewer menilai `story` & `emotion`; < 6 = gagal walau teknis bersih.
+
+**Tim lebih hemat & cepat.** Klip diproses paralel (`AGENCY_PARALLEL`, default 3). ACC manager untuk klip yang sudah
+lolos reviewer = kursi "approver" (Sonnet, tanpa frame); eskalasi tetap Opus + frame.
+
+**Alat cepat buat campaign stream (GTA VI dll):**
+```bash
+noze agency vods kaicenat --days 7                       # VOD terbaru + klip penonton teratas per VOD
+noze agency fetch https://www.twitch.tv/videos/<id> --from 08:08:00 --to 08:40:00 -o sumber.mp4   # potongan cepat, diverifikasi
+noze agency submit sumber.mp4 --campaign <nama> --vod-url https://www.twitch.tv/videos/<id> --vod-offset 08:08:00
+noze agency submit sumber.mp4 --campaign <nama> --internal-test   # syarat belum ada: render buat dinilai, TIDAK PERNAH dikirim/diposting
+```
+
 ## Siapa mengerjakan apa
 
 Setiap role punya tiga lapis, dari yang paling kaku sampai paling cair:

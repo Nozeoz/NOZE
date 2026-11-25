@@ -34,6 +34,8 @@ import httpx
 
 from .context import AgencyContext
 from .roles.editor import comply_post
+from .schemas import BRIEF, conform
+from .standards import clean_post_text
 
 log = logging.getLogger("noze.agency.publish")
 
@@ -71,7 +73,7 @@ class Publisher:
         video = folder / f"{base}.mp4"
         shutil.copyfile(render, video)
         caption_file = folder / f"{base}.txt"
-        lines = [post.get("title") or job.get("title") or "", "", post_text(post)]
+        lines = [post.get("title") or clean_post_text(job.get("title") or ""), "", post_text(post)]
         submit = ((brief.get("submission") or {}).get("url") or "")
         if submit:
             lines += ["", f"Submit the posted link at: {submit}"]
@@ -101,13 +103,22 @@ class Publisher:
         job = self.store.get_job(job_id)
         if not job:
             raise ValueError(f"no job {job_id}")
+        parent = self.store.get_job(job["parent_id"]) if job.get("parent_id") else job
+        camp = self.store.get_campaign(job["campaign_id"]) if job.get("campaign_id") else None
+        pinp = (parent or {}).get("input") or {}
+        if pinp.get("internal_test") and not pinp.get("own_content") and \
+                not ((camp or {}).get("brief", {}).get("permission") or {}).get("granted"):
+            raise ValueError("internal test without campaign permission — paste the real campaign terms first")
         data = job.get("data") or {}
         video = video or Path(data.get("final_path") or data.get("render_path") or "")
         if not video.exists():
             raise ValueError("clip has no rendered file yet")
         plan = (self.store.artifact(job_id, "plan") or {}).get("data") or {}
-        post = post or {**(plan.get("post") or {}), **{k: v for k, v in (data.get("post") or {}).items() if v}}
-        title = (post.get("title") or job.get("title") or "clip")[:95]
+        if post is None:  # `noze agency publish` path: same cleaning and brief rules as at delivery
+            post = {**(plan.get("post") or {}), **{k: v for k, v in (data.get("post") or {}).items() if v}}
+            camp = self.store.get_campaign(job["campaign_id"]) if job.get("campaign_id") else None
+            post = comply_post(post, conform((camp or {}).get("brief") or {}, BRIEF), job.get("title") or "")
+        title = (post.get("title") or clean_post_text(job.get("title") or "") or "clip")[:95]
         if target == "rclone":
             info = self._rclone(folder or video.parent)
         elif target == "webhook":

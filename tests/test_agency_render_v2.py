@@ -48,16 +48,19 @@ def test_hook_title_is_two_tier_accented_tilted_with_a_shadow_not_a_box():
     small, key = fs_of(body)
     assert small[0] >= 60 and key[0] >= 150 and key[1] == "INSANE" and small[1] == "Why this clip is"
     assert key[0] * 0.571 >= 105  # Anton cap ratio 0.571 of the font px: the key word's cap is ≥ 105 px
-    assert f"\\fs{key[0]}\\1c{YELLOW}" in body and f"\\fs{small[0]}\\1c{WHITE}" in body  # accent only on the key word
-    assert "\\frz-3" in body and "\\shad" in body and "\\4c" in body
-    assert doc.styles["Title"].border_style == 1 and box_pad(doc.styles["Title"]) == 0  # no opaque box
+    block = dialogue(doc, "TitleBlock")  # CP1: the accent is a solid block behind the key word, dark ink on top
+    assert f"\\fs{key[0]}\\1c&H141414&" in body and f"\\fs{small[0]}\\1c{WHITE}" in body
+    assert block.count(f"\\3c{YELLOW}") == 1 and f"\\fs{key[0]}" in block  # accent only on the key word's block
+    assert "\\frz-4" in body and "\\shad" in body and "\\4c" in body
+    assert doc.styles["Title"].border_style == 1 and box_pad(doc.styles["Title"]) == 0  # the text itself has no box
+    assert doc.styles["TitleBlock"].border_style == 3
     assert doc.styles["Title"].font == "Anton"
 
 
 def test_title_accent_follows_the_caption_highlight_colour():
     doc = make_doc()
     build_overlays(doc, [ov("hook_title", "ONE WORD")], "tiktok", 10, accent="#FF3B3B")
-    assert "\\1c&H3B3BFF&" in dialogue(doc, "Title")  # #FF3B3B → BGR
+    assert "\\3c&H3B3BFF&" in dialogue(doc, "TitleBlock")  # #FF3B3B → BGR, on the block behind the key word
 
 
 def test_hook_title_without_emphasis_makes_the_last_word_the_emphasis():
@@ -77,7 +80,8 @@ def test_punch_title_example_left_one_vs_right_one():
     assert [" ".join(ln) for ln in ev.lines] == ["LEFT ONE", "> right one"]  # reading order: big first, small after
     assert ev.sizes[0] >= 180 and ev.sizes[1] >= 64
     build_overlays(doc, [ov("punch_title", "LEFT ONE > right one", 5, 7, emphasis="LEFT ONE")], "tiktok", 12)
-    assert "\\frz-3" in dialogue(doc, "Title") and YELLOW in dialogue(doc, "Title")
+    body = dialogue(doc, "Title")  # a punch title is a stamp (red, -8°), not the hook's yellow block
+    assert "\\frz-8" in body and "&H2B2BE8&" in body and not any(e[3] == "TitleBlock" for e in doc.events)
 
 
 def test_long_emphasis_shrinks_but_never_below_the_floor():

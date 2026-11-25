@@ -113,7 +113,7 @@ class ScriptedClaude:
                                     "description": "Hook title arrives late", "fix": "show it from 0.0s"}],
                         "resolved_previous": [], "used_lessons": []}
             prev = re.findall(r'"id": "(creative:[^"]+)"', text)
-            return {"scores": {"overall": 8.6}, "summary": "clean", "issues": [],
+            return {"scores": {"overall": 8.6, "story": 8, "emotion": 8}, "summary": "clean", "issues": [],
                     "resolved_previous": [{"issue_id": i, "resolved": True, "note": "fixed"} for i in prev],
                     "used_lessons": []}
         if schema is APPROVAL:
@@ -149,7 +149,10 @@ def test_scripted_studio_runs_the_full_loop(tmp_path, source):
     editor_sys = by_role["editor"][0]["system"]
     assert "Senior Editor" in editor_sys and "Put the payoff line on screen" in editor_sys
     assert "House standards" in editor_sys and "Safe zone" in editor_sys
-    assert by_role["reviewer"][0]["images"] >= 1 and by_role["manager"][-1]["images"] >= 1
+    assert by_role["reviewer"][0]["images"] >= 1
+    # the ACC of a passed clip is the cheap "approver" seat: manager SOP, no frames (the reviewer judged them)
+    assert by_role["approver"] and by_role["approver"][-1]["images"] == 0
+    assert "Studio Manager" in by_role["approver"][-1]["system"]
     assert by_role["analyst"] and any("Measured facts" in c["text"] for c in by_role["analyst"])
     assert "Hook title arrives late" in by_role["editor"][1]["text"]  # the revision saw the pointed note
 

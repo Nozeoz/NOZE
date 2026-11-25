@@ -25,8 +25,10 @@ class Role:
 
     def ask(self, job: dict[str, Any] | None, task: str, schema: dict[str, Any], *,
             images: list[str] | None = None, campaign: dict[str, Any] | None = None,
-            max_tokens: int = 16000) -> dict[str, Any] | None:
-        """One structured Claude call for this role, or None (caller uses its heuristic)."""
+            max_tokens: int = 16000, as_role: str | None = None) -> dict[str, Any] | None:
+        """One structured Claude call for this role, or None (caller uses its heuristic).
+        ``as_role`` bills/models the call as another seat (e.g. the manager's cheap "approver" pass)
+        while keeping this role's SOP and playbook."""
         if not self.ax.llm.available:
             return None
         canary = bool(job and job.get("canary"))
@@ -37,7 +39,7 @@ class Role:
             root = job.get("parent_id") or job["id"]
             budget_ids = [root] + [c["id"] for c in self.store.list_jobs(parent_id=root, limit=500)]
         try:
-            out = self.ax.llm.json(self.name, system, content, schema, job_id=job["id"] if job else None,
+            out = self.ax.llm.json(as_role or self.name, system, content, schema, job_id=job["id"] if job else None,
                                    budget_job_ids=budget_ids, max_tokens=max_tokens)
         except LLMError as exc:
             self.store.log(job["id"] if job else None, self.name, "llm_fallback", str(exc)[:500])

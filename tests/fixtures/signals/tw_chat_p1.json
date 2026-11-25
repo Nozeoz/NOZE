@@ -1,0 +1,5 @@
+[{"data": {"video": {"id": "999", "comments": {"edges": [
+  {"cursor": "c1", "node": {"id": "a1", "contentOffsetSeconds": 100, "message": {"fragments": [{"text": "hello chat"}]}}},
+  {"cursor": "c2", "node": {"id": "a2", "contentOffsetSeconds": 101, "message": {"fragments": [{"text": "KEKW"}, {"text": " that was "}, {"text": "OMEGALUL"}]}}},
+  {"cursor": "c3", "node": {"id": "a3", "contentOffsetSeconds": 102, "message": {"fragments": [{"text": "   "}]}}}
+], "pageInfo": {"hasNextPage": true}}}}}]

@@ -38,6 +38,12 @@ class Scout(Role):
         folders = [ref_root]
         if campaign:
             folders = [ref_root / campaign["name"], ref_root / (campaign.get("creator") or "_"), ref_root]
+            # a topic library (references/gta6/) serves every campaign that names the topic
+            about = " ".join(str(x or "") for x in (campaign["name"], campaign.get("creator"), brief.get("niche"),
+                                                     brief.get("campaign_name"))).lower()
+            if ref_root.is_dir():
+                folders[2:2] = [d for d in sorted(ref_root.iterdir())
+                                if d.is_dir() and d not in folders and d.name.lower() in about]
         for folder in folders:
             if folder.is_dir():
                 for p in sorted(folder.iterdir()):
